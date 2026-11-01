@@ -10,12 +10,13 @@ Fuentes: [`REQUIREMENTS.md`](./REQUIREMENTS.md) · [`LEDGER.md`](./LEDGER.md) ·
 
 | Campo | Valor |
 |---|---|
-| Commit base de upstream | `6f7edd31d109b7f0211d637e2d084724f6dd8e26` |
-| Release | `@ericrisco/rsc@3.7.1`, 2026-10-31 20:42 UTC |
+| Commit **auditado** | `6f7edd31d109b7f0211d637e2d084724f6dd8e26` — `@ericrisco/rsc@3.7.1` |
+| Commit **base de trabajo** | `481b1ec9` — `@ericrisco/rsc@3.7.4`, integrado el 2026-11-01 |
+| Por qué la auditoría sigue valiendo | `skills/` es **byte-idéntico** entre ambos (274 directorios, diff vacío). Los 6 commits intermedios tocan 9 archivos de código del arnés, ninguno del catálogo. `.gitignore` sin cambios; R6 persiste idéntico en el `release.yml` nuevo, sólo movido de línea |
 | Carpeta de trabajo | `/Users/home/Development/rsc-harness-fork` |
 | Catálogo | **274 skills**, 1 679 archivos, 11,55 MiB, 100 % con `evals/cases.yaml` |
 | Asistentes en `SPEC` | **18** |
-| Suite de tests | **1 537 tests, 2 h 16 m 55 s**, sin fallos imputables a upstream |
+| Suite de tests | **1 537 tests, 2 h 16 m 55 s** en 3.7.1, sin fallos imputables a upstream. **Se re-mide sobre 3.7.4**, que añade `tests/memory-hook-cost.test.js` |
 
 La auditoría se hizo en cinco frentes con revisión independiente de dos fases (§12): cuatro tracks de autoría más un revisor que redactó su Fase 1 sin ver ninguna conclusión ajena. El revisor corrigió a los cuatro tracks y al coordinador; el coordinador corrigió al revisor en un punto (R8). Todo queda trazado en el ledger separando **hecho comprobado por ejecución**, **inferencia por lectura** y **no verificado**.
 
