@@ -43,7 +43,11 @@ The preamble body is delimited by:
 <!-- rsc-governance:end -->
 ```
 
-Markers, not position. Re-running the transformation **replaces** the block between markers rather than appending, which is what makes it idempotent.
+Markers, not position. Re-running the transformation **replaces** the block between markers rather than appending, which is what makes it idempotent. Verified: the whole catalog transformed twice is byte-identical after the second pass, with no skill carrying two blocks.
+
+**The body is the only channel that reaches every assistant, and the keys are therefore redundant.** Measured: `targets/cursor.js:7` replaces the entire frontmatter with `description` + `alwaysApply` (`stripFrontmatter` at `:28-30`), so the `.mdc` Cursor receives does not contain these keys even though the base does; `_md-block.js:28,73-74` drops them on the always-on surface too. Nothing a reader needs to know may live only in the frontmatter. The keys serve the conformance validator and the maintenance machine; the block in the body serves the model.
+
+**One skill is excluded by design: `suggest`.** It *is* the always-on body — 7,280 bytes against three separate ceilings (`tests/always-on-body.test.js:16`, `tests/clone-bootstrap.test.js:350`, `tests/ftd-lane.test.js:57-58`), leaving 2 bytes of headroom. Injecting the preamble breaks two of the three, and the ceilings are right to exist: the block would land on the always-on surface and be paid on **every turn** by 17 assistants. `suggest` is covered by a dedicated always-on artifact instead. The exclusion is declared, tested and reported — never silent.
 
 ---
 
@@ -64,6 +68,8 @@ One file per skill, named by the official skill identifier. `02-DOCS` is the doc
 3. Follow its references when they are relevant.
 4. Apply its decisions **within the scope it declares**.
 5. If it does not exist, use the original skill with no project-specific adjustment.
+
+**Measured limitation on step 3.** Every path this contract or a customization cites must be **anchored at the project root**, never relative to the file citing it. In Cursor, a skill's own auxiliary files exist in the project but cannot be reached by a relative path from the rule file Cursor actually reads — 79 skills link that way today and those links are broken there. The customization path in this contract is root-anchored and survives in all five target assistants; "consult its references" is, for a skill's own references under Cursor, **structurally impossible** and is declared as a limit rather than promised.
 
 **Absence is valid.** Do not create an empty file. Do not ask the user a question whose only subject is the absence. This does not suppress any question the task or the skill itself requires.
 
@@ -182,7 +188,7 @@ Requirement §6 demands all four be considered. They are not equally supported, 
 | Path | How the contract reaches it |
 |---|---|
 | **Explicit invocation** | The preamble is in the `SKILL.md` the assistant loads |
-| **Automatic selection** | Same, *if* the assistant selects skills automatically. The audit found automatic selection absent in 16 of 18 targets — so for most, selection is user-driven and this path is largely theoretical |
+| **Automatic selection** | Measured per assistant: native in **claude** and **deepseek**; **blind** in cursor, where the mechanism exists but the skill description is truncated to about 5% of itself (`cursor.js:7`); **absent** in codex and antigravity, where nothing even tells the assistant where the skills are. For three of the five this path is not available today |
 | **Reference from another skill** | The referenced skill carries its own preamble, so governance travels with it rather than with the caller |
 | **Internal flows** | Covered only where the flow loads a `SKILL.md`. A flow that reads a skill's `references/` directly bypasses the preamble — a residual limitation to be measured, not assumed away |
 
@@ -192,8 +198,23 @@ Requirement §6 demands all four be considered. They are not equally supported, 
 
 Requirement §6 requires these documented **separately**. Filling the first table needs the per-assistant enforcement evidence now being gathered; what is already certain is the shape.
 
-**Guaranteed by code** — a guard denies the action; no model judgement involved.
-> Pending the per-assistant verification. The audit's finding is that of the targets with any code-level enforcement, exactly **one** is wired today with the ability to deny. The honest expectation is that this table is **short**, and that for most assistants governance is advisory. It will list, per assistant, what is denied and by what mechanism.
+**Guaranteed by code** — a guard denies the action; no model judgement involved. Measured by installing the harness for each assistant and running the guards:
+
+| Assistant | Denies today? | Mechanism |
+|---|---|---|
+| **claude** | **Yes, conditionally** | Four `PreToolUse` entries (`targets/claude.js:191,206,222,300`); guards return `permissionDecision: "deny"`. **Only where `rsc sync` has run.** In a fresh clone no guard exists — `.rsc/` is gitignored — and the bootstrap returns context only, by design: *"informing someone is not denying them"* (`clone-bootstrap.mjs:371-374`) |
+| **codex** | No | Generated hooks carry no `PreToolUse` |
+| **cursor** | No | Only `beforeSubmitPrompt`, which is pre-turn, not pre-tool |
+| **antigravity** | No | No hooks file is generated at all |
+| **deepseek** | No, but the machinery works | Wiring a `PreToolUse` by hand makes the bridge return `{"decision":"block"}` (`targets/deepseek-bridge.mjs:67-69,77`) |
+
+Two findings bound this table further, and both are load-bearing:
+
+> **Skill application is not an observable event.** The only tool matchers in the repository are `Bash` and `Edit|Write|MultiEdit|NotebookEdit`; `Skill` appears as neither a tool nor a matcher anywhere in `scripts/`, `targets/` or `tests/`. **No clause of this contract can be enforced at the moment a skill is applied, on any assistant.** What code can deny is a tool call, which is a different event.
+
+> **The guard can be removed by the project it guards.** `.claude/settings.json` travels in Git and is not covered by the generated `.gitignore`, so the hook entry can be deleted in a commit.
+
+**Therefore nothing in this contract depends on denial.** Where denial exists it is reinforcement; where it does not, governance is text the model may ignore — which is measured, not promised.
 
 **Dependent on the model** — the preamble instructs; nothing forces.
 - Reading the customization before applying the skill.
@@ -219,3 +240,5 @@ What happens when a piece is missing, stated so that failure is predictable rath
 | `02-DOCS/` entirely | No customizations exist. Apply originals. This is the valid absent case, not an error |
 | The constitution | Per-skill customizations still apply within their scope. Say that no ratified general decision exists |
 | A customization's linked auxiliary document | Report the broken link. The README's own decisions still apply |
+| The `suggest` skill, which carries no inline preamble | Expected, not a defect. It is covered by the dedicated always-on artifact. If that artifact is also absent, say governance is not installed rather than inferring it |
+| The hook entry in `.claude/settings.json`, deleted in a commit | Governance degrades to advisory on that assistant. Report it; do not restore it silently, because someone committed that deletion |
