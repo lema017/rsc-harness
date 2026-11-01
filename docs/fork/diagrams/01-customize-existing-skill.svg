@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="850" viewBox="0 0 1240 850" role="img" aria-labelledby="t d">
+<title id="t">Customizing an existing skill</title>
+<desc id="d">Four lanes. First, the fork package is installed and writes a governed SKILL.md carrying a governance preamble, which is linked into five assistants. Second, the project owner writes a customization at 02-DOCS/wiki/skills/&lt;name&gt;/README.md and commits it; its absence is valid. Third, before the skill acts it checks that standard path: present and valid means read and apply within the documented scope, absent means use the original skill unchanged, and unreadable or contradictory means surface it and ask rather than treat it as absent. Fourth, the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code.</desc>
+<style>
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+.h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
+.h2 { font-size: 13.5px; fill: #475569; }
+.band { font-size: 11.5px; font-weight: 700; fill: #64748b; letter-spacing: .09em; }
+.t { font-size: 14px; font-weight: 600; fill: #0f172a; }
+.d { font-size: 12px; fill: #475569; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; fill: #0f172a; }
+.foot { font-size: 11px; fill: #94a3b8; }
+</style>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker></defs>
+<rect width="1240" height="850" fill="#ffffff"/>
+<text class="h1" x="40" y="46">Customizing an existing skill</text>
+<text class="h2" x="40" y="70">The fork never hand-edits upstream sources. The project owns its decisions, and absence of a decision is a valid answer.</text>
+
+<rect x="40" y="92" width="1160" height="148" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="118">1 · DISTRIBUTION — HOW THE GOVERNED SKILL REACHES THE PROJECT</text>
+<rect x="56" y="140" width="215" height="78" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="70" y="164">Fork package</text>
+<text class="code" x="70" y="184">@lema017/rsc-governed</text>
+<text class="d" x="70" y="203">generated, never hand-edited</text>
+<rect x="301" y="140" width="175" height="78" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="315" y="164">Install</text>
+<text class="code" x="315" y="184">rscg install</text>
+<text class="d" x="315" y="203">transformer output</text>
+<rect x="506" y="140" width="300" height="78" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="code" x="520" y="162">.rsc/skills/&lt;id&gt;/SKILL.md</text>
+<text class="d" x="520" y="181">governance preamble, paid on load, not per turn</text>
+<text class="d" x="520" y="196">own frontmatter key (schema is open)</text>
+<text class="d" x="520" y="211">pointer to the full contract under .rsc/</text>
+<rect x="836" y="140" width="348" height="78" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+<text class="t" x="850" y="164">5 assistants</text>
+<text class="d" x="850" y="183">claude · codex · cursor · deepseek · antigravity</text>
+<text class="d" x="850" y="198">relative symlink, real copy on Windows</text>
+<text class="d" x="850" y="213">cursor receives SKILL.md only — no references/</text>
+<path d="M271,179 L297,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M476,179 L502,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M806,179 L832,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="256" width="1160" height="144" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="282">2 · AUTHORING — THE CUSTOMIZATION BELONGS TO THE PROJECT</text>
+<rect x="56" y="300" width="215" height="78" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="70" y="325">Project owner</text>
+<text class="d" x="70" y="344">or the agent, guided</text>
+<text class="d" x="70" y="359">by the skill itself</text>
+<rect x="301" y="300" width="360" height="78" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="315" y="324">Writes the customization</text>
+<text class="code" x="315" y="344">02-DOCS/wiki/skills/&lt;official-name&gt;/README.md</text>
+<text class="d" x="315" y="363">fixed path — the audit proved the root is not configurable</text>
+<rect x="691" y="300" width="230" height="78" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="705" y="325">Committed to Git</text>
+<text class="d" x="705" y="344">it belongs to the project,</text>
+<text class="d" x="705" y="359">not to the harness</text>
+<rect x="951" y="300" width="233" height="78" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text class="t" x="965" y="325">Absence is valid</text>
+<text class="d" x="965" y="344">no empty file is created and</text>
+<text class="d" x="965" y="359">no question is asked for it</text>
+<path d="M271,339 L297,339" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M661,339 L687,339" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M921,339 L947,339" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="416" width="1160" height="260" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="442">3 · EXECUTION — WHAT THE SKILL DOES BEFORE IT ACTS</text>
+<rect x="56" y="508" width="200" height="76" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+<text class="t" x="70" y="532">A skill is applied</text>
+<text class="d" x="70" y="551">the governed SKILL.md</text>
+<text class="d" x="70" y="566">is loaded from .rsc/</text>
+<rect x="276" y="508" width="200" height="76" rx="8" fill="#ffffff" stroke="#6366f1" stroke-dasharray="5 3"/>
+<text class="t" x="290" y="532">Discovery step</text>
+<text class="d" x="290" y="551">look up the standard</text>
+<text class="d" x="290" y="566">path for this skill</text>
+<path d="M256,546 L272,546" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M376,378 L376,504" stroke="#d97706" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+<rect x="540" y="450" width="644" height="62" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="556" y="472">Present and valid</text>
+<text class="d" x="556" y="491">read it before applying the skill, consult its references when pertinent, and apply its</text>
+<text class="d" x="556" y="506">decisions within the scope they document — module, package or subproject</text>
+<rect x="540" y="524" width="644" height="44" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+<text class="t" x="556" y="546">Absent</text>
+<text class="d" x="556" y="562">use the original skill content, unchanged — this is the normal case, not a failure</text>
+<rect x="540" y="580" width="644" height="62" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+<text class="t" x="556" y="602">Present but unreadable, invalid or contradictory</text>
+<text class="d" x="556" y="621">surface it and ask. It is never silently treated as absent, because that would apply the</text>
+<text class="d" x="556" y="636">original skill while the project believes its own decision is in force</text>
+<path d="M476,546 L532,481" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M476,546 L532,546" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M476,546 L532,611" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="692" width="1160" height="128" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="718">4 · WHAT IS GUARANTEED, AND BY WHAT</text>
+<rect x="56" y="736" width="560" height="72" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="70" y="759">Customizations survive — guaranteed by code</text>
+<text class="d" x="70" y="778">install · sync · repair · update · clean clone. The standard path is excluded from</text>
+<text class="d" x="70" y="793">knowledge-sync's write path, with a negative test that fails if the exclusion disappears.</text>
+<rect x="646" y="736" width="538" height="72" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="660" y="759">Enforcement — stated honestly, not promised</text>
+<text class="d" x="660" y="778">Code-enforced today on Claude Code only. The fork will try to wire codex, cursor</text>
+<text class="d" x="660" y="793">and deepseek; antigravity has no provider hook and stays instruction-only.</text>
+
+<text class="foot" x="40" y="838">docs/fork/diagrams/01-customize-existing-skill.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+</svg>

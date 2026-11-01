@@ -1,6 +1,7 @@
 name: release
 
-# Publishes rsc-universal to npm and forces a new version on every push to main.
+# Publishes the fork to npm. MANUAL ONLY (workflow_dispatch): the push-to-main trigger was
+# removed in the fork, so merging never publishes by itself.
 # Manual runs (workflow_dispatch) let you pick patch / minor / major. A PR that sets package.json
 # above the published version has chosen the number itself: that version is published as is.
 #
@@ -14,8 +15,6 @@ name: release
 # notes auto-generated from the commits/PRs since the previous tag.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       bump:
@@ -62,8 +61,8 @@ jobs:
       # --- bump version (auto-patch on push; chosen bump on manual run) ---------
       - name: Configure git identity
         run: |
-          git config user.name "Eric Risco"
-          git config user.email "erisco@icloud.com"
+          git config user.name "lema017"
+          git config user.email "lema017@users.noreply.github.com"
       # The registry is the source of truth for "what is already released". If a previous run
       # published and tagged but failed to push the bump commit back (main advanced under it),
       # package.json is left behind and every later run recomputes the SAME version, hits
@@ -71,7 +70,7 @@ jobs:
       # the pipeline self-healing instead.
       - name: Reconcile version with the registry
         run: |
-          PUBLISHED="$(npm view @ericrisco/rsc version 2>/dev/null || echo 0.0.0)"
+          PUBLISHED="$(npm view @lema017/rsc-governed version 2>/dev/null || echo 0.0.0)"
           LOCAL="$(node -p "require('./package.json').version")"
           HIGHEST="$(printf '%s\n%s\n' "$PUBLISHED" "$LOCAL" | sort -V | tail -1)"
           echo "published=$PUBLISHED local=$LOCAL highest=$HIGHEST"
@@ -87,7 +86,7 @@ jobs:
         id: bump
         run: |
           BUMP="${{ github.event.inputs.bump || 'patch' }}"
-          PUBLISHED="$(npm view @ericrisco/rsc version 2>/dev/null || echo 0.0.0)"
+          PUBLISHED="$(npm view @lema017/rsc-governed version 2>/dev/null || echo 0.0.0)"
           LOCAL="$(node -p "require('./package.json').version")"
           # A PR that set a version above the registry chose the number (a minor or major release
           # decided in review); publish it as is. Otherwise bump as always. Every gate above still

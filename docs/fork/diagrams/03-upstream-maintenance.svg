@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="t d">
+<title id="t">Updating the fork with upstream changes</title>
+<desc id="d">Three lanes describing manual maintenance. The user starts it by hand, monthly or when needed: the entry point queries upstream and stops if there is nothing new, prepares a branch or worktree, analyses impact, and merges into the pristine snapshot, which merges cleanly because governance does not live there. Then the transformer is re-run, deterministic validators check the full catalogue, semantic evaluations cover new and modified skills plus a seeded stratified sample, and evidence is produced. Finally, publication happens only with the authorization given for that run, consumers update themselves within the same major, and each project's customizations are never rewritten.</desc>
+<style>
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+.h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
+.h2 { font-size: 13.5px; fill: #475569; }
+.band { font-size: 11.5px; font-weight: 700; fill: #64748b; letter-spacing: .09em; }
+.t { font-size: 14px; font-weight: 600; fill: #0f172a; }
+.d { font-size: 12px; fill: #475569; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; fill: #0f172a; }
+.foot { font-size: 11px; fill: #94a3b8; }
+.warn { font-size: 12px; font-weight: 600; fill: #b91c1c; }
+</style>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker></defs>
+<rect width="1240" height="820" fill="#ffffff"/>
+<text class="h1" x="40" y="46">Updating the fork with upstream changes</text>
+<text class="h2" x="40" y="70">Started by hand, monthly or when needed. No permanent service and no scheduled job. Resumable: its state lives on disk and in Git, so an interrupted run continues where it stopped.</text>
+
+<rect x="40" y="92" width="1160" height="226" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="118">1 · INTEGRATE — THE SNAPSHOT STAYS A MIRROR OF UPSTREAM</text>
+<rect x="56" y="138" width="252" height="150" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="70" y="162">You start it</text>
+<text class="code" x="70" y="183">rscg upstream</text>
+<text class="d" x="70" y="204">One documented, reusable entry</text>
+<text class="d" x="70" y="219">point. It queries upstream and, if</text>
+<text class="d" x="70" y="234">there is nothing new, says so and</text>
+<text class="d" x="70" y="249">stops. Nothing runs on a timer.</text>
+<text class="d" x="70" y="270">Subcommand names fixed in stage 5.</text>
+<rect x="348" y="138" width="252" height="150" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="362" y="162">Isolate the work</text>
+<text class="d" x="362" y="183">A branch or worktree of its own,</text>
+<text class="d" x="362" y="198">so an abandoned run never leaves</text>
+<text class="d" x="362" y="213">the fork half-integrated.</text>
+<text class="d" x="362" y="234">Progress is written down as it</text>
+<text class="d" x="362" y="249">goes, which is what makes the</text>
+<text class="d" x="362" y="264">run resumable rather than</text>
+<text class="d" x="362" y="279">restartable.</text>
+<rect x="640" y="138" width="252" height="150" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+<text class="t" x="654" y="162">Analyse the impact</text>
+<text class="d" x="654" y="183">What is new, changed, renamed or</text>
+<text class="d" x="654" y="198">removed, and what it touches.</text>
+<text class="warn" x="654" y="222">A merge without textual</text>
+<text class="warn" x="654" y="237">conflicts is not proof of</text>
+<text class="warn" x="654" y="252">functional compatibility.</text>
+<text class="d" x="654" y="274">So it is never the stopping point.</text>
+<rect x="932" y="138" width="252" height="150" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+<text class="t" x="946" y="162">Merge the snapshot</text>
+<text class="d" x="946" y="183">Upstream merges into the pristine</text>
+<text class="d" x="946" y="198">tree. It lands clean because the</text>
+<text class="d" x="946" y="213">governance is not stored there —</text>
+<text class="d" x="946" y="228">this is the whole reason for the</text>
+<text class="d" x="946" y="243">chosen strategy.</text>
+<text class="d" x="946" y="264">Frozen vendored subtrees stay</text>
+<text class="d" x="946" y="279">byte-identical and hash-checked.</text>
+<path d="M308,213 L344,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M600,213 L636,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M892,213 L928,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="334" width="1160" height="226" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="360">2 · RE-APPLY GOVERNANCE AND PROVE IT STILL HOLDS</text>
+<path d="M182,292 L182,376" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="56" y="380" width="252" height="150" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="70" y="404">Re-run the transformer</text>
+<text class="d" x="70" y="425">The same deterministic function,</text>
+<text class="d" x="70" y="440">so skills that arrived in this</text>
+<text class="d" x="70" y="455">merge get the contract without</text>
+<text class="d" x="70" y="470">anyone remembering to add it.</text>
+<text class="d" x="70" y="491">Licences, metadata, references</text>
+<text class="d" x="70" y="506">and scripts are preserved, and</text>
+<text class="d" x="70" y="521">the identity rename is mechanical.</text>
+<rect x="348" y="380" width="252" height="150" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="362" y="404">Validate deterministically</text>
+<text class="d" x="362" y="425">Conformance over the whole</text>
+<text class="d" x="362" y="440">catalogue, not a sample.</text>
+<text class="d" x="362" y="461">Double run byte-identical.</text>
+<text class="d" x="362" y="480">Tarball licences intact.</text>
+<text class="d" x="362" y="499">Standard path still excluded.</text>
+<text class="d" x="362" y="518">No parent identity in output.</text>
+<rect x="640" y="380" width="252" height="150" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="654" y="404">Evaluate semantically</text>
+<text class="d" x="654" y="425">New and modified skills, plus a</text>
+<text class="d" x="654" y="440">stratified sample chosen from a</text>
+<text class="d" x="654" y="455">recorded seed so the selection is</text>
+<text class="d" x="654" y="470">reproducible.</text>
+<text class="d" x="654" y="491">Full suite takes 2 h 17 m, so CI</text>
+<text class="d" x="654" y="506">and maintenance use subsets by</text>
+<text class="d" x="654" y="521">impact; the full run gates release.</text>
+<rect x="932" y="380" width="252" height="150" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="946" y="404">Report and fix, bounded</text>
+<text class="d" x="946" y="425">Fixes only within the limits set</text>
+<text class="d" x="946" y="440">for that run. Anything outside</text>
+<text class="d" x="946" y="455">them is recorded, not improvised.</text>
+<text class="d" x="946" y="476">The run hands back evidence: what</text>
+<text class="d" x="946" y="491">changed, what passed, what is</text>
+<text class="d" x="946" y="506">still pending, and the upstream</text>
+<text class="d" x="946" y="521">commit it integrated.</text>
+<path d="M308,455 L344,455" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M600,455 L636,455" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M892,455 L928,455" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="576" width="1160" height="206" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="602">3 · PUBLISH, AND REACH THE PROJECTS WITHOUT TOUCHING THEIR DECISIONS</text>
+<path d="M182,534 L182,618" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="56" y="622" width="252" height="130" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="70" y="646">Publish on authorization</text>
+<text class="d" x="70" y="667">Only according to what this run</text>
+<text class="d" x="70" y="682">was authorized to do. A run may</text>
+<text class="d" x="70" y="697">integrate and validate without</text>
+<text class="d" x="70" y="712">publishing anything.</text>
+<text class="d" x="70" y="733">No skill reaches a stable release</text>
+<text class="d" x="70" y="748">without conformance.</text>
+<rect x="348" y="622" width="252" height="130" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="362" y="646">One channel</text>
+<text class="code" x="362" y="668">@lema017/rsc-governed</text>
+<text class="d" x="362" y="689">npm provenance, minimum</text>
+<text class="d" x="362" y="704">permissions, 2FA for human</text>
+<text class="d" x="362" y="719">access, trusted publishing where</text>
+<text class="d" x="362" y="734">compatible. Every limitation of</text>
+<text class="d" x="362" y="749">this setup is written down.</text>
+<rect x="640" y="622" width="252" height="130" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+<text class="t" x="654" y="646">Projects pick it up</text>
+<text class="d" x="654" y="667">Same major: automatic, activated</text>
+<text class="d" x="654" y="682">coherently next session.</text>
+<text class="d" x="654" y="701">New major: asks first.</text>
+<text class="d" x="654" y="720">Opt-out honoured.</text>
+<text class="d" x="654" y="741">Upstream is never installed.</text>
+<rect x="932" y="622" width="252" height="130" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="946" y="646">Decisions stay put</text>
+<text class="code" x="946" y="668">02-DOCS/wiki/skills/</text>
+<text class="d" x="946" y="689">An update refreshes the governed</text>
+<text class="d" x="946" y="704">skills, never the project's own</text>
+<text class="d" x="946" y="719">customizations. They are not</text>
+<text class="d" x="946" y="734">rewritten, moved or deleted — a</text>
+<text class="d" x="946" y="749">negative test enforces it.</text>
+<path d="M308,687 L344,687" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M600,687 L636,687" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M892,687 L928,687" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<text class="foot" x="40" y="806">docs/fork/diagrams/03-upstream-maintenance.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+</svg>

@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="t d">
+<title id="t">Adding a new skill</title>
+<desc id="d">Three lanes. The governed path runs left to right: a source, either a new skill arriving in the pristine upstream snapshot or one authored in the fork, goes through the transformer that injects the contract, then deterministic validators, then semantic evaluations; any critical failure blocks promotion, and no new skill reaches a stable release without conformance. The second lane publishes to npm and reaches consumers by same-major automatic update, activating next session with no partial states. The third lane states that the project's own skills are preserved and carry no governance claim, and that personal, global and plugin skill sources cannot be fully enumerated.</desc>
+<style>
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+.h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
+.h2 { font-size: 13.5px; fill: #475569; }
+.band { font-size: 11.5px; font-weight: 700; fill: #64748b; letter-spacing: .09em; }
+.t { font-size: 14px; font-weight: 600; fill: #0f172a; }
+.d { font-size: 12px; fill: #475569; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; fill: #0f172a; }
+.lbl { font-size: 11.5px; font-weight: 600; fill: #16a34a; }
+.foot { font-size: 11px; fill: #94a3b8; }
+</style>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+<marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#16a34a"/></marker>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker></defs>
+<rect width="1240" height="820" fill="#ffffff"/>
+<text class="h1" x="40" y="46">Adding a new skill</text>
+<text class="h2" x="40" y="70">Because governance is injected rather than hand-written, no skill can enter the catalogue without the contract. That is enforced by a gate, not by discipline.</text>
+
+<rect x="40" y="92" width="1160" height="330" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="118">1 · THE GOVERNED PATH — EVERY DISTRIBUTED SKILL GOES THROUGH IT</text>
+<rect x="56" y="138" width="252" height="140" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+<text class="t" x="70" y="162">Source</text>
+<text class="d" x="70" y="183">Either of two origins:</text>
+<text class="d" x="70" y="202">· a new skill from upstream,</text>
+<text class="d" x="70" y="217">  landing in the pristine snapshot</text>
+<text class="d" x="70" y="232">  byte-identical to its commit</text>
+<text class="d" x="70" y="251">· a skill authored in the fork,</text>
+<text class="d" x="70" y="266">  in a fork-owned source tree</text>
+<rect x="348" y="138" width="252" height="140" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="362" y="162">Transformer</text>
+<text class="d" x="362" y="183">Injects the governance preamble</text>
+<text class="d" x="362" y="198">and the frontmatter key into the</text>
+<text class="d" x="362" y="213">distributed SKILL.md.</text>
+<text class="d" x="362" y="234">Edits content in place — it never</text>
+<text class="d" x="362" y="249">moves or renames, so the 3,854</text>
+<text class="d" x="362" y="264">path references stay intact.</text>
+<rect x="640" y="138" width="252" height="140" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="654" y="162">Deterministic validators</text>
+<text class="d" x="654" y="183">· all 274 carry the contract</text>
+<text class="d" x="654" y="202">· idempotent: a second run is</text>
+<text class="d" x="654" y="217">  byte-identical</text>
+<text class="d" x="654" y="236">· licences and notices present</text>
+<text class="d" x="654" y="251">· frozen subtrees untouched</text>
+<text class="d" x="654" y="266">· no parent identity in output</text>
+<rect x="932" y="138" width="252" height="140" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<text class="t" x="946" y="162">Semantic evaluations</text>
+<text class="d" x="946" y="183">Every new or modified skill, with</text>
+<text class="d" x="946" y="198">rubrics and N=3 repetitions.</text>
+<text class="d" x="946" y="219">Runs on the session's own agents:</text>
+<text class="d" x="946" y="234">no API key, no external service,</text>
+<text class="d" x="946" y="249">nothing leaves the machine.</text>
+<text class="d" x="946" y="268">Budget: ~600 runs.</text>
+<path d="M308,208 L344,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M600,208 L636,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M892,208 L928,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="348" y="320" width="836" height="76" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+<text class="t" x="362" y="343">The gate — a critical failure blocks promotion</text>
+<text class="d" x="362" y="363">No new skill reaches a stable release without conformance. If the budget falls short, the pending coverage is recorded as pending:</text>
+<text class="d" x="362" y="378">thresholds are not lowered, the limit is not exceeded, and nothing unverified is marked as approved.</text>
+<path d="M766,282 L766,316" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr)"/>
+<path d="M1058,282 L1058,316" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<rect x="40" y="438" width="1160" height="186" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="464">2 · RELEASE AND CONSUMER UPDATE</text>
+<path d="M182,402 L182,480" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arg)"/>
+<text class="lbl" x="196" y="446">all gates passed</text>
+<rect x="56" y="484" width="252" height="120" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="70" y="508">Publish</text>
+<text class="d" x="70" y="529">Version bump and npm publish</text>
+<text class="d" x="70" y="544">with provenance, minimum</text>
+<text class="d" x="70" y="559">workflow permissions and 2FA</text>
+<text class="d" x="70" y="574">for human access. Never on a</text>
+<text class="d" x="70" y="589">plain push to main.</text>
+<rect x="348" y="484" width="252" height="120" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+<text class="t" x="362" y="508">One package only</text>
+<text class="code" x="362" y="530">@lema017/rsc-governed</text>
+<text class="d" x="362" y="551">Consumers never integrate</text>
+<text class="d" x="362" y="566">upstream directly, and no path</text>
+<text class="d" x="362" y="581">can reinstall the parent by</text>
+<text class="d" x="362" y="596">accident.</text>
+<rect x="640" y="484" width="252" height="120" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+<text class="t" x="654" y="508">Projects update themselves</text>
+<text class="d" x="654" y="529">Same major: automatic.</text>
+<text class="d" x="654" y="548">New major: asks first.</text>
+<text class="d" x="654" y="567">Opt-out honoured.</text>
+<text class="d" x="654" y="589">Identity and integrity checked first.</text>
+<rect x="932" y="484" width="252" height="120" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
+<text class="t" x="946" y="508">Coherent activation</text>
+<text class="d" x="946" y="529">Staged, then activated behind a</text>
+<text class="d" x="946" y="544">lock, so there is no race and no</text>
+<text class="d" x="946" y="559">partially activated state.</text>
+<text class="d" x="946" y="580">A failed check keeps the working</text>
+<text class="d" x="946" y="595">install and explains the block.</text>
+<path d="M308,544 L344,544" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M600,544 L636,544" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+<path d="M892,544 L928,544" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
+
+<rect x="40" y="640" width="1160" height="146" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text class="band" x="56" y="666">3 · SKILLS THE FORK DOES NOT GOVERN</text>
+<rect x="56" y="686" width="544" height="86" rx="8" fill="#fef3c7" stroke="#d97706"/>
+<text class="t" x="70" y="710">The project's own skills are preserved</text>
+<text class="d" x="70" y="730">Skills the user authored in the project survive install, sync, repair and update.</text>
+<text class="d" x="70" y="745">The fork does not inject a contract into them and makes no governance claim</text>
+<text class="d" x="70" y="760">about them. They are the user's, not the catalogue's.</text>
+<rect x="640" y="686" width="544" height="86" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text class="t" x="654" y="710">A limit that is declared, not solved</text>
+<text class="d" x="654" y="730">Personal, global and plugin skill sources cannot be fully enumerated from inside</text>
+<text class="d" x="654" y="745">a project. So the harness decision file is documented as the record of this</text>
+<text class="d" x="654" y="760">project's choice — never as the complete list of skills the assistant can use.</text>
+
+<text class="foot" x="40" y="806">docs/fork/diagrams/02-add-new-skill.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+</svg>

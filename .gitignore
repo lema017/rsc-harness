@@ -27,7 +27,9 @@ __pycache__/
 #   skill-build/ -> RSC 02-DOCS/raw/migrated/skill-build/
 #   02-DOCS/     -> RSC 02-DOCS/ (wiki/sdd, wiki/brand, wiki/stack, raw/…)
 # The contributor-facing standard stays in this repo: scripts/skill-rubric.md.
-docs/
+# El fork versiona su propia documentacion en docs/fork/; el resto de docs/ sigue ignorado.
+docs/*
+!docs/fork/
 skill-build/
 02-DOCS/
 
