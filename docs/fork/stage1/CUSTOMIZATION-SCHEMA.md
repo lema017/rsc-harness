@@ -85,7 +85,20 @@ A validator checks, with no model involved:
 7. Every `migration` entry states a current state, a target state, and that it requires a decision.
 8. No decision purports to disable an environment permission, a guard or a safety rule — precedence level 1 of the contract is not negotiable from this file, and an attempt is itself the finding.
 
-A file that fails any of these is **reported**, not ignored. Contract §2 is explicit: a file that exists but is unreadable, invalid or contradictory is not the same state as absent, and treating it as absent turns a project's explicit instruction into its opposite without telling anyone.
+A file that fails any of these is **named and asked about**, not ignored and not silently treated as absent (contract §2). Contract §2 is explicit: a file that exists but is unreadable, invalid or contradictory is not the same state as absent, and treating it as absent turns a project's explicit instruction into its opposite without telling anyone.
+
+### Where the validator runs — without this, criterion 8 has no deterministic half
+
+A validator nobody invokes is not an instrument. It runs in exactly two places, and both are deterministic:
+
+| Point | When | Why there |
+|---|---|---|
+| `npm run gate` | Every local run of the deterministic package (130 s measured) | The only gate that exists today with Actions disabled |
+| `install` and `sync` | Whenever `02-DOCS/wiki/skills/` exists in the project | Catches a broken file at the moment the harness is set up, not silently three skills later. The harness already walks the project tree here |
+
+**Its negative test, which is what makes criterion 8 falsifiable:** feed it a file with broken YAML, a missing `scope`, and a decision that tries to disable a guard. Each must produce a **named** error identifying the file and the rule. Silence, or an error that does not name the file, fails the test.
+
+**And the boundary, stated so the criterion is not oversold:** the validator settles whether the *file* is well formed. It cannot settle whether the model **read** it or **honored** it — skill application is not an observable event in any of the five assistants (F32), so there is nothing to hook. That half is G1 and G2 of [`EVALUATION.md`](./EVALUATION.md), measured and never guaranteed.
 
 ---
 

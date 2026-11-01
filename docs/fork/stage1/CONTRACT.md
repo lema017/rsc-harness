@@ -12,7 +12,7 @@ Governance is carried by **two artifacts**, not one:
 
 | | Artifact | Where | Owner |
 |---|---|---|---|
-| **A** | The **preamble** — 779 bytes of template, 772–797 rendered | Injected into every distributed `SKILL.md` between markers | Generated. Never hand-edited |
+| **A** | The **preamble** — 787 bytes of template, 780–805 rendered | Injected into every distributed `SKILL.md` between markers | Generated. Never hand-edited |
 | **B** | **This document** | Regenerated at `.rsc/governance/v1.md` on install | Package-owned. Not project-owned |
 
 **A is normative and self-sufficient.** B is the full text, not a prerequisite. This is a deliberate choice forced by evidence: `.rsc/` is listed in `.gitignore`, so B **does not exist in a fresh clone until install runs**. A pointer that can dangle cannot be the only place the rules live. The five rules are therefore written in A, and B expands them.
@@ -33,7 +33,7 @@ governance-digest: <12 hex chars>
 
 - `governance` — the contract version this skill was transformed against. Bump to `v2` only when a rule **changes meaning**; wording clarifications keep `v1`.
 - `governance-customization` — the literal path for *this* skill, precomputed. The reader never constructs a path, so there is nothing to construct wrongly. Safe because the directory name equals the `name:` key in 274 of 274.
-- `governance-digest` — digest of the rendered preamble block. It makes **partial or tampered injection detectable**, which is what turns acceptance criterion 4 ("0 partials") into something a validator can actually check.
+- `governance-digest` — digest of the rendered preamble block. It makes **partial or tampered injection detectable in the distributed base** `.rsc/skills/`, where the conformance validator runs. It is the one key with **no copy in the body**, so unlike the other two it is not redundant — and because frontmatter is stripped from the delivered surfaces, it does not reach them. Those surfaces are regenerated from the base on every install and `sync`, so their integrity derives from the base's and is not claimed independently. That, which is what turns acceptance criterion 4 ("0 partials") into something a validator can actually check.
 
 The preamble body is delimited by:
 
@@ -45,7 +45,7 @@ The preamble body is delimited by:
 
 Markers, not position. Re-running the transformation **replaces** the block between markers rather than appending, which is what makes it idempotent. Verified: the whole catalog transformed twice is byte-identical after the second pass, with no skill carrying two blocks.
 
-**The body is the only channel that reaches every assistant, and the keys are therefore redundant.** Measured: `targets/cursor.js:7` replaces the entire frontmatter with `description` + `alwaysApply` (`stripFrontmatter` at `:28-30`), so the `.mdc` Cursor receives does not contain these keys even though the base does; `_md-block.js:28,73-74` drops them on the always-on surface too. Nothing a reader needs to know may live only in the frontmatter. The keys serve the conformance validator and the maintenance machine; the block in the body serves the model.
+**The body is the only channel that reaches every assistant, so two of the three keys are redundant — `governance-digest` is not, and its scope is stated below.** Measured: `targets/cursor.js:7` replaces the entire frontmatter with `description` + `alwaysApply` (`stripFrontmatter` at `:28-30`), so the `.mdc` Cursor receives does not contain these keys even though the base does; `_md-block.js:28,73-74` drops them on the always-on surface too. Nothing a reader needs to know may live only in the frontmatter. The keys serve the conformance validator and the maintenance machine; the block in the body serves the model.
 
 **All 274 skills carry it, with no exception**, and it costs nothing. One of them, `suggest`, is also the source of the always-on body. An earlier draft of this document ordered three byte ceilings raised to accommodate it; that was wrong and is retracted. The three ceilings read the repository's own `skills/suggest/SKILL.md`, which Strategy B freezes byte-identical to upstream forever, so they never trip — see [`ARCHITECTURE.md`](./ARCHITECTURE.md) §4 for the measurement. What was real is that the preamble reached the always-on body, which `install-apply.js:294` renders from the *transformed* copy: 779 bytes, about 200 tokens, on every turn, for the 17 assistants with no per-turn hook, and no test measuring it. In that surface the block has no referent — there is no "skill below" being applied — so the transformation strips it in `wireHook`, the always-on path only, leaving every per-skill rendering untouched. The conformance validator still demands 274 of 274 over the distributed base, a 273 is still a failure, and the per-turn cost is **zero bytes**.
 
@@ -73,7 +73,7 @@ One file per skill, named by the official skill identifier. `02-DOCS` is the doc
 
 **Absence is valid.** Do not create an empty file. Do not ask the user a question whose only subject is the absence. This does not suppress any question the task or the skill itself requires.
 
-**Absent and broken are different states.** A file that exists but is unreadable, invalid or self-contradictory must be reported. Silently falling through to the "absent" path is a contract violation, because it converts a project's explicit instruction into its opposite without anyone being told.
+**Absent and broken are different states.** A file that exists but is unreadable, invalid or self-contradictory must be named, and the work must not continue down the "absent" path: ask how to proceed. Reporting it and then applying the skill unchanged *is* the fallthrough, because it converts a project's explicit instruction into its opposite while sounding like diligence. An earlier draft said only "must be reported", which the preamble contradicted by saying "stop"; the rule is neither a hard stop nor a report-and-continue — it is a question.
 
 **Customizations belong to the project.** They are versioned in Git and must survive installation, `sync`, `repair`, update and the reconstruction of a clean clone.
 
@@ -123,8 +123,8 @@ Within its scope, an approved project decision beats a generic recommendation. T
 | State | Required behavior |
 |---|---|
 | **Missing** | Apply the original. Do not invent. Do not create a placeholder |
-| **Unreadable or invalid** | Report the file and the reason. Do not fall through to "missing" |
-| **Internally contradictory** | Report both sides with their locations. Do not pick one |
+| **Unreadable or invalid** | Name the file and the reason, then **ask**. Do not fall through to "missing", and do not continue as if it had been read |
+| **Internally contradictory** | Name both sides with their locations, then **ask**. Do not pick one |
 | **Stale** — contradicted by the code it describes | Report the divergence as an observed pattern against an approved convention. **Do not edit the code to match the document, and do not edit the document to match the code.** Both are decisions for the user |
 
 Staleness is the common case in a brownfield project, and it is the one where a helpful-looking action does the most damage: silently "fixing" either side destroys the evidence that they disagreed.
@@ -172,7 +172,7 @@ The budget is real, so the contract is layered:
 
 | Layer | Cost | When it is paid |
 |---|---|---|
-| Preamble (A) | 772–797 B per skill, ~209 KB across 274 | On load of that skill |
+| Preamble (A) | 780–805 B per skill, 211 KiB across 274 | On load of that skill |
 | This document (B) | Once, on demand | Only when a rule needs its full text |
 | The customization | One file | Only for the skill being applied |
 | Its auxiliary documents | Per reference | Only when relevant to the task |
@@ -202,7 +202,7 @@ Requirement §6 requires these documented **separately**. Filling the first tabl
 
 | Assistant | Denies today? | Mechanism |
 |---|---|---|
-| **claude** | **Yes, conditionally** | Four `PreToolUse` entries (`targets/claude.js:191,206,222,300`); guards return `permissionDecision: "deny"`. **Only where `rsc sync` has run.** In a fresh clone no guard exists — `.rsc/` is gitignored — and the bootstrap returns context only, by design: *"informing someone is not denying them"* (`clone-bootstrap.mjs:371-374`) |
+| **claude** | **Yes, conditionally** | Four `PreToolUse` entries (`targets/claude.js:195,209,225,311`); guards return `permissionDecision: "deny"`. **Only where `rsc sync` has run.** In a fresh clone no guard exists — `.rsc/` is gitignored — and the bootstrap returns context only, by design: *"informing someone is not denying them"* (`clone-bootstrap.mjs:371-374`) |
 | **codex** | No | Generated hooks carry no `PreToolUse` |
 | **cursor** | No | Only `beforeSubmitPrompt`, which is pre-turn, not pre-tool |
 | **antigravity** | No | No hooks file is generated at all |

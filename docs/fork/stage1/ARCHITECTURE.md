@@ -45,7 +45,7 @@ Consecuencia: la invariante se preserva **por construcción**. No depende de que
 | Condición | Evidencia | Por qué |
 |---|---|---|
 | Delimitadores de código en columna 0 **equilibrados** | `scripts/lib/skill-lint.js:15-28` | Un bloque con un cierre impar rompe el linter |
-| `origin:` dentro de los primeros **2048 B** | `scripts/doctor.js:183-190` | Margen actual 878/2048. Las tres claves del fork caben; un bloque **antes** del frontmatter no |
+| `origin:` dentro de los primeros **2048 B** | `scripts/doctor.js:183-190` | El `origin:` más profundo está en el **offset 878** de 2048, así que el margen son **1 170 B**, no 878 — 878 es el desplazamiento. Las tres claves del fork (~114 B) caben con holgura; un bloque **antes** del frontmatter no |
 | Profundidad 2 | Los 274 `SKILL.md` están a profundidad 2 | `tests/ux-upstream.test.js:17,24-32` congela por hash `skills/ux/upstream/**`; limitar a profundidad 2 excluye los subárboles congelados **por construcción** |
 | Idempotencia por marcadores | `targets/_md-block.js:11-12`, regex de `scripts/lib/onboarding.js:131` | Reimplementado y ejecutado dos veces: **274/274 byte-idénticos** tras la segunda pasada, ninguna skill con dos bloques |
 
@@ -59,7 +59,9 @@ Consecuencia: la invariante se preserva **por construcción**. No depende de que
 
 > **El cuerpo es el único canal que llega a los 18 asistentes.**
 
-Las tres claves planas de frontmatter se mantienen, pero su papel cambia: pasan a ser **redundantes respecto al bloque del cuerpo**. Nada que el modelo deba saber vive sólo en el frontmatter.
+Las tres claves planas de frontmatter se mantienen, pero su papel cambia: **dos de las tres** pasan a ser redundantes respecto al bloque del cuerpo (`governance` y `governance-customization`, cuya información va también en el bloque). Nada que el modelo deba saber vive sólo en el frontmatter.
+
+**Corrección de la revisión: `governance-digest` NO es redundante**, porque no tiene copia en el cuerpo, y el frontmatter se despoja justo en las superficies que el modelo lee. Su alcance queda declarado en vez de exagerado: **protege la base distribuida `.rsc/skills/`**, que es donde corre el validador de conformidad del criterio 4. Las superficies entregadas (el `.mdc` de cursor, el `AGENTS.md` compartido) **se regeneran desde esa base en cada instalación y `sync`**, así que su integridad se deriva de la base y no se afirma por separado. No se mueve el digest al cuerpo: costaría bytes en las 274 para proteger artefactos que se reescriben solos.
 
 | Canal | Para quién | Qué lleva |
 |---|---|---|
@@ -114,7 +116,7 @@ Determinista e idempotente, como el resto de la transformación, y en el punto d
 | | Diseño retirado | Diseño adoptado |
 |---|---|---|
 | Conformidad | 274/274 | **274/274** |
-| Coste por turno en 17 asistentes | 779 B (~200 tokens) | **0 B** |
+| Coste por turno en 17 asistentes | 779 B (~200 tokens, con el preámbulo de entonces; hoy 787) | **0 B** |
 | Techos que cambian | 3 | **0** |
 | Divergencias permanentes con upstream | 3 (4 archivos) | **0** |
 
@@ -137,7 +139,7 @@ En la **Etapa 4**, con el transformador. Los tres techos de upstream quedan **si
 
 | Asistente | ¿Deniega hoy? | Evidencia medida |
 |---|---|---|
-| **claude** | **Sí, con condición** | 4× `PreToolUse` en `targets/claude.js:191,206,222,300`; las guardas devuelven `permissionDecision:"deny"` (`danger-guard.mjs:28,38`, `gitmoji-guard.mjs:285-287`). **Sólo en una máquina donde se haya hecho `rsc sync`** |
+| **claude** | **Sí, con condición** | 4× `PreToolUse` en `targets/claude.js:195,209,225,311`; las guardas devuelven `permissionDecision:"deny"` (`danger-guard.mjs:28,38`, `gitmoji-guard.mjs:285-287`). **Sólo en una máquina donde se haya hecho `rsc sync`** |
 | **codex** | No | `.codex/hooks.json` generado: `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `PreCompact`, `SessionEnd`, `Stop`. **Sin `PreToolUse`** |
 | **cursor** | No | `.cursor/hooks.json`: sólo `beforeSubmitPrompt`, que es pre-**turno**, no pre-herramienta |
 | **antigravity** | No | No se genera ningún archivo de hooks; el modo de memoria resuelve a `unsupported` |
@@ -194,6 +196,13 @@ La ceguera de Cursor es **la reparación más barata del informe**, porque `curs
 `.rsc.json` **descarta en silencio** las claves que no conoce: `manifest-file.js:18` (`KEYS`, doce cerradas), `:31-47` (`readManifest` es una proyección literal), `:60,64` (`writeManifest` itera `KEYS`). Demostrado: una clave `forkGovernance` committeada **desapareció en la primera instalación**, sin aviso. Agravante: `:28-30` sí trata el JSON corrupto como condición dura; el JSON válido con claves del fork recibe el trato opuesto.
 
 **Decisión: archivo propio, `.rsc.fork.json`.** Extender `KEYS` cuesta poco pero **no resuelve el problema**, porque el CLI del padre instalado desde npm seguiría borrando las claves en un proyecto que tenga los dos. El archivo propio cuesta **cero líneas de divergencia** en archivos del padre (`manifestPath` sólo construye `.rsc.json`, `:15-16`).
+
+**Dos cosas que esta decisión debía al plan y que la revisión encontró sin pagar.** `PLAN.md:93` aprobó «extender `KEYS` de `.rsc.json` **y detectar la pérdida de clave**». Este diseño hace lo primero innecesario, pero la segunda mitad no desaparece con ello:
+
+1. **Qué sustituye a la detección de pérdida de clave.** Con archivo propio la clave ya no se puede perder, pero sí puede quedar **obsoleta u huérfana** si el CLI del padre reescribe `.rsc.json` por debajo. Sustituto: `.rsc.fork.json` guarda la **huella del `.rsc.json` contra el que se escribió**, y `doctor` y `npm run gate` reportan la divergencia. Misma propiedad — enterarse — por otro mecanismo.
+2. **Inventario de recuperación.** `scripts/install-apply.js:71-74` documenta que un archivo que el instalador escribe y el inventario omite queda **silenciosamente ausente del snapshot**, luego `rsc restore` no lo recupera. `.rsc.fork.json` entra en ese inventario. Sin esto, la decisión cambiaba un modo de fallo por otro.
+
+**Esta es una revisión explícita de `PLAN.md:93`**, registrada como tal en el ledger según exige `REQUIREMENTS.md:25`, no una reinterpretación silenciosa.
 
 **Y la no-desarmabilidad sale gratis:** la desarmabilidad es **opt-in por guarda**, no un marco global. `opt-outs.js:19-35` nombra las guardas una a una y `hydrateLocalDecisions` sólo escribe marcadores de nombres registrados. Una guarda del fork que no registre nombre ni consulte ese marcador **no es desarmable, con cero divergencia**.
 
