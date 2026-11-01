@@ -1,0 +1,10 @@
+<!-- rsc-governance:begin v1 -->
+**Governance — read this before applying the skill below.**
+Project customization: `02-DOCS/wiki/skills/{{SKILL}}/README.md`
+- Present → it narrows this skill for this project. Read it first and honor it within its stated scope.
+- Absent → apply this skill unchanged. Never invent a customization, and never ask only about the absence.
+- Unreadable, invalid or contradictory → say so and stop. This is not the same as absent.
+- Conflicts with the constitution → the constitution wins, and the conflict is logged as a registered exception. Never resolve one silently.
+- Evidence insufficient → ask before deciding.
+Full contract: `.rsc/governance/v1.md`. If it is missing, the five rules above still stand.
+<!-- rsc-governance:end -->
