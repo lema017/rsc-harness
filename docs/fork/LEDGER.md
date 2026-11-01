@@ -9,25 +9,29 @@ Fuente de verdad de requisitos: [`docs/fork/REQUIREMENTS.md`](./REQUIREMENTS.md)
 
 ## Estado actual
 
+*Sincronizado con la realidad el 2026-11-01. El registro cronológico (§9) es la narración completa; esta tabla es el corte transversal.*
+
 | Campo | Valor |
 |---|---|
-| Etapa actual | **0 — Auditoría, licencias, alternativas, preguntas y plan** |
-| Sub-estado | **Auditoría cerrada y revisada. Plan presentado en [`PLAN.md`](./PLAN.md). Esperando aprobación del usuario.** |
-| Plan aprobado | **NO — pendiente** |
-| Alcance autorizado | Ninguno más allá de lo permitido por §1 pre-aprobación |
-| Fork remoto creado | NO |
-| Commits realizados | NINGUNO |
-| Remotos modificados | NO (`origin` sigue apuntando a upstream — pendiente de reconfigurar tras aprobación) |
+| Etapa actual | **1 — Arquitectura, contrato versionado, presupuesto de evaluaciones y criterios de aceptación** |
+| Sub-estado | **Arranque de la etapa hecho y verificado** (fork, Actions desactivado, remotos, B1, R6, base en 3.7.4). **Pendiente:** re-medición de la línea base de tests en curso, y el contenido sustantivo de la etapa — arquitectura y contrato — sin empezar. |
+| Plan aprobado | **SÍ — 2026-11-01** (ver §5) |
+| Alcance autorizado | El plan completo de [`PLAN.md`](./PLAN.md), **menos** el protocolo de preguntas, retirado por decisión del usuario |
+| Commit **auditado** | `6f7edd31` — 3.7.1. La auditoría se hizo contra él y sigue valiendo |
+| **Base de trabajo** | `481b1ec9` — 3.7.4, integrada en `d15b2d2`. `package.json` marca 3.7.4 |
+| Fork remoto | **`lema017/rsc-harness`**, público, `isFork: true`. **GitHub Actions desactivado** |
+| Rama de trabajo | `fork/bootstrap`, subida a `origin`. HEAD `c4aaeae` |
+| Commits realizados | **3** — `43ca7d8` (bootstrap + B1 + R6), `d15b2d2` (merge de 3.7.4), `c4aaeae` (registro de la base) |
+| Remotos | `origin` → fork; `upstream` → padre con **push inutilizado** (`NO_PUSH_UPSTREAM`) |
+| Invariante Estrategia B | ✅ `skills/` **byte-idéntico** a `origin/main`, 274 directorios. Comprobado tras el merge |
+| Publicación en npm | Nada publicado. El camino de release es **sólo manual** y no referencia al padre |
 
-### Acciones permitidas en este momento (§1, pre-aprobación)
-- Crear el directorio dedicado. ✅ hecho
-- Crear/actualizar `REQUIREMENTS.md` y `LEDGER.md`. ✅ hecho
-- Clonar el repositorio original, sin commits / sin cambiar remotos / sin pushes. ✅ hecho
-- Consultas de solo lectura al repositorio y al entorno.
-- Instalar dependencias **solo localmente** dentro del clon y ejecutar los tests existentes, con `HOME` y configuración apuntando a un directorio temporal dentro de la carpeta dedicada.
-
-### Prohibido hasta la aprobación
-Crear el fork remoto o el repositorio privado alternativo; commits; pushes; cambiar remotos; ejecutar código del repositorio fuera de la instalación local y los tests autorizados; instalaciones globales; modificar archivos fuera de este directorio.
+### Restricciones en vigor (§1, permanentes — no caducan con la aprobación)
+- **Sin instalaciones globales.** Todo proceso del repositorio corre con `HOME`, `TMPDIR`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME` y `npm_config_cache` dentro de `.fork-tmp/`, más un `.gitconfig` aislado, para no tocar la configuración real de los asistentes del usuario (`~/.claude`).
+- **Ninguna credencial, token ni sesión del usuario se expone** a procesos del repositorio.
+- **Todo test o script que exija credenciales, servicios externos o escriba fuera de la carpeta dedicada no se ejecuta**: se registra en §7 como no verificado.
+- **No se hace push a `main` del fork** mientras exista un camino de publicación; el trabajo vive en `fork/bootstrap`.
+- Los accesos se verifican **sin revelar secretos** (ver §4b).
 
 ---
 
@@ -508,27 +512,27 @@ Decisiones D1–D4 tomadas por el usuario el 2026-10-31, antes del plan, sobre l
 
 ## 4b. Accesos verificados (sin revelar secretos)
 
-Comprobado por ejecución el 2026-10-31. No se ha usado ni expuesto ningún token a procesos del repositorio.
+Comprobado por ejecución el 2026-10-31 y **revalidado el 2026-11-01**. No se ha usado ni expuesto ningún token a procesos del repositorio.
 
 | Acceso | Estado | Evidencia | Consecuencia |
 |---|---|---|---|
 | GitHub | ✅ Autenticado como **`lema017`** (keyring), protocolo https | `gh auth status` | Suficiente para fork, ramas, commits, pushes y PR |
-| Scopes del token de GitHub | ⚠️ **`gist`, `read:org`, `repo`** — **falta `workflow`** | `gh auth status` | **A1:** un push que toque `.github/workflows/` será rechazado hasta re-autenticar |
+| Scopes del token de GitHub | ✅ **`gist`, `read:org`, `repo`, `workflow`** — `workflow` añadido el 2026-11-01 | `gh auth status` | **A1 resuelto.** El push que toca `.github/workflows/` ya fue aceptado |
 | Organización visible | `vicente-org` (no se usa; D2 elige la cuenta personal) | `gh api user/orgs` | — |
 | Fork preexistente | Ninguno | `gh repo list --fork` sin coincidencias de `rsc` | Se creará limpio |
 | Upstream | Público, **MIT**, `allow_forking: true`, 58 forks, 415 estrellas | `gh api repos/ericrisco/rsc-harness` | Fork permitido; ver §licencias de la auditoría |
-| npm | ❌ **No autenticado** (`ENEEDAUTH`) | `npm whoami` | **A2:** publicar es imposible hasta iniciar sesión |
+| npm | ✅ Autenticado como **`lema017`** desde el 2026-11-01 | `npm whoami` | **A2 resuelto.** Publicar es posible; nada publicado todavía |
 | Scope `@lema017` en npm | Libre (`404` para `@lema017/rsc`) | `curl registry.npmjs.org` | Nombre disponible |
 | Paquete del padre | `@ericrisco/rsc@3.7.1`, dist-tag `latest` únicamente | `npm view` | Referencia para comparar identidad |
 
-### Prerrequisitos que debe ejecutar el usuario
+### Prerrequisitos que debía ejecutar el usuario — **ambos cumplidos**
 
-| # | Prerrequisito | Comando | Bloquea |
-|---|---|---|---|
-| A1 | Añadir el scope `workflow` al token de GitHub | `gh auth refresh -h github.com -s workflow` | Configurar CI en el fork (parte de §9/§10) |
-| A2 | Iniciar sesión en npm en esta máquina | `npm login` | Publicar releases del fork (§10, §15) |
+| # | Prerrequisito | Comando | Bloqueaba | Estado |
+|---|---|---|---|---|
+| A1 | Añadir el scope `workflow` al token de GitHub | `gh auth refresh -h github.com -s workflow` | Configurar CI en el fork (parte de §9/§10) | ✅ **CUMPLIDO** 2026-11-01 |
+| A2 | Iniciar sesión en npm en esta máquina | `npm login` | Publicar releases del fork (§10, §15) | ✅ **CUMPLIDO** 2026-11-01 |
 
-Mientras A1/A2 no estén hechos, el trabajo dependiente queda registrado como pendiente y no se declara verificado; el resto de etapas continúa.
+Ningún prerrequisito del usuario queda pendiente. Si en el futuro apareciera trabajo que exija un acceso nuevo, se registra aquí y el trabajo dependiente se marca como no verificado en §7 hasta que exista.
 
 ---
 
@@ -563,13 +567,15 @@ Mientras A1/A2 no estén hechos, el trabajo dependiente queda registrado como pe
 | # | Prerrequisito | Verificado | Estado |
 |---|---|---|---|
 | A2 | `npm login` | `npm whoami` → `lema017` | ✅ **CUMPLIDO** |
-| A1 | `gh auth refresh -h github.com -s workflow` | `gh auth status` → scopes `gist, read:org, repo` | ❌ **NO EFECTIVO.** El usuario informa haberlo hecho en el navegador, pero el token local no cambió: autorizar en el navegador no actualiza el token si el comando del CLI no estaba corriendo o se canceló. **Consecuencia: no se puede hacer push de nada que toque `.github/workflows/`.** El trabajo local continúa; el primer push queda retenido. |
+| A1 | `gh auth refresh -h github.com -s workflow` | `gh auth status` → scopes `gist, read:org, repo, workflow` | ✅ **CUMPLIDO.** Hizo falta un segundo intento: autorizar en el navegador no actualiza el token si el proceso del CLI no está esperando en el flujo de dispositivo. Con el comando corriendo en una pestaña de terminal y el código introducido, el scope entró y el push de `.github/workflows/release.yml` fue aceptado. |
 
 ## 6. Bloqueos
 
+Ningún bloqueo abierto en este momento.
+
 | # | Bloqueo | Impacto | Estado |
 |---|---|---|---|
-| **B1** | **`.gitignore:30` contiene `docs/`, que ignora todo el árbol de documentación del repo, incluido `docs/fork/`.** Verificado: `git check-ignore -v docs/fork/LEDGER.md` → `.gitignore:30:docs/`. | §1 exige que «el primer commit de la implementación incluye `docs/fork/`» y §12 exige que el estado durable resida en archivos **y Git**. Hoy `REQUIREMENTS.md`, `LEDGER.md` y los informes de auditoría quedarían fuera del control de versiones y se perderían en un clon limpio. | **Resolución acordada para el inicio de la implementación** (no se aplica antes de la aprobación, porque modificar `.gitignore` es un cambio en un archivo del repo) |
+| **B1** | **`.gitignore:30` contiene `docs/`, que ignora todo el árbol de documentación del repo, incluido `docs/fork/`.** Verificado: `git check-ignore -v docs/fork/LEDGER.md` → `.gitignore:30:docs/`. | §1 exige que «el primer commit de la implementación incluye `docs/fork/`» y §12 exige que el estado durable resida en archivos **y Git**. Hoy `REQUIREMENTS.md`, `LEDGER.md` y los informes de auditoría quedarían fuera del control de versiones y se perderían en un clon limpio. ✅ **RESUELTO** el 2026-11-01 en el commit `43ca7d8` y revalidado tras el merge de 3.7.4. Verificado con `git check-ignore`, no leyendo el patrón. |
 
 ### B1 — resolución técnica
 
@@ -582,7 +588,7 @@ docs/*
 
 `docs/*` ignora las entradas directas de `docs/` (preservando la intención original del padre, que redirige `docs/` a `02-DOCS/raw/migrated/docs/` — ver comentario en `.gitignore:26`), y `!docs/fork/` reincluye únicamente el árbol del fork, permitiendo que Git descienda en él.
 
-Se aplicará como primer cambio del primer commit de implementación, junto con `docs/fork/`. Antes de la aprobación los archivos permanecen correctamente en disco y sin commitear, que es lo que §1 exige en esta fase.
+Aplicado como primer cambio del primer commit de implementación (`43ca7d8`), junto con `docs/fork/`. **Comprobado por ejecución:** los archivos de `docs/fork/` son versionables y `docs/otro/x.md` sigue ignorado. Revalidado después de integrar 3.7.4, porque un merge podría haber reintroducido la regla del padre — no lo hizo: `.gitignore` no cambió entre 3.7.1 y 3.7.4.
 
 *(Hallazgo de la auditoría Track A, verificado de forma independiente por el coordinador.)*
 
@@ -592,7 +598,9 @@ Se aplicará como primer cambio del primer commit de implementación, junto con 
 
 | # | Elemento | Motivo |
 |---|---|---|
-| NV1 | Scripts o tests que requieran credenciales, servicios externos o escrituras fuera de la carpeta dedicada. | §1 prohíbe ejecutarlos antes de la aprobación. Se registrarán aquí al identificarlos. |
+| NV1 | Scripts o tests que requieran credenciales, servicios externos o escrituras fuera de la carpeta dedicada. | §1 prohíbe ejecutarlos. Se registran aquí al identificarlos; hasta hoy no ha aparecido ninguno en la suite. |
+| NV2 | **Línea base de la suite sobre 3.7.4.** En curso al cerrar esta entrada. La cifra de 3.7.1 (1 537 tests, 2 h 17 min, 39 fallos atribuidos a concurrencia) **no es comparable**: la suite gana `tests/memory-hook-cost.test.js`. | Hasta que termine, la hipótesis de que esos 39 fallos eran artefactos de saturación de máquina **sigue siendo una hipótesis**. Si algo reproduce en una ejecución limpia y aislada, pasa a §6 como bloqueo. |
+| NV3 | Comportamiento en Windows. | `targets/index.js` copia archivos reales en vez de crear symlinks; no hay entorno Windows en esta máquina. Limitación residual declarada en §4c. |
 
 ---
 
@@ -679,3 +687,4 @@ La configuración real de los asistentes del usuario no fue tocada en ningún mo
   - **Decisión pendiente del usuario:** mantener la base en `6f7edd31` y tratar 3.7.2–3.7.4 como el primer ejercicio del mantenimiento de §9, o adelantar la base de trabajo a `481b1ec9` reaplicando la corrección R6 sobre el archivo nuevo. El commit auditado queda registrado como referencia de auditoría en cualquiera de los dos casos.
 - **2026-11-01 — Base de trabajo adelantada a 3.7.4 por decisión del usuario.** `git merge origin/main` sobre `fork/bootstrap`. **Un solo conflicto**, el previsto: `.github/workflows/release.yml`. Resuelto tomando la versión de upstream íntegra (conserva su endurecimiento del encadenado de releases, +59 líneas) y **reaplicando R6 encima**. Verificado tras el merge, por ejecución: `on:` sólo `workflow_dispatch`; identidad `lema017` / `lema017@users.noreply.github.com`; `npm view @lema017/rsc-governed`; **cero** coincidencias de `ericrisco|Eric Risco|erisco@` en `.github/workflows/`; cero marcadores de conflicto; YAML válido. **Invariante de la Estrategia B comprobada: `skills/` byte-idéntico a `origin/main`** tras integrar. B1 revalidado con `git check-ignore`. `package.json` ahora 3.7.4. Commit de merge `d15b2d2`.
   - **Nota para §11:** la suite gana `tests/memory-hook-cost.test.js`, así que la cifra de 1 537 tests de la línea base de 3.7.1 ya no es comparable. La re-medición se hace sobre 3.7.4. La primera ejecución se abortó deliberadamente al decidirse el adelanto, porque medía el árbol antiguo.
+- **2026-11-01 — Sincronización del ledger con la realidad.** La tabla de **Estado actual** —lo primero que se lee al reanudar o tras una compactación, por mandato de la cabecera de este archivo— seguía declarando «Etapa 0, plan pendiente, fork no creado, ningún commit, remotos sin modificar». El registro cronológico sí estaba al día, de modo que el archivo se contradecía a sí mismo y el corte transversal era el lado falso. Corregido por lectura del estado real, no de memoria: rama, commits, versión, remotos, scopes y la invariante de `skills/` comprobados por ejecución antes de escribir. Ajustados también: las subsecciones de fase pre-aprobación, sustituidas por las **restricciones de §1 que son permanentes** y no caducan con la aprobación; los accesos de §4b (scope `workflow` presente, npm autenticado); el prerrequisito **A1 → cumplido** con la nota de por qué falló el primer intento; el **bloqueo B1 → resuelto** y revalidado tras el merge; y §7, que pasa de un único marcador genérico a los tres pendientes reales (línea base en curso, Windows no verificable).
