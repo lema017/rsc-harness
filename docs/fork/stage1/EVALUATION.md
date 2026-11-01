@@ -80,6 +80,8 @@ Seis skills, elegidas para variar las propiedades que de forma plausible afectan
 | `nextjs` | 20 702 B | Segunda de stack, también sin `profiles:`, para no confundir la rareza de una skill con un patrón |
 | `harness` | 25 368 B | Skill meta: gobierna el propio arnés. Máximo riesgo de conflicto autorreferencial |
 
+**`suggest` no está en la muestra, y es deliberado.** Es el cuerpo always-on: no se «aplica» como una skill normal, está siempre presente, así que la conducta «consultar la personalización antes de aplicar esta skill» no significa lo mismo para ella. Queda cubierta por el conjunto determinista — conformidad 274/274 y los tres techos elevados — y no por evaluación. Se dice aquí en vez de dejarla fuera en silencio.
+
 **El límite, dicho sin adornos:** un resultado sobre 6 skills **no autoriza** a afirmar nada sobre las 274. Lo exhaustivo es la conformidad (274/274, determinista); el cumplimiento se mide sobre 6. Confundir ambas cosas es precisamente lo que §6 prohíbe, y ninguna redacción del informe final debe permitirlo.
 
 ---

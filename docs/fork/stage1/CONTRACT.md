@@ -47,7 +47,7 @@ Markers, not position. Re-running the transformation **replaces** the block betw
 
 **The body is the only channel that reaches every assistant, and the keys are therefore redundant.** Measured: `targets/cursor.js:7` replaces the entire frontmatter with `description` + `alwaysApply` (`stripFrontmatter` at `:28-30`), so the `.mdc` Cursor receives does not contain these keys even though the base does; `_md-block.js:28,73-74` drops them on the always-on surface too. Nothing a reader needs to know may live only in the frontmatter. The keys serve the conformance validator and the maintenance machine; the block in the body serves the model.
 
-**One skill is excluded by design: `suggest`.** It *is* the always-on body — 7,280 bytes against three separate ceilings (`tests/always-on-body.test.js:16`, `tests/clone-bootstrap.test.js:350`, `tests/ftd-lane.test.js:57-58`), leaving 2 bytes of headroom. Injecting the preamble breaks two of the three, and the ceilings are right to exist: the block would land on the always-on surface and be paid on **every turn** by 17 assistants. `suggest` is covered by a dedicated always-on artifact instead. The exclusion is declared, tested and reported — never silent.
+**All 274 skills carry it, with no exception.** One of them, `suggest`, *is* the always-on body: 7,280 bytes against three ceilings, and the preamble takes it to 8,059, breaking all three. The decision taken is to **raise the three ceilings by exactly the preamble's 779 bytes** rather than exempt the skill, so the conformance validator can demand 274 of 274 and a 273 is a failure. The price is explicit: **779 bytes, about 200 tokens, on every turn, for the 17 assistants with no per-turn hook.** What the ceilings protected is not lost — they were a ratchet against drift, not a technical limit, and moving the ratchet by exactly the authorized amount leaves it working against the next addition.
 
 ---
 
@@ -240,5 +240,4 @@ What happens when a piece is missing, stated so that failure is predictable rath
 | `02-DOCS/` entirely | No customizations exist. Apply originals. This is the valid absent case, not an error |
 | The constitution | Per-skill customizations still apply within their scope. Say that no ratified general decision exists |
 | A customization's linked auxiliary document | Report the broken link. The README's own decisions still apply |
-| The `suggest` skill, which carries no inline preamble | Expected, not a defect. It is covered by the dedicated always-on artifact. If that artifact is also absent, say governance is not installed rather than inferring it |
 | The hook entry in `.claude/settings.json`, deleted in a commit | Governance degrades to advisory on that assistant. Report it; do not restore it silently, because someone committed that deletion |

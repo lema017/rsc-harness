@@ -70,32 +70,47 @@ Es una separación limpia: frontmatter para máquinas, cuerpo para modelos. La a
 
 ---
 
-## 4. La skill que hay que excluir: `suggest`
+## 4. `suggest` también porta el contrato: los tres techos se elevan
 
-**La segunda invalidación, y la más incómoda.** `skills/suggest/SKILL.md` **es** el cuerpo always-on: 7 280 B con **tres** topes, no dos.
+**Decisión del usuario, 2026-11-01: llegar a 274.** Sin exclusiones; esas son las skills actuales. Lo que sigue es el coste medido de esa decisión y cómo se paga sin perder la protección que los techos daban.
 
-| Tope | Límite | Evidencia |
-|---|---|---|
-| 1 | 8 000 B (`<`) | `tests/always-on-body.test.js:16` |
-| 2 | 7 282 B (`<=`) | `tests/clone-bootstrap.test.js:350` |
-| 3 | 7 282 B (`<=`) | **`tests/ftd-lane.test.js:24` + `:57-58` — el tercero, que R1 no registró** |
+### La medición exacta
 
-Inyectar el preámbulo (7 280 → 7 966 B) **rompe dos de los tres** y deja 34 B bajo el tercero. Pero el test es el síntoma, no la razón. La razón medida: el bloque **aterriza en la superficie always-on** (`AGENTS.md` 7 582 B, `.mdc` de Cursor 7 312 B), es decir **~690 B pagados en cada turno** por 17 asistentes sin gancho. El tope existe precisamente para eso, y tiene razón.
+`skills/suggest/SKILL.md` **es** el cuerpo always-on. Medido con el `PREAMBLE-v1.txt` commiteado, que es el artefacto autoritativo:
 
-**Corrección de encuadre que importa:** el presupuesto de 2 bytes es **exclusivo de `suggest`**, no una propiedad del catálogo. `suggest` es la 13.ª más pequeña de 274; la mediana es 12 506 B y sólo 16 skills caben bajo 8 000 B. Mi formulación anterior —y la de R1— invitaba a leerlo como un límite catalogal. No lo es.
+| | |
+|---|---|
+| `suggest/SKILL.md` hoy | **7 280 B** |
+| Bloque renderizado para `suggest` | **777 B** |
+| Con el bloque y sus dos saltos de línea | **8 059 B** — delta **+779 B** |
 
-### Cómo se cubre `suggest` sin inyectarle nada
+**Corrección al informe del agente:** midió 7 966 B (delta 686) y concluyó que rompía **dos** de los tres techos dejando 34 B bajo el tercero. Con el preámbulo canónico la cifra es 8 059 B y **rompe los tres**. El agente usó un bloque recortado o no contó los saltos. Prevalece la medición propia, porque los tres números que hay que cambiar dependen de ella.
 
-Un **artefacto always-on propio**, por asistente, que no pasa por los tres topes. El precedente ya existe en el repositorio y es gratis: `targets/memory.js:198-201` escribe `.cursor/rules/rsc-memory.mdc`, un `.mdc` **separado** de 324 B con `alwaysApply: true`, marcador gestionado y comprobación de colisión (`:183-185`). Es exactamente la forma que hace falta.
+### Los tres techos y sus valores nuevos
 
-### Consecuencia para el criterio de aceptación 4
+| Techo | Hoy | Nuevo | Por qué ese número |
+|---|---|---|---|
+| `tests/clone-bootstrap.test.js:350` (`<=`) | 7 282 | **8 061** | Era `actual + 2`: un triñquete contra el recrecimiento. Se mueve **exactamente lo autorizado**, no a una cifra redonda cómoda, así que cualquier crecimiento **posterior** sigue discutiendo con un test que falla |
+| `tests/ftd-lane.test.js:57-58` (`<=`) | 7 282 | **8 061** | Mismo triñquete, misma lógica. Es el techo que R1 no había registrado |
+| `tests/always-on-body.test.js:16` (`<`) | 8 000 | **8 192** | Era el límite exterior laxo, y su propio comentario lo llama *«the one number to revisit deliberately»*. 8 192 deja 133 B de holgura sobre 8 059 |
 
-El criterio aprobado dice *«**Toda** skill distribuida porta el contrato, comprobado por validador determinista sobre las 274»*. La arquitectura entrega **273 con preámbulo en línea + 1 cubierta por canal dedicado**. Las dos lecturas posibles:
+Búsqueda propia confirmada: **no hay un cuarto techo.** `always-on-explanation.test.js:27` menciona los 8 000 B sólo en un **comentario** (se actualiza en el mismo cambio, para que no quede una cifra obsoleta afirmando lo contrario), y todos los suelos relacionados son `> 5000` o `> 0` (`context-budget.test.js:38,68,81`), así que crecer no rompe ninguno.
 
-- **273/274 + una exclusión declarada y probada** — honesto, y rompe la letra del criterio.
-- **274/274** — exigiría elevar tres topes y pagar ~690 B por turno en 17 asistentes, contra la razón por la que esos topes existen.
+### El coste, dicho con el número
 
-**Es una decisión del usuario**, porque el criterio 4 forma parte del plan aprobado. La recomendación es la primera, con la exclusión escrita, probada y acreditada en el informe final — nunca silenciosa.
+**779 B — unos 200 tokens — en cada turno, en los 17 asistentes que no tienen gancho por turno.** Eso es lo que se compra. Lo que se obtiene es que la gobernanza llegue a las 274 sin excepciones, y que el criterio de aceptación 4 se pueda cumplir en su letra: un validador determinista que exige 274 de 274 y donde un 273 es un fallo.
+
+Y lo que los techos protegían no se pierde: no eran un límite técnico sino un triñquete contra la deriva — *«the next person who adds “just a couple of lines” … now argues with a failing test instead of a habit»*. Moviendo el triñquete **exactamente 779 B** el mecanismo sigue intacto para el siguiente que quiera añadir algo.
+
+### El coste que no es opcional: tres puntos de divergencia permanentes
+
+`clone-bootstrap.test.js`, `ftd-lane.test.js` y `always-on-body.test.js` son archivos que **upstream mantiene activamente** — `clone-bootstrap.test.js` ya creció 59 líneas entre 3.7.1 y 3.7.4. Al cambiarles una cifra, cada modificación de upstream sobre ellos **va a conflictuar**.
+
+Esto no afecta a la invariante de la Estrategia B: son archivos de `tests/`, no de `skills/`, y `skills/` sigue byte-idéntico. Pero sí impone un requisito a la máquina de mantenimiento: **debe avisar cuando upstream toque uno de estos cuatro archivos**, porque ahí un merge limpio **no es prueba de compatibilidad** — upstream podría haber bajado el techo por una razón nueva, y el merge lo reaplicaría sin que nadie lo mire.
+
+### Cuándo se aplica
+
+**No ahora.** La tercera medición de la línea base está corriendo en serie contra el árbol actual, y editar archivos de test a mitad contaminaría los que aún no se han ejecutado — que es exactamente el error que ya costó dos intentos. El cambio de los tres techos va con el transformador en la Etapa 4, donde se verifica junto a lo que lo justifica.
 
 ---
 
