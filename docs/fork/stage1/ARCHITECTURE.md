@@ -187,7 +187,11 @@ Un matiz que corrige el hallazgo C5: Cursor **no pierde** los auxiliares del pro
 
 Para `codex` y `antigravity` se verificó que ni su `AGENTS.md` ni el de la raíz mencionan la ruta, y que el bloque always-on usa rutas relativas que **desde la raíz del proyecto apuntan fuera del proyecto**. C3 confirmado: o la selección la dirige el usuario, o el fork construye el descubrimiento.
 
-La ceguera de Cursor es **la reparación más barata del informe**, porque `cursor.js:5` ya tiene el `SKILL.md` completo en mano. Es código del arnés, no del catálogo, así que arreglarlo no toca la invariante.
+**Decisión del usuario, 2026-11-01: la ceguera de Cursor queda como límite declarado. No se arregla.** `PLAN.md:193` ya la enumeraba entre «los límites que se declaran, no se prometen resolver», y preguntado expresamente el usuario confirma esa línea.
+
+El borrador anterior decía que era *«la reparación más barata del informe»*, y técnicamente lo es — `cursor.js:5` ya tiene el `SKILL.md` completo en mano, y es código del arnés y no del catálogo, así que no tocaría la invariante. Pero **barato no es lo mismo que dentro del alcance**, y `PLAN.md` §12 es explícito: la aprobación autoriza lo descrito y nada más. Presentar una ampliación de alcance como corolario técnico era un defecto de este documento, señalado por la revisión independiente.
+
+Se registra en §10 como **L6**, con su cifra medida, para que el informe final no la omita ni la presente como un descubrimiento tardío. La consecuencia operativa, dicha sin rodeos: **en Cursor la selección automática de skills seguirá siendo mala**, y la gobernanza llega igual porque viaja en el cuerpo — lo que no llega es la descripción que haría que Cursor eligiera bien la skill a la que aplicarla.
 
 ---
 
@@ -275,3 +279,4 @@ Aplicado a las 274 el preámbulo literal de `PREAMBLE-v1.txt` más las tres clav
 | L3 | **Si Claude Code expone un nombre de herramienta para la aplicación de una skill a `PreToolUse`: NO VERIFICABLE** | Exigiría ejecutar el cliente real, lo que usa la sesión del usuario. §1 prohíbe exponer credenciales o sesiones del usuario a estos procesos. **No se hará.** Mientras no se verifique, el matcher de una eventual guarda de gobernanza es una elección de diseño, no un hecho |
 | L4 | ¿Aceptan de verdad un `deny` codex, cursor y antigravity? | Exigiría sus binarios, y no hay instalaciones globales |
 | L5 | Windows | `targets/index.js` copia archivos reales en vez de crear symlinks; no hay entorno Windows |
+| L6 | **La selección automática de Cursor es ciega**: `cursor.js:7` sustituye la `description` real por `rsc skill <id>` — medido **355→21 B**, **350→19 B**, **479→17 B**, ~95 % de pérdida | **Decisión del usuario (2026-11-01): queda como límite, no se arregla.** `PLAN.md:193` ya lo declaraba así. La gobernanza sí llega a Cursor, porque viaja en el cuerpo; lo que no llega es la descripción que le permitiría elegir bien la skill |

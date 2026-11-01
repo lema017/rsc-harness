@@ -104,6 +104,8 @@ Luego la amplitud de skills se compra en **un asistente de referencia** (`claude
 
 La paridad no mide cumplimiento por asistente con potencia estadística, y no se reportará como si lo hiciera: detecta **divergencia**, que es una pregunta binaria y mucho más barata que una proporción.
 
+**Y una consecuencia de D10 que, callada, corrompería la medición.** La selección automática de Cursor es ciega y **queda así por decisión del usuario** (`ARCHITECTURE.md` L6): su `description` se sustituye por `rsc skill <id>`, ~95 % de pérdida. Luego los escenarios de paridad en Cursor deben **nombrar la skill explícitamente**, nunca depender de que el asistente la elija. Si no, una celda roja no distinguiría «la gobernanza falló» de «Cursor eligió otra skill», y se estaría midiendo un límite conocido y aceptado en lugar de la conducta.
+
 ### El límite, dicho sin adornos
 
 Un resultado sobre 57 skills **no autoriza** a afirmar nada sobre las 274. Lo exhaustivo es la conformidad (274/274, determinista); el cumplimiento se mide sobre una muestra. Confundir ambas cosas es lo que §6 prohíbe, y ninguna redacción del informe final debe permitirlo.
