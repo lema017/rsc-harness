@@ -167,7 +167,7 @@ Fixtures brownfield **sintéticas** (D9), extendiendo el precedente `team()` de 
 
 La Etapa 1 define casos, rúbricas, umbrales, fallos críticos que bloquean promoción, selección reproducible, modelos y configuración, límites de duración y reintentos, y tratamiento de resultados inconclusos — **todo dentro de este límite**. Si no alcanza, se registra la cobertura pendiente **sin bajar umbrales ni exceder el límite**, y no se marca como aprobado lo no verificado.
 
-**Restricción operativa:** la suite tarda 2 h 17 m. CI y el mantenimiento de §9 usarán subconjuntos por impacto, reservando la suite completa para promoción a release.
+**Restricción operativa:** la suite tarda **≈ 1 h 48 m** en serie, medido el 2026-11-01 con concurrencia 1, timeout de 1 800 s y techo de git (ver el ledger). ~~2 h 17 m~~ era una cifra de 3.7.1 medida bajo contención y queda **revisada explícitamente**, no sustituida en silencio. CI y el mantenimiento de §9 usarán subconjuntos por impacto, reservando la suite completa para promoción a release.
 
 ---
 
