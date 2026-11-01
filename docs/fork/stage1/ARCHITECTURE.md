@@ -70,47 +70,66 @@ Es una separación limpia: frontmatter para máquinas, cuerpo para modelos. La a
 
 ---
 
-## 4. `suggest` también porta el contrato: los tres techos se elevan
+## 4. `suggest` también porta el contrato — y no hay que tocar ningún techo
 
-**Decisión del usuario, 2026-11-01: llegar a 274.** Sin exclusiones; esas son las skills actuales. Lo que sigue es el coste medido de esa decisión y cómo se paga sin perder la protección que los techos daban.
+**Decisión del usuario, 2026-11-01: llegar a 274.** Sin exclusiones; esas son las skills actuales. La decisión se mantiene íntegra. Lo que cambia es el precio: **cuesta cero.**
 
-### La medición exacta
+### RETRACTACIÓN: los tres techos no se rompen. Esta sección decía lo contrario y era falso
 
-`skills/suggest/SKILL.md` **es** el cuerpo always-on. Medido con el `PREAMBLE-v1.txt` commiteado, que es el artefacto autoritativo:
+Lo encontró la revisión independiente de la etapa y lo verifiqué por mi cuenta. **Los tres techos miden el archivo fuente del repositorio, no la copia transformada:**
 
-| | |
+| Techo | Qué lee |
 |---|---|
-| `suggest/SKILL.md` hoy | **7 280 B** |
-| Bloque renderizado para `suggest` | **777 B** |
-| Con el bloque y sus dos saltos de línea | **8 059 B** — delta **+779 B** |
+| `tests/clone-bootstrap.test.js:340` | `readFileSync(new URL('../skills/suggest/SKILL.md', import.meta.url))` |
+| `tests/ftd-lane.test.js:20` | `read('skills','suggest','SKILL.md')`, con `read` resuelto contra la raíz del repo |
+| `tests/always-on-body.test.js:12` | `readFileSync(join(ROOT, 'skills/suggest/SKILL.md'))` |
 
-**Corrección al informe del agente:** midió 7 966 B (delta 686) y concluyó que rompía **dos** de los tres techos dejando 34 B bajo el tercero. Con el preámbulo canónico la cifra es 8 059 B y **rompe los tres**. El agente usó un bloque recortado o no contó los saltos. Prevalece la medición propia, porque los tres números que hay que cambiar dependen de ella.
+Y bajo la invariante de la Estrategia B (§1) ese archivo **es byte-idéntico a upstream para siempre**: 7 280 B, medido. Por tanto **los tres tests siguen verdes sin cambiar una sola cifra**, y los valores 8 061 / 8 061 / 8 192 que esta sección ordenaba eran innecesarios.
 
-### Los tres techos y sus valores nuevos
+Peor que innecesarios: habrían **destruido el triñquete en vez de moverlo**. Con el techo en 8 061, un fuente de 8 059 B pasaría mientras su entrega transformada pesaría 8 836 B — 644 B por encima del límite exterior. El techo habría quedado midiendo una magnitud equivocada por exactamente el tamaño del preámbulo, y se habrían pagado **tres divergencias permanentes** en archivos que upstream edita, a cambio de nada.
 
-| Techo | Hoy | Nuevo | Por qué ese número |
-|---|---|---|---|
-| `tests/clone-bootstrap.test.js:350` (`<=`) | 7 282 | **8 061** | Era `actual + 2`: un triñquete contra el recrecimiento. Se mueve **exactamente lo autorizado**, no a una cifra redonda cómoda, así que cualquier crecimiento **posterior** sigue discutiendo con un test que falla |
-| `tests/ftd-lane.test.js:57-58` (`<=`) | 7 282 | **8 061** | Mismo triñquete, misma lógica. Es el techo que R1 no había registrado |
-| `tests/always-on-body.test.js:16` (`<`) | 8 000 | **8 192** | Era el límite exterior laxo, y su propio comentario lo llama *«the one number to revisit deliberately»*. 8 192 deja 133 B de holgura sobre 8 059 |
+### Lo que sí era real: el coste por turno, y que ningún test lo vigilaba
 
-Búsqueda propia confirmada: **no hay un cuarto techo.** `always-on-explanation.test.js:27` menciona los 8 000 B sólo en un **comentario** (se actualiza en el mismo cambio, para que no quede una cifra obsoleta afirmando lo contrario), y todos los suelos relacionados son `> 5000` o `> 0` (`context-budget.test.js:38,68,81`), así que crecer no rompe ninguno.
+El preámbulo **sí** llegaba al cuerpo always-on, porque ese cuerpo se renderiza desde la copia **transformada**: `scripts/install-apply.js:294` llama a `wireHook(target, paths, join(ensureBase('suggest', …), 'SKILL.md'))`, y `ensureBase` es el punto de transformación de §2. De ahí los **779 B en cada turno, en los 17 asistentes sin gancho por turno**.
 
-### El coste, dicho con el número
+Las dos cosas juntas dan el diagnóstico completo: **el coste caía en la superficie más cara del producto y los tres techos no lo medían**, porque miran el fuente. Elevarlos no habría arreglado nada; habría dejado un cuarto validador vacuo.
 
-**779 B — unos 200 tokens — en cada turno, en los 17 asistentes que no tienen gancho por turno.** Eso es lo que se compra. Lo que se obtiene es que la gobernanza llegue a las 274 sin excepciones, y que el criterio de aceptación 4 se pueda cumplir en su letra: un validador determinista que exige 274 de 274 y donde un 273 es un fallo.
+### Y el bloque ahí no tiene referente
 
-Y lo que los techos protegían no se pierde: no eran un límite técnico sino un triñquete contra la deriva — *«the next person who adds “just a couple of lines” … now argues with a failing test instead of a habit»*. Moviendo el triñquete **exactamente 779 B** el mecanismo sigue intacto para el siguiente que quiera añadir algo.
+El preámbulo dice *«read this before applying the skill below»* y apunta a `02-DOCS/wiki/skills/suggest/README.md`. En el cuerpo always-on **no hay ninguna «skill below» que se esté aplicando**: es la capa ambiental de operaciones, presente siempre. `EVALUATION.md` ya lo había declarado al excluir `suggest` de la muestra — *«la conducta “consultar la personalización antes de aplicar esta skill” no significa lo mismo para ella»* — y `evidence/transformer-feasibility.md:522` lo había dicho antes: el bloque **ya está en la skill concreta cuando se la invoca**. Se estaban pagando 779 B por turno para inyectar una regla que los propios documentos del fork declaraban sin significado en ese sitio.
 
-### El coste que no es opcional: tres puntos de divergencia permanentes
+### La decisión: despojar el bloque en el renderizado always-on, y sólo ahí
 
-`clone-bootstrap.test.js`, `ftd-lane.test.js` y `always-on-body.test.js` son archivos que **upstream mantiene activamente** — `clone-bootstrap.test.js` ya creció 59 líneas entre 3.7.1 y 3.7.4. Al cambiarles una cifra, cada modificación de upstream sobre ellos **va a conflictuar**.
+La separación ya existe en el código y es exacta:
 
-Esto no afecta a la invariante de la Estrategia B: son archivos de `tests/`, no de `skills/`, y `skills/` sigue byte-idéntico. Pero sí impone un requisito a la máquina de mantenimiento: **debe avisar cuando upstream toque uno de estos cuatro archivos**, porque ahí un merge limpio **no es prueba de compatibilidad** — upstream podría haber bajado el techo por una razón nueva, y el merge lo reaplicaría sin que nadie lo mire.
+| Función | Qué es | Qué se hace |
+|---|---|---|
+| `writeSkill(id, fromDir, toPath)` | Renderizado **por skill**. `_md-block.js:23` enlaza o copia; `cursor.js:4` despoja el frontmatter y conserva el cuerpo; `claude.js:9` ídem | **No se toca.** Las 274 conservan el bloque en los 18 destinos, `suggest` incluida cuando se la invoca como skill |
+| `wireHook(paths, sourceMd, policy)` | **Sólo** la superficie always-on. Tres implementaciones: `_md-block.js:27`, `cursor.js:11`, `claude.js:112`, y las tres ya hacen `stripFrontmatter(readFileSync(sourceMd,'utf8'))` | Se añade `stripGovernance()` junto a ese `stripFrontmatter`: borra entre `<!-- rsc-governance:begin v1 -->` y `<!-- rsc-governance:end -->` |
+
+Determinista e idempotente, como el resto de la transformación, y en el punto donde ya se despoja contenido por la misma razón.
+
+**Resultado, en las cuatro magnitudes que importan:**
+
+| | Diseño retirado | Diseño adoptado |
+|---|---|---|
+| Conformidad | 274/274 | **274/274** |
+| Coste por turno en 17 asistentes | 779 B (~200 tokens) | **0 B** |
+| Techos que cambian | 3 | **0** |
+| Divergencias permanentes con upstream | 3 (4 archivos) | **0** |
+
+La decisión del usuario se cumple en su letra: el validador determinista del criterio 4 corre sobre la base distribuida `.rsc/skills/`, donde las 274 portan el contrato y un 273 es un fallo.
+
+### Lo que hay que medir, ya que los techos de upstream no sirven para esto
+
+Dos tests propios del fork, porque los tres de upstream se quedan midiendo lo que siempre midieron y **no se tocan**:
+
+1. **Base distribuida:** las 274 de `.rsc/skills/<id>/SKILL.md` portan el bloque y las tres claves, con el digest correcto. Es el instrumento del criterio 4.
+2. **Entrega always-on:** el cuerpo que escribe `wireHook` **no** contiene el bloque, y su tamaño es el de upstream — es decir, el fork **no añade ni un byte** a la superficie por turno. Test negativo, que es el que cierra la puerta a reintroducir el coste por descuido.
 
 ### Cuándo se aplica
 
-**No ahora.** La tercera medición de la línea base está corriendo en serie contra el árbol actual, y editar archivos de test a mitad contaminaría los que aún no se han ejecutado — que es exactamente el error que ya costó dos intentos. El cambio de los tres techos va con el transformador en la Etapa 4, donde se verifica junto a lo que lo justifica.
+En la **Etapa 4**, con el transformador. Los tres techos de upstream quedan **sin tocar**, así que ya no hay nada que coordinar con la medición de la línea base, ni archivos que marcar para la máquina de mantenimiento de §9 por este motivo.
 
 ---
 
@@ -182,7 +201,7 @@ La ceguera de Cursor es **la reparación más barata del informe**, porque `curs
 
 ## 9. Puertas de calidad
 
-Medido sobre las 23 comprobaciones con nombre que define el repositorio. **8** corren en algún workflow; **0** corren en un hook de git (`core.hooksPath` sin fijar, sólo `*.sample`); **6** no corren en ninguna parte — cifra de la auditoría previa confirmada.
+Medido sobre las 23 comprobaciones con nombre que define el repositorio. **8** corren en algún workflow; **0** corren en un hook de git (`core.hooksPath` sin fijar, sólo `*.sample`); **15 de las 23 no corren en ningún workflow**. La cifra de **6** que circulaba sale de restringirse a las 12 que contó la auditoría previa, y en ese subconjunto se confirma — pero sobre el inventario de 23 el hueco es 15, no 6, y decirlo con el denominador equivocado lo subestima por un factor 2,5. Tampoco es exacto «no corren en ninguna parte»: corren cuando alguien las invoca a mano como script de npm. Lo que no hay es nada que las invoque sola.
 
 ### La gobernanza no mueve `routing:audit`. Ni un caso.
 
@@ -232,7 +251,7 @@ Aplicado a las 274 el preámbulo literal de `PREAMBLE-v1.txt` más las tres clav
 | **`prepublishOnly`** | **No omitible** en `publish` | No cubre commits, y le faltan tres comprobaciones |
 | **Workflow** | Lo único **no omitible**, en clon limpio, con registro, y puede ser puerta de `main` | Habilitar Actions no es neutro: `ci.yml:3` dispara `on: [push, pull_request]` y **`pages.yml` despliega en push a `main` sin ejecutar ninguna comprobación**. Además `ci.yml` **no tiene bloque `permissions:`**, así que hereda el permiso por defecto; mínimo privilegio exigiría `contents: read` explícito |
 
-**Estado verificado del remoto:** Actions sigue **desactivado** (`{"enabled":false}`, reconsultado hoy). Esa es la mitigación más fuerte de R6 y se mantiene.
+**Estado del remoto, verificado por el coordinador** con `gh api` como parte de la verificación de accesos que el usuario pidió («Verifica accesos sin revelar secretos», §4b del ledger) — no por un proceso de build aislado, que no puede y no debe: Actions sigue **desactivado** (`{"enabled":false}`, reconsultado hoy). Esa es la mitigación más fuerte de R6 y se mantiene.
 
 **Recomendación:** **script local + hook de git + el patrón de tres estados de `doctor.js:102-135`**, para que un hook desinstalado sea **visible** en lugar de silencioso. Es lo más fuerte alcanzable sin Actions, y no finge ser una garantía. Y una restricción que atraviesa los cinco sitios: **ninguno puede ejecutar `npm test`**, así que el diseño separa por cadencia el paquete determinista de 130 s de la suite de 2 h 17 min.
 

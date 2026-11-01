@@ -794,3 +794,71 @@ La configuración real de los asistentes del usuario no fue tocada en ningún mo
   4. Por tanto: en el entorno que upstream presupone (temporal en `/var/folders/…`, sin repo encima) `swallowed` sale vacío, las cuatro líneas **nunca se escriben** y `assert.doesNotMatch(/^\.claude\//m)` pasa. En el mío se escriben y falla.
   - **Recuento actualizado: 5 de los 10 fallos son mi instrumento** (`capabilities` ×2, `session-memory`, `spec-gate-subject`, `onboarding-apply`), 3 son entorno (`eval-lint`/PyYAML), **2 quedan sin atribuir** (`deepseek-target` `dsh06`, `design-engine` `A5`) y 1 es un cuelgue real (`knowledge-sync`). A lo sumo **2 defectos reales sobre 1 491 tests**, más el cuelgue.
   - **Lección de método, que es la que vale:** este fallo se cerró **leyendo el código y haciendo dos preguntas a git**, no ejecutando la suite otra vez. Más barato, más concluyente y sin contaminar la sonda en curso. Los dos que faltan se probarán con el mismo par de brazos cuando la sonda de `knowledge-sync` libere la máquina.
+
+---
+
+## 2h. Revisión independiente de la Etapa 1 (protocolo §12)
+
+**Veredicto del revisor: BLOQUEADA.** 2 críticos, 3 altos, 7 medios, 4 bajos. Revisor independiente, sin haber producido ninguno de los seis artefactos, con el estándar (`REQUIREMENTS.md`, `PLAN.md`) y sin conocer el veredicto esperado del coordinador. Sólo lectura: no ejecutó tests (había una medición en curso) ni nada de red. **Cumplió §1 sin incidentes**, al contrario que un agente de la Etapa 0.
+
+### E1-R1 — CRÍTICO. LOS TRES TECHOS NO SE ROMPÍAN: mi decisión de ayer era innecesaria. **Verificado por mí y retractado**
+
+El revisor sostiene que los tres techos miden el **archivo fuente del repositorio**, no la copia transformada. **Lo comprobé yo mismo y es correcto:**
+
+| Techo | Qué lee realmente |
+|---|---|
+| `tests/clone-bootstrap.test.js:340` | `readFileSync(new URL('../skills/suggest/SKILL.md', import.meta.url))` |
+| `tests/ftd-lane.test.js:20` | `read('skills','suggest','SKILL.md')`, resuelto contra la raíz del repo |
+| `tests/always-on-body.test.js:12` | `readFileSync(join(ROOT,'skills/suggest/SKILL.md'))` |
+
+Bajo la invariante de la Estrategia B ese archivo vale **7 280 B para siempre**, así que **los tres tests siguen verdes sin tocar una cifra**. Los valores 8 061 / 8 061 / 8 192 que anuncié eran innecesarios, y habrían costado **tres divergencias permanentes** en archivos que upstream edita, a cambio de nada. Peor: habrían dejado el techo midiendo una magnitud equivocada por exactamente el tamaño del preámbulo (fuente de 8 059 B pasaría el techo de 8 061 mientras su entrega pesaría 8 836 B, 644 B sobre el límite exterior).
+
+**Lo que sí era real** y el revisor también sitúa: el preámbulo llegaba al cuerpo always-on porque `scripts/install-apply.js:294` lo renderiza desde la copia **transformada** (`wireHook(…, join(ensureBase('suggest', …), 'SKILL.md'))`). De ahí los 779 B por turno. Es decir: **el coste caía en la superficie más cara del producto y los tres techos no lo medían.**
+
+**Y el argumento que remata, que el revisor extrae de mis propios documentos:** el preámbulo dice *«read this before applying the skill below»* y en el cuerpo always-on **no hay ninguna skill que se esté aplicando**. `EVALUATION.md` ya lo declaraba al excluir `suggest` de la muestra, y `evidence/transformer-feasibility.md:522` lo había dicho antes. Se pagaban 779 B por turno, en 17 asistentes, por inyectar una regla que los documentos del propio fork declaraban sin significado ahí.
+
+**Diseño adoptado**, verificado por mí en el código: despojar el bloque **sólo en `wireHook`** — tres implementaciones (`_md-block.js:27`, `cursor.js:11`, `claude.js:112`), las tres ya hacen `stripFrontmatter(readFileSync(sourceMd))` — y **no tocar `writeSkill`**, que es el renderizado por skill (`_md-block.js:23` enlaza/copia, `cursor.js:4` despoja frontmatter y conserva el cuerpo). Así **las 274 conservan el bloque en los 18 destinos**, `suggest` incluida cuando se la invoca como skill.
+
+| | Diseño retirado | Diseño adoptado |
+|---|---|---|
+| Conformidad | 274/274 | **274/274** |
+| Coste por turno (17 asistentes) | 779 B | **0 B** |
+| Techos que cambian | 3 | **0** |
+| Divergencias con upstream | 3 | **0** |
+
+**La decisión del usuario del 2026-11-01 se cumple en su letra**: 274 sin exclusiones sobre la base distribuida, que es donde corre el validador del criterio 4. Lo que se retira no es su decisión, sino mi forma de pagarla. Aplicados ya: `ARCHITECTURE.md` §4 reescrito íntegro, `CONTRACT.md:50`, `ACCEPTANCE.md` criterio 4 y fila §2.
+
+### E1-R2 — CRÍTICO. `EVALUATION.md` sustituyó en silencio la asignación aprobada y abandonó cobertura obligatoria. **Verificado contra el estándar**
+
+Comprobado por mí leyendo `REQUIREMENTS.md` §11 y `PLAN.md` §7:
+- **§11 exige tres clases** de cobertura semántica: skills nuevas o modificadas en cada integración; **skills internas del harness — `suggest`, `ftd`, `sdd` y las identificadas por la auditoría**; y **una muestra estratificada del resto**. Mi `EVALUATION.md` no cubre ninguna de las dos últimas, y **excluía explícitamente `suggest`, que §11 nombra primero.**
+- **D6 / `PLAN.md` §7 asignaban**: conjunto interno **27 skills (R2) → 147 ejecuciones** y muestra estratificada **~30 skills con selección reproducible y con semilla → ~300 ejecuciones**. Mi documento gasta las 600 en **6 skills elegidas a mano × 5 asistentes**. El total cuadra; la cobertura comprada es otra, y **no declaré el cambio** — contra `REQUIREMENTS.md:25` (*«No sobrescribas requisitos anteriores silenciosamente»*).
+- **El motivo que escribí para la laguna — «Presupuesto» — es falso.** El presupuesto aprobado financiaba 27 + ~30 skills. Lo que lo consumió fue mi multiplicación no declarada por los 5 asistentes. Registrar una laguna con la causa equivocada impide corregirla.
+- **Faltan 6 de las 9 definiciones que §11 ordena fijar EN LA ETAPA 1**: casos y rúbricas; selección reproducible con semilla; modelos y configuración; límites de duración y reintentos; fallos críticos que bloquean promoción; y «qué constituye un cambio relevante» (que `PLAN.md:207`, riesgo 7, asigna nominalmente a esta etapa).
+
+**§11 ya decide cómo se resuelve y no hace falta preguntar:** *«deben mantenerse dentro del presupuesto máximo aprobado… Si no alcanza, registra la cobertura pendiente sin reducir los umbrales ni exceder el límite. No marques como aprobado lo que quedó sin verificar.»* Es decir: se mantienen las ~600, se recupera la cobertura de D6, y lo que no quepa se registra como pendiente.
+
+### E1-R3 — ALTO. La estadística de `EVALUATION.md` §8 está mal calculada, y los umbrales ≥95 % no son afirmables con este presupuesto
+
+El revisor calculó el intervalo exacto y lo doy por bueno porque es aritmética verificable: para 86/90 = 95,6 %, **Clopper–Pearson [89,0 %; 98,8 %]**, Wilson [89,1 %; 98,3 %]. Mi documento usaba **Wald**, que **no es válido aquí** (`n·p·(1−p) = 90 × 0,95 × 0,05 = 4,28 < 5`), y concluía que un 95 % observado respalda «≥ 90 %». **No lo respalda: respalda «≥ 89 %».**
+Y el corolario que importa más: **ningún reparto dentro de las ~600 ejecuciones puede respaldar una afirmación «≥ 95 %»** (n=600 con 95 % observado → límite inferior CP 92,9 %). Los umbrales de ≥95 % siguen siendo útiles como **proporción observada**, pero no son afirmables, y el informe final debe decirlo así.
+**La reserva está infradimensionada por construcción:** con N=3 y tasa real igual al umbral, las celdas ambiguas esperadas son `3p²(1−p)·180` → **≈44 a p=0,90** y **≈59 a p=0,85**, contra una reserva de 30. Y al elevar celdas a N=5 el denominador por conducta deja de ser 90 sin que el documento diga cuál es ni qué veredicto corresponde a 4/5: **un umbral sin denominador definido no es falsable.**
+
+### E1-R4 — ALTO. El criterio 8 tiene una mitad determinista que nadie ejecuta
+
+`ACCEPTANCE.md` clasifica el criterio 8 como **D + E** y describe la parte D («un archivo ilegible produce un error declarado, no el camino de "no existe"»), pero **ningún componente del diseño lee `02-DOCS/wiki/skills/<id>/README.md`**: el validador de `CUSTOMIZATION-SCHEMA.md` está especificado **sin punto de invocación** — ni `install`, ni `sync`, ni hook, ni `prepublishOnly`, ni la puerta determinista. Y como la aplicación de una skill no es un evento observable (F32), tampoco puede engancharse ahí. La garantía «ilegible ≠ ausente» queda **íntegramente dependiente del modelo** mientras el criterio la presenta medio determinista. No es equiparar conformidad con cumplimiento, pero es el vecino de al lado. **Pendiente: fijar el punto de invocación en la Etapa 1 o reclasificar el criterio 8 como E puro con el límite escrito.**
+
+### E1-R5 — ALTO. Huérfana de la reescritura de ayer, exactamente donde la buscaba
+
+`ACCEPTANCE.md:53` seguía diciendo *«aparece una exclusión obligatoria (`suggest`) que cambia la cifra del criterio»* mientras `:20` decía 274 sin exclusiones. El commit `1890615` tocó una línea y dejó la otra contradiciéndola. **Corregida.** Es la razón por la que el encargo al revisor incluía cruzar los seis documentos entre sí.
+
+### Medios y bajos aceptados y aplicados
+
+- **Mío, y lo escribí mal dos veces:** decir *«elevar los tres techos exactamente los 779 B»* era falso para el tercero (8 000 → 8 192 son **+192 B**). Moot tras E1-R1, pero queda registrado como error de redacción propio en `CONTRACT.md:50` y `ACCEPTANCE.md:20`, que yo mismo contradecía al escribir «133 B de holgura».
+- **`ARCHITECTURE.md:204` corregido:** eran **15 de 23** las comprobaciones que no corren en ningún workflow, no 6. El 6 sale de restringirse a las 12 de la auditoría previa; mezclar denominadores subestimaba el hueco por un factor **2,5** en la tabla que decide las puertas. Su propia evidencia (`inherited-debt.md:442-443`) ya decía 15. Y «no corren en ninguna parte» es inexacto: corren cuando alguien las invoca a mano.
+- **`ARCHITECTURE.md:254` anotado:** el estado de Actions lo verifiqué **yo** con `gh api`, como parte de la verificación de accesos que el usuario pidió, no un proceso de build aislado. El revisor no podía dirimirlo sin red y lo marcó bien como inconsistente con su evidencia, que lo da por no verificado.
+- **Pendientes, aceptados:** el preámbulo ordena *«stop»* donde el contrato ordena *«report»* y el preámbulo es normativo, así que un README con YAML roto convierte en parada dura cualquier skill del proyecto (alinear). El `governance-digest` se pierde justo en las dos superficies que el modelo lee, porque el frontmatter se despoja: es la única de las tres claves **no** redundante y hay que decidir si viaja en el bloque o se declara que sólo protege la base. `.rsc.fork.json` revoca `PLAN.md:93` sin registrar la revisión, pierde la mitad «detectar la pérdida de clave» y queda fuera del inventario de recuperación de `install-apply.js:71-74`. El criterio 3 no puede fallar mientras su lista de rutas exentas se defina después de ver las diferencias. Las cuatro citas de `targets/claude.js` apuntan al bloque pero no a la línea del hecho. «Margen 878/2048» es un desplazamiento, no un margen (el margen es 1 170 B; la conclusión se sostiene).
+
+### Lo que el revisor acredita, y que no hace falta volver a mirar
+
+**No encontró una sola equiparación de conformidad con cumplimiento** en los seis artefactos — lo que `REQUIREMENTS.md` §6 prohíbe y lo que más me preocupaba. Verificó además por su cuenta, con comando y resultado: la invariante de la Estrategia B (diff vacío contra `origin/main` **y** contra `481b1ec`), 274/274 skills y ninguna a profundidad 3, `suggest` 7 280 B, el preámbulo 779 B plantilla / 772–797 renderizado / 208,9 KiB en total, los tamaños exactos de las seis skills de la muestra, 274 `cases.yaml` con 3 175 prompts, `origin: risco` en 274/274, `name:` == directorio en 274/274, 79 skills con enlaces relativos, 12 claves en `KEYS`, el matcher de `Skill` inexistente, y que `eval-lint` falla en abierto. **Su medición del cálculo de §4 coincide con la mía (8 059 B, delta 779) y confirma que la corrección al agente del transformador era correcta.**
