@@ -1063,3 +1063,21 @@ Idempotencia **274/274**; bloques dobles **0**; digest incorrecto **0**; delimit
 ### Nota de método, para el acta
 
 El agente intentó escribir un tercer documento con sus hallazgos y **el harness lo rechazó** por parecer un archivo de informe de subagente. Reaccionó bien: incorporó la parte factual a `stage2/VERIFICATION.md` §5 y §6.4, *«que es donde el revisor independiente la encontrará sin depender de este mensaje»*. Es el criterio correcto — un hallazgo que sólo vive en un mensaje de agente no es un hallazgo del proyecto.
+
+### B-R1 CERRADO — decisión del usuario: excluir la personalización **sólo del borrado**
+
+Preguntado tras la investigación de la Etapa 2, el usuario elige la regla estrecha. **Implementado en `targets/knowledge-sync.mjs`:** las altas y los cambios de un compañero siguen llegando como cualquier conocimiento —propagarlos es media razón de que las personalizaciones existan: son las decisiones del equipo sobre una skill—, y su **borrado** se separa del `git rm`, no se aplica, y se reporta con nombre: *«Ana borró …, que es personalización de este proyecto. No lo aplico: tu copia sigue intacta.»* El predicado es un **prefijo** (`GOVERNED`), no una ruta exacta, porque la lista existente (`PERSONAL`) se compara con `includes` y no puede expresar un subárbol.
+
+**El test negativo que exige `PLAN.md` §4, en archivo propio del fork** (`tests/governance-knowledge-sync.test.js`, sin tocar el de upstream): tres tests, y **probados contra dos mutaciones distintas** — quitar la exclusión del borrado y quitar el aviso. **Cada una tumba `gks01` y sólo `gks01`**, y el **control `gks02` sigue verde en las dos**: un archivo de conocimiento normal borrado igual **sí** se elimina. Eso es lo que demuestra que la regla es estrecha, que era el riesgo de la opción amplia del plan.
+
+**Un defecto propio que la mutación destapó, y que vale más que el test.** La primera mutación no tumbó nada y mi reacción fue sospechar del test; el error era mío, había mutado la línea del **mensaje** en vez de la del **borrado**. Pero al repetirla bien salió a la luz algo real: mi aserción decía *«alguna línea menciona `flutter` y `Ana`»* y **se cumplía por el motivo equivocado**, porque `byAuthor` (`:210-223`) renderiza *«de Ana: flutter/README.md»* dentro del mensaje ordinario de «📥 Traídos». Reescrita para exigir **la frase de rechazo en la misma línea** que el archivo y el autor, más una comprobación de coherencia: la línea de «traídos» **no puede** listar lo que se acaba de rechazar. Una aserción satisfacible por la razón equivocada no es una aserción.
+
+### Regresión de `knowledge-sync`: dos rojos que NO son míos, demostrado
+
+La corrida de los 55 tests (52 de upstream + 3 míos) dio **53 pasan / 2 fallan**: `ks63` y `ks64`. Ninguno es mi cambio:
+
+- **Sus modos de fallo no son de lógica:** `ks64` muere con `git commit: spawnSync git ETIMEDOUT` —el **subproceso git** agotó su tiempo— y `ks63` con una salida **vacía** donde esperaba contenido. Ni un desajuste de autor ni un archivo mal borrado.
+- **Pasan los dos en solitario con mi cambio puesto**, en **71 s** frente a los **359 s** (144 + 215) que tardaron dentro de la corrida completa: **5× de inflación**, y el proceso al **14 % de CPU**, es decir esperando. El archivo entero tardó **1 635 s** frente a los **1 146 s** medidos antes: **42 % más lento**.
+- La condición ya estaba declarada desde el principio: **la máquina está compartida con trabajo del usuario ajeno a este fork**. Esta corrida la pilló ocupada.
+- **`ks64` es, además, el test que mi cambio podría romper de verdad** —toca el crédito por autor, y yo cambié el argumento de `byAuthor` de `take` a `brought`—, así que su verde en solitario es la observación que más vale aquí.
+- **No gasto una ventana de 27 minutos en confirmarlo ahora:** la Etapa 4 corre la suite completa con la máquina ociosa y vuelve a ejecutar este archivo en contexto. Queda anotado como **lo primero que hay que mirar en ese log**.

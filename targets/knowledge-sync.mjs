@@ -47,6 +47,23 @@ import { defaultBranchName, trunkClosed } from './trunk-policy.mjs';
 export const KNOWLEDGE = Object.freeze(['01-TOOLS/', '02-DOCS/wiki/', '02-DOCS/attachments/']);
 /** One person's dials (`init`, `orient`): never anybody else's business. */
 export const PERSONAL = Object.freeze(['02-DOCS/wiki/harness/user-profile.md']);
+/**
+ * FORK (governance): the project's per-skill customizations, `02-DOCS/wiki/skills/<official>/README.md`.
+ *
+ * They travel like any other knowledge — a teammate's new or edited customization arrives normally,
+ * which is half of why they exist: they are the team's decisions about a skill. What never travels is
+ * a teammate's DELETION. `REQUIREMENTS.md` §5 says a customization must not be lost during install,
+ * sync, repair, update or the rebuild of a clean clone, and a `git rm` driven from the exchange branch
+ * is exactly that loss — landing on a file the local user never touched, which is precisely the
+ * condition under which `take` fires. So the delete is skipped and named: whoever deleted it is
+ * reported and the local copy stays. Deleting a project's governance decision stays a deliberate
+ * local act.
+ *
+ * A PREFIX, unlike `PERSONAL`, which is matched with `includes(path)` against exact paths: this is a
+ * subtree with one directory per official skill, so an exact-path list could not express it.
+ */
+export const GOVERNED = Object.freeze(['02-DOCS/wiki/skills/']);
+export const isGoverned = (path) => GOVERNED.some((k) => path.startsWith(k));
 export const OPT_OUT = '.no-knowledge-sync';
 export const SKIP_CI = '[skip ci]';
 /** The exchange branch on the remote. Fixed, in every project (spec, clarify P7). */
@@ -598,10 +615,21 @@ export function applyIncoming(root, s) {
   if (take.length) {
     const gone = take.filter((f) => !blob(root, tip, f));
     const present = take.filter((f) => blob(root, tip, f));
+    // FORK (governance, see GOVERNED above): somebody else's deletion of a customization is reported,
+    // never applied. Everything else about `take` is unchanged, additions and edits included.
+    const kept = gone.filter(isGoverned);
+    const removable = gone.filter((f) => !isGoverned(f));
+    const brought = take.filter((f) => !kept.includes(f));
     if (present.length) git(root, ['--literal-pathspecs', 'checkout', tip, '--', ...present]);
-    if (gone.length) git(root, ['--literal-pathspecs', 'rm', '--quiet', '--', ...gone]);
-    git(root, ['--literal-pathspecs', 'commit', '--quiet', '--no-verify', '--only', '-m', SYNC_SUBJECT, '--', ...take]);
-    said.push(`📥 Traídos ${take.length} fichero(s) de conocimiento (${byAuthor(root, take, touchedBy, s.ours)}).`);
+    if (removable.length) git(root, ['--literal-pathspecs', 'rm', '--quiet', '--', ...removable]);
+    if (brought.length) {
+      git(root, ['--literal-pathspecs', 'commit', '--quiet', '--no-verify', '--only', '-m', SYNC_SUBJECT, '--', ...brought]);
+      said.push(`📥 Traídos ${brought.length} fichero(s) de conocimiento (${byAuthor(root, brought, touchedBy, s.ours)}).`);
+    }
+    if (kept.length) {
+      const who = authorsOf(root, [...new Set(kept.flatMap(touchedBy))].filter((c) => !s.ours.includes(c)));
+      said.push(`${who} borró ${listed(kept)}, que es personalización de este proyecto. No lo aplico: tu copia sigue intacta. Bórrala tú si esa es la decisión.`);
+    }
   }
   if (clash.length) {
     const who = authorsOf(root, [...new Set(clash.flatMap(touchedBy))].filter((c) => !s.ours.includes(c)));
