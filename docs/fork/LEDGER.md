@@ -1288,7 +1288,7 @@ El renombrado `rsc`→`rscg` en la cadena `ANNOUNCE` de `targets/knowledge-sync.
 
 ### UPSTREAM SE MOVIÓ, y la etapa corrió contra el cambio real en vez de contra un fixture
 
-Verificado por mí: `git rev-list --count 481b1ec9..cb9e051d` → **2**. Upstream publicó **3.7.5**. Trae una modificación (`connect-tool/SKILL.md`) y 20 archivos nuevos, y entre ellos lo que importa:
+Verificado por mí: `git rev-list --count 481b1ec9..cb9e051d` → **2**. Upstream publicó **3.7.5**. Trae **20 archivos nuevos** y **seis modificados** — `manifest.json`, `package-lock.json`, `package.json`, `skills/connect-tool/SKILL.md`, `skills/connect-tool/evals/cases.yaml` y `tests/connect-tool.test.js`. Escribí «una modificación»: una **skill** modificada, seis **archivos**. La distinción importa porque `package.json` es una de las ocho divergencias, y por eso la corrida reporta `collisions: **high** — package.json`. Y entre los nuevos, lo que importa:
 
 ```
 A  skills/connect-tool/THIRD_PARTY.md
@@ -1297,7 +1297,7 @@ A  skills/connect-tool/bridge-kit/UPSTREAM.json
 → Executive-Lab/conectores-pymes, MIT
 ```
 
-**El fork pasaría a tener TRES subárboles vendorizados, no los dos que el plan congela** — y `PLAN.md` §2 enumeraba las obligaciones **por nombre de archivo**, así que no conoce ninguno de los tres. El merge no da ni un conflicto textual: las 165 pruebas impactadas pasan, el manifiesto valida, la deriva no se mueve. **Un merge limpio que, aplicado a ciegas, habría hecho al fork incumplir tres atribuciones sin que nada lo dijera.** Es la demostración más fuerte posible de la frase del plan que yo venía citando como consigna: *«un merge sin conflictos textuales no se acepta como prueba de compatibilidad funcional»*.
+**El fork pasaría a tener TRES subárboles vendorizados, no los dos que el plan congela** — y `PLAN.md` §2 enumeraba las obligaciones **por nombre de archivo**, así que no conoce ninguno de los tres. El merge no da ni un conflicto textual: las pruebas impactadas pasan (**18 archivos**, 165 casos — escribí «165 pruebas impactadas», que es leer mal mi propio instrumento: el `detail` de la puerta dice literalmente `18 file(s): 165 passed`), el manifiesto valida, la deriva no se mueve. **Un merge limpio que, aplicado a ciegas, habría hecho al fork incumplir tres atribuciones sin que nada lo dijera.** Es la demostración más fuerte posible de la frase del plan que yo venía citando como consigna: *«un merge sin conflictos textuales no se acepta como prueba de compatibilidad funcional»*.
 
 La puerta lo paró. Veredicto sobre el merge real: **PASS** G1 (espejo intacto), G2 (274 skills, mismo conjunto de ids), G3, G4, G5 (los **tres** subárboles idénticos en repo y en copia entregada), G7 (divergencias intactas), G8 (165 pass / 1 fallo declarado / **0** inesperados / 0 cancelados), G9, G10 — y **FAIL G6** («3 notice change(s) NOT acknowledged»), **FAIL G11** (una skill necesita evaluación semántica, no instrumentada), **FAIL G12** (identidad, porque el worktree se construyó desde `HEAD`, donde el renombrado aún no está commiteado; sobre el árbol vivo la misma comprobación da `@lema017/rsc-governed`, así que **la puerta distingue los dos árboles y no es vacua**).
 
@@ -1339,3 +1339,76 @@ git -c credential.helper= -c credential.interactive=false -c core.askPass= \
 ### Tareas que me quedan de esta etapa
 
 Cablear la puerta permanente (`scripts/gate.js`, de la Etapa 6) dentro de `GATE_CHECKS` como comprobación obligatoria **sólo** bajo autorización `publish` — el agente no la cableó porque no era su archivo y no conocía su cobertura real, que es la decisión correcta; hacer expresable «retirada sin sucesor» en `scripts/lib/retired-skills.js` y su copia en línea; y acreditar `Executive-Lab/conectores-pymes` en el README **si y cuando** se integre 3.7.5.
+
+---
+
+## 2q. Revisión independiente de la Etapa 5 — APROBADA CON CORRECCIONES (3 ALTA, 6 MEDIO, 10 BAJO)
+
+Revisor distinto, worktree desechable de `0ddd309`, sin red, sin suite completa, mutaciones revertidas y cierre comprobado.
+
+### Lo que verificó y resultó cierto, que es mucho
+
+**Reprodujo el 22/22 por su cuenta** (§2p sólo decía «según el agente»). **La cuenta de ocho divergencias es exacta** y la lista coincide carácter por carácter con la CORRECCIÓN 5. **3.7.5 es exactamente lo descrito:** dos commits, los tres archivos de atribución presentes, subárboles 2 → 3, y **el catálogo sigue en 274 en ambas revisiones, así que la premisa de D14 se sostiene**. **G6 bloquea** esa integración con un mensaje que nombra los tres avisos. **La reanudabilidad aguanta en las cuatro propiedades**, incluida la que más importa: probó **cuatro formas distintas de corromper el diario** —truncado, JSON válido sin una fase, vacío y borrado— y las cuatro dan error en vez de «no hay ejecución»; *«no encontré forma de que un resume se salte una fase inacabada ni de que reutilice una medición rancia»*. **No hay camino por el que un merge limpio incline el veredicto.** **El aislamiento de credenciales es cierto**, verificado sin leer ninguna credencial. Y **`~/.claude` intacto**, corroborado por tercera vez.
+
+### A2 — la violación más grave de la sesión, porque es la restricción §1 del usuario incumplida por código que se entrega
+
+`scopedConformance`, en el motor de la puerta, usa `mkdtempSync(join(tmpdir(), 'rsc-gate-proj-'))`. **Sin `TMPDIR` definido eso es `/tmp` literal**, y corre en `phaseGovern` y en G3/G4/G5, es decir en **toda** ejecución de la puerta. El colmo es que el propio archivo excluye `eval-lint` de su lista `NEVER_RUN` con el motivo *«writes to a literal /tmp outside the dedicated folder (limit L2, REQUIREMENTS §1)»*: la etapa conocía la regla, la escribió, y su motor la incumple. Y **`MAINTENANCE.md` no menciona `TMPDIR`, `HOME` ni `env.sh` en ninguna parte**, así que quien ejecute `npm run upstream:maintain` como el documento enseña escribe fuera de la carpeta dedicada **creyendo lo contrario**. Mitigante medido que no exime: `applyInstall` recibe `home` explícito y `install-apply.js` no llama a `homedir()` ni una vez, así que `~/.claude` era inalcanzable. **Corrección en marcha.**
+
+### A1 y A3 — la vacuidad otra vez, y en el mismo sitio conceptual
+
+**A1:** `divergenceSurface` devuelve `{ok:false, …, modified:[]}` ante un fallo de git, y **ni `phaseClassify` ni G7 leen `.ok`** nunca. El `||` no salva porque **`[]` es truthy**. Resultado medido: `G7 → PASS "0 divergence(s) intact"` sobre una medición que falló — y el informe imprime entonces *«collisions: none — upstream did not touch the fork's divergence surface»*: **una tranquilidad falsa, impresa**.
+
+**A3:** no existe ningún test que afirme que cada una de G1–G12 **falla sobre un árbol donde su propiedad es falsa**. El que parecía serlo es de **forma** (que cada check tenga `run()`, un título largo y un `kind` válido). Con un contexto vacío, **seis pasan**, porque **una entrada ausente es indistinguible de una entrada que midió cero**. Y hay una mitad **vacua por construcción**: en el fallback de G7, `unprobed = files.filter(f => !DIVERGENCE_PROBES[f])` sobre `files = Object.keys(DIVERGENCE_PROBES)` es **necesariamente `[]`**.
+
+**Es el mismo hallazgo que la revisión de la Etapa 4 hizo sobre el otro instrumento, en una etapa que lo tenía escrito en su propio informe.** Tres instrumentos de este proyecto —el del criterio 4, la puerta de mantenimiento y, dentro de ella, `gateVerdict`— han tenido la misma clase de defecto: **una comprobación que no puede fallar informa lo mismo que una que pasa**. La lección operativa ya no es «lee el código»: es **muta el instrumento antes de creerle un verde**.
+
+### M2 — las dos obligaciones que ningún código puede decidir se levantan con una cadena libre
+
+El comentario de `runGate` afirma que los *acknowledgements* vienen del diario *«never from a flag typed at the moment of being blocked»*. **Es falso:** vienen de `--ack` en argv, **nada lee `state.decisions`** (`decisionFor` está exportada y nadie la llama), el bucle que los registra está **dentro del `if (resumeId)`** así que una corrida fresca no deja rastro, y no se valida nada: `--ack G6="anything at all"` → **PASS G6**. Las dos cosas que la puerta reserva al juicio humano —un deber de atribución de licencia y la evaluación semántica obligatoria— se despachan con cualquier texto que ni tiene que aparecer en la evidencia.
+
+### M1 — el diario commiteable lleva el entorno del usuario dentro
+
+Rutas absolutas en `state.json` y `report.md`, y en `evidence/impacted-tests.json`, escrito verbatim desde `G8.measured`, **el valor de `GIT_CEILING_DIRECTORIES`**. Sin credenciales (`redactUrl` cubre remotos y stderr), pero en un directorio pensado para commitearse en un repositorio destinado a publicarse. Es la respuesta a la pregunta que puse en el encargo del revisor —*«¿qué escribe `evidence/` ahí dentro?»*— y salió rentable.
+
+### El resto, aceptado
+
+**M3** las correcciones acotadas nunca se commitean y `publish` promueve una rama que no las contiene, con la fuerza de un veredicto anterior a esa escritura. **M4** fallar a medias deja el repo en la rama de mantenimiento, sin restaurar, y `.rsc-upstream/` no está gitignorado. **M5** la superficie se mide por **rango de commits**, así que una divergencia del árbol de trabajo es invisible (8 contra 9 medidos); la lógica de G7 es sana, el fallo está en la entrada. **M6** G8 pasa sin correr nada si la enumeración falla. **B7** `ATTRIBUTION_RE` es ciego a `NOTICE`, `COPYING`, `LICENCE` — y **Apache-2.0 §4(d) obliga a propagar `NOTICE`**, con material Apache-2.0 ya dentro del fork: latente hoy, pero es una obligación legal y se cierra. **B1** la mitad «rename» de G9 es una tautología sobre una constante escrita a mano: sólo detecta que alguien edite el literal. Y confirmó por grep lo que importaba de esa clase: **no existe ninguna rama de código que re-aloje una personalización** — la propiedad se cumple, es decidible y no está instrumentada.
+
+**Dos correcciones mías, aplicadas arriba en §2p:** «165 pruebas impactadas» son **18 archivos** y 165 casos (el `detail` de la puerta dice `18 file(s): 165 passed`, así que leí mal mi propio instrumento); y «una modificación» son **seis archivos** modificados y **una** skill.
+
+---
+
+## 2r. Etapa 6 — Identidad, distribución y recuperación (entregada, pendiente de revisión independiente)
+
+`docs/fork/stage6/{DISTRIBUTION.md,DESIGN.md,VERIFICATION.md}` (1 111 líneas), `scripts/gate.js`, `scripts/lib/conformance.js` y `tests/governance-{identity,recovery,gate,doctor}.test.js` (61 tests). 56 archivos modificados, 8 nuevos, invariante en **0**.
+
+### Verificado por mí
+Identidad: `@lema017/rsc-governed`, `bin: {rscg, rscg-install}`. D15 aplicada (`files` excluye `scripts/upstream-*`). **61/61, 0 fallos, 0 cancelados.** El instrumento del criterio 4 re-ejecutado: **`failures: 0`**, y ahora con el campo que faltaba — **17 destinos × 274 `symlink`** y cursor × 274 `cursor-mdc`. **La frase de `CONTRACT.md` §1 sobre «17 de 18» era inferencia desde la Etapa 1 y ya es una medición.** Y las nueve rutas de licencia son **nueve**: el agente dijo diez barriendo un árbol de pruebas, que es el error que yo acababa de cometer esa misma hora.
+
+### El hallazgo que más vale de la etapa
+**El paquete padre vivía DOS veces en `targets/auto-update.mjs`, y ningún test heredado toca ninguna de las dos** porque todos cortocircuitan con `RSC_LATEST`/`RSC_AUTO_UPDATE_CMD`. Un fork que las hubiera dejado **habría pasado la suite entera e instalado el padre encima del fork en segundo plano**. Por eso sus tests afirman uno sobre la **fuente** y otro sobre la **copia instalada**. Es §10 literal: *«evitar reinstalar accidentalmente el padre»*.
+
+Y dos defectos heredados que encontró de paso: `release.yml` daba `contents: write` + `id-token: write` a un job de sólo lectura, y el `! grep` de `ci.yml` **convertía el exit 2 de grep en PASS**.
+
+### D16 — los comandos sugeridos dejan de nombrar al padre. Decisión mía; implementación en marcha
+
+La etapa **paró y me escaló** el defecto, en vez de romper la invariante medida de otra etapa en una ronda paralela. Fue la decisión correcta y lo fijó con un test para que no derivara. El defecto, verificado por mí: `skills/` nombra al padre **81** veces, **10 en `skills/suggest/SKILL.md`** —el cuerpo **always-on**, reemitido en cada SessionStart— y una de ellas es `npx @ericrisco/rsc add <id>`, **ejecutable**. Un consumidor del fork que la obedezca instala el CLI **del padre**, cuyo instalador escribe una base **sin contrato**: no es cosmético, **de-gobierna el proyecto en silencio**.
+
+Lo decide la especificación, no yo. §10, palabras del usuario: *«Revisa actualizador, hooks, bootstrap, recuperación, **comandos sugeridos**, documentación y workflows **para evitar reinstalar accidentalmente el padre**»*. Y `PLAN.md` §3 ya había asignado la respuesta: *«el renombrado de identidad forma parte de la misma transformación»*.
+
+**El mecanismo que decido:** una **segunda transformación declarada, acotada a tokens** —`@ericrisco/rsc` → `@lema017/rsc-governed`, nunca a `rscg`, porque `npx <especificador>` funciona en cualquier proyecto y `rscg` exige el binario en PATH—, aplicada en la instalación a la base gobernada y al cuerpo always-on, **sin tocar `skills/`**. No se reescriben `rsc` como palabra, `.rsc/`, `.rsc.json`, `RSC_*`, los marcadores `rsc-governance:` ni `ericrisco/mem-slop`, que es otro proyecto.
+
+**Las dos invariantes que cruza se REFORMULAN, no se tiran**, y ésta es la parte que me toca justificar. (a) `stripGovernance(transform(x)) === x` se parte en dos: el **bloque** sigue siendo aditivo y reversible, y la **reescritura de identidad** es idempotente y **exactamente enumerable** — invertir el mapa recupera los bytes de upstream carácter por carácter, lo que es una afirmación **más fuerte** que la vieja, no más débil. (b) «el cuerpo always-on es byte-idéntico al prístino» pasa a «igual al prístino **tras el mapa de identidad**, sin bloque, con el delta de bytes medido y acotado». **El motivo por el que esa invariante existía sobrevive intacto:** era el **coste** —no pagar 785 B de preámbulo en cada SessionStart, que es lo que haría inmedible G3— y aquí el delta son diez sustituciones de un token por otro. Si saliera del orden de cientos de bytes, la decisión se revisa.
+
+**Criterio 13 queda registrado como «dos tercios verificados, un tercio abierto»** y no como ✅: el mecanismo de actualización está verificado limpio, la activación también, y «nada instruye a reinstalar el padre» **no se cumple hasta que D16 aterrice**.
+
+### Lo que sólo puede hacer el usuario
+**Las Actions del fork están desactivadas** (`{"enabled":false}`, 0 workflows registrados, comprobado y no supuesto). Sin eso **no hay provenance de npm** —exige *«a supported cloud CI/CD provider and a cloud-hosted runner»*— y **no hay Trusted Publishing**, que es OIDC desde dentro de un workflow. `release.yml` está **listo y no puede correr**. Dato que decide la recomendación: **Trusted Publishing genera provenance automáticamente** desde GitHub Actions, así que habilitarlas entrega las dos cosas y permite **retirar el `NPM_TOKEN`**; la vía CircleCI excluye provenance y sería media respuesta. §10 pide las dos *«cuando sean compatibles»* y *«documenta cualquier limitación»*, así que ambas salidas son conformes: habilitarlas, o dejarlas desactivadas y declarar la limitación. **Pendiente de decisión del usuario.** El 2FA es ajuste de cuenta y queda **no verificado** (NV-6a): `npm profile get` con el `HOME` del sandbox da `E401`, que es el aislamiento funcionando y no un hallazgo sobre la cuenta.
+
+**Nada publicado:** ni `publish` ni dry-run autenticado. `@lema017/rsc-governed` → **404**, el nombre está libre.
+
+### Un dato para la Etapa 5
+**La superficie de divergencia pasa de 8 a 51 archivos** con esta etapa dentro. Su diseño se auto-corrige porque la mide en vez de escribirla, pero el coste del merge mensual sube. `skills/` sigue byte-idéntico, que es donde está el volumen.
+
+### No verificado (§7), nueve con su motivo
+**NV-6a** 2FA · **NV-6b** provenance real · **NV-6c** Trusted Publishing · **NV-6d** que el artefacto publicado instale limpio (`npm pack --dry-run` probó el **tarball**: `@lema017/rsc-governed@3.7.4`, 1 792 archivos, `docs/` ausente — **no es la misma afirmación**) · **NV-6e** los tres workflows corriendo · **NV-6f** la rama Windows del audit de entregas, escrita y **nunca ejecutada** · **NV-6g** la regla 14 · **NV-6h** recall project↔skill · **NV-6i** la suite completa sobre este árbol, que **no incluye** los cuatro archivos nuevos de esta etapa.
