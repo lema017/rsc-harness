@@ -691,9 +691,9 @@ La configuración real de los asistentes del usuario no fue tocada en ningún mo
 - **2026-11-01 — Sincronización del ledger con la realidad.** La tabla de **Estado actual** —lo primero que se lee al reanudar o tras una compactación, por mandato de la cabecera de este archivo— seguía declarando «Etapa 0, plan pendiente, fork no creado, ningún commit, remotos sin modificar». El registro cronológico sí estaba al día, de modo que el archivo se contradecía a sí mismo y el corte transversal era el lado falso. Corregido por lectura del estado real, no de memoria: rama, commits, versión, remotos, scopes y la invariante de `skills/` comprobados por ejecución antes de escribir. Ajustados también: las subsecciones de fase pre-aprobación, sustituidas por las **restricciones de §1 que son permanentes** y no caducan con la aprobación; los accesos de §4b (scope `workflow` presente, npm autenticado); el prerrequisito **A1 → cumplido** con la nota de por qué falló el primer intento; el **bloqueo B1 → resuelto** y revalidado tras el merge; y §7, que pasa de un único marcador genérico a los tres pendientes reales (línea base en curso, Windows no verificable).
 - **2026-11-01 — ETAPA 1, contenido sustantivo (primera entrega).** Escritos y commiteados cuatro artefactos en `docs/fork/stage1/`, todos con cifras medidas sobre 3.7.4, no supuestas:
   - **`CONTRACT.md`** — contrato de gobernanza v1. **Decisión forzada por evidencia:** `.rsc/` está en `.gitignore:6`, así que el documento completo **no existe en un clon limpio hasta que se instala**. Un puntero que puede colgar no puede ser el único sitio donde viven las reglas → el preámbulo es **normativo y autosuficiente** y el documento sólo lo expande. Cubre los nueve temas que exige §6 y mantiene en tablas separadas lo garantizado por código, lo dependiente del modelo y lo medido por evaluación, como §6 ordena.
-  - **`PREAMBLE-v1.txt`** — el preámbulo canónico, medido: **779 B de plantilla, 772–797 B renderizado** (nombre de skill más corto `go`, 2 caracteres; más largo `source-grounded-development`, 27), **~209 KB sobre las 274**, es decir ~+4 % sobre un tarball de 5,3 MB. Tres claves **planas** de frontmatter (`governance`, `governance-customization`, `governance-digest`), planas por F17. El digest existe para que una inyección **parcial o manipulada** sea detectable, que es lo que convierte el «0 parciales» del criterio 4 en algo comprobable.
+  - **`PREAMBLE-v1.txt`** — el preámbulo canónico, medido: **779 B de plantilla, 772–797 B renderizado** (nombre de skill más corto `go`, 2 caracteres; más largo `source-grounded-development`, 27), **~209 KB sobre las 274**, es decir ~+4 % sobre un tarball de 5,3 **MiB** (la Etapa 4 lo mide en 5 602 330 B; «5,3 MB» era MiB mal nombrado). Tres claves **planas** de frontmatter (`governance`, `governance-customization`, `governance-digest`), planas por F17. El digest existe para que una inyección **parcial o manipulada** sea detectable, que es lo que convierte el «0 parciales» del criterio 4 en algo comprobable.
   - **`EVALUATION.md`** — presupuesto de ~600 ejecuciones. **Hecho nuevo medido:** las 274 skills **ya** traen `evals/cases.yaml` (claves `skill`, `capability`, `should_trigger`, `should_not_trigger`) con **3 175 prompts** (~11,6 por skill), pero miden **enrutamiento, no gobernanza**; y correrlos una vez contra **un** asistente costaría **3 175 ejecuciones, 5,3 veces el presupuesto completo** (47 625 con cinco asistentes y N=3). Consecuencia: el corpus heredado se consume con un comprobador determinista y **cero** ejecuciones de agente, y el presupuesto compra un corpus nuevo y pequeño. Diseño: 6 conductas × 5 asistentes × 6 skills estratificadas = **180 celdas** × N=3 = 540 ejecuciones, **60 de reserva** para las celdas con veredicto 2-1 elevadas a N=5. Y la limitación dicha con números: con 90 observaciones y 0,95 observado, el IC al 95 % es de **±4,5 puntos**, así que un 95 % observado respalda «≥ 90 %», **no** «≥ 95 %».
-  - **`ACCEPTANCE.md`** — los 16 criterios con instrumento, comando y condición de paso falsable, clasificados en determinista / evaluación / inspección. **Dos ya cumplidos** (1 y 2). **Criterio 6 con instrumento verificado y línea base:** `npm pack --dry-run --json` da **1 782 archivos, 5,3 MB**, y las **ocho** obligaciones de licencia viajan en el tarball — `LICENSE`, `skills/design/engine/{LICENSE,UPSTREAM.json}`, `skills/design/{THIRD_PARTY.md,IMPECCABLE-LICENSE.txt}`, `skills/ux/upstream/UPSTREAM.json` y los dos `LICENSE` de `ux-designer` y `ux-usability-foundations` — más 274 `SKILL.md` y 274 `cases.yaml`. (Corrección de un error del coordinador: buscó esos artefactos en la raíz del repo y concluyó que no existían; están anidados dentro de `skills/`, que sí entra en `package.json.files`.) **Criterio 13 con limitación real registrada:** la ida y vuelta por el registro de npm no se puede verificar sin publicar, y publicar para probar no es aceptable — se reporta como «verificado contra tarball local, no contra registro».
+  - **`ACCEPTANCE.md`** — los 16 criterios con instrumento, comando y condición de paso falsable, clasificados en determinista / evaluación / inspección. **Dos ya cumplidos** (1 y 2). **Criterio 6 con instrumento verificado y línea base:** `npm pack --dry-run --json` da **1 782 archivos, 5,3 MiB** (5 602 330 B; la unidad estaba mal nombrada como MB), y las **ocho** obligaciones de licencia viajan en el tarball — `LICENSE`, `skills/design/engine/{LICENSE,UPSTREAM.json}`, `skills/design/{THIRD_PARTY.md,IMPECCABLE-LICENSE.txt}`, `skills/ux/upstream/UPSTREAM.json` y los dos `LICENSE` de `ux-designer` y `ux-usability-foundations` — más 274 `SKILL.md` y 274 `cases.yaml`. (Corrección de un error del coordinador: buscó esos artefactos en la raíz del repo y concluyó que no existían; están anidados dentro de `skills/`, que sí entra en `package.json.files`.) **Criterio 13 con limitación real registrada:** la ida y vuelta por el registro de npm no se puede verificar sin publicar, y publicar para probar no es aceptable — se reporta como «verificado contra tarball local, no contra registro».
   - **`CUSTOMIZATION-SCHEMA.md`** — esquema del archivo `02-DOCS/wiki/skills/<nombre>/README.md`: frontmatter plano con seis claves obligatorias, `scope` **sin valor por defecto** (en un monorepo un ámbito omitido esparce cada decisión local por todo el repositorio), `## Out of scope` como sección **obligatoria** (un archivo que sólo dice qué decide implica por silencio que decidió todo), las seis categorías del criterio 10 con lo que cada una autoriza, y ocho reglas de validación deterministas. Mantiene **«observed pattern» separado de «approved convention»** porque `scripts/detect-repo.js` reconoce stacks por presencia de archivos y no puede distinguir una decisión de un accidente (F19): fundirlas ascendería a ley cada accidente del código. Huérfanas y renombrados resueltos de forma determinista (criterio 12).
   - Commits `4639e66` y `dd6414e`, subidos.
 - **2026-11-01 — Línea base de 3.7.4: aparecen fallos y la hipótesis de concurrencia se cae en parte.** Con la suite a medio camino hay fallos cuya atribución **ya no es «concurrencia»**:
@@ -1048,7 +1048,7 @@ Idempotencia **274/274**; bloques dobles **0**; digest incorrecto **0**; delimit
 | **3** | Entorno: rama degradada de `eval-lint` por falta de PyYAML, que §1 prohíbe instalar | Ya atribuidos |
 | **1** | **`design-engine` A5: FLAKY preexistente de upstream** | Corregido abajo |
 | **1** | **`deepseek-target` dsh06: fallo preexistente de upstream** | Falla idéntico en un worktree prístino de `origin/main`, y ya aparecía en mi primera línea base en serie, antes de que existiera una línea de este fork |
-| **0** | Cuelgues | `knowledge-sync` pasa 52/52 en 19 min: es el archivo más lento, no un cuelgue |
+| **0** | Cuelgues | `knowledge-sync` pasa 52/52 en 19 min: es el archivo más lento, no un cuelgue. **Corregido por la Etapa 4:** ese 52/52 es **una observación**, no una propiedad — la Etapa 4 midió 48/52 en una corrida un 15 % **más corta** (969 s frente a 1 146 s), así que el tiempo de reloj no explica la diferencia y el archivo es no determinista. Lo que se mantiene es lo único que se afirmó: **no es un cuelgue** |
 
 **Cero defectos introducidos por el fork.**
 
@@ -1170,3 +1170,78 @@ Ninguna necesita al usuario; las cinco caen dentro del plan aprobado o las decid
 3. **El gate (d) y sus ~48 ejecuciones:** se **especifica** y se declara **cobertura pendiente**. §11 es explícito: no exceder el techo, no bajar umbrales, registrar lo pendiente, no marcar como aprobado lo no verificado.
 4. **La casa de las decisiones brownfield:** por proyecto, primera coincidencia, **recordando que la rama 2 es `docs/adr/`** — la que gobierna el caso central del brownfield y que el borrador se había saltado.
 5. **Citar por sección + fragmento: sí**, en los cuatro artefactos de producto. El coste es real y vale la pena: si upstream reescribe una frase, la regla **falla en voz alta**; el modelo anterior fallaba **invisible**, y esta sesión lleva tres cadenas de revisión demostrándolo.
+
+---
+
+## 2n. Etapa 4 — Conformidad del catálogo completo (entregada, pendiente de revisión independiente)
+
+Entregables: `docs/fork/stage4/{VERIFICATION.md,INSTRUMENT.md,PROPUESTAS.md}` (858 líneas), `scripts/verify-catalog-conformance.js` (252) y `tests/governance-upstream-change.test.js` (226). El agente no commiteó; commiteo yo.
+
+### Lo que verifiqué YO, no lo que me reportaron
+
+| Comprobación | Mi resultado | Coincide con el informe |
+|---|---|---|
+| Invariante `skills/` = upstream | `git diff --numstat origin/main -- skills/` → **0 líneas**, 274 directorios | sí |
+| Mutaciones revertidas | `git diff --stat scripts/ targets/ tests/ package.json` → **vacío**; sólo 3 rutas sin seguimiento | sí |
+| **Criterio 4, corrida propia** | `verify-catalog-conformance.js` → **EXIT 0, failures: 0**. Base **274/274** en las 3 pasadas; entrega **274/274 en los 18 destinos** en las 3 pasadas; `installedBaseDirs` 274 (ninguna base fuera del catálogo) | sí, cifra por cifra |
+| **Criterio 5, corrida propia** | `reinstall` 274/274 byte-idénticas, `forcedRefresh` 274/274, **0 derivas** | sí |
+| Superficie always-on | `claude` 7 280 B · 13 de familia `AGENTS.md` 6 946 B · `cursor` 6 676 B, **ninguna con bloque** | sí |
+| `npm run governance:check` | **EXIT 0** — la deriva que yo causé en la Etapa 3 sigue cerrada | sí |
+| Suite de gobernanza del fork + criterio 12 | 6 archivos, **51/51, 0 fallos, 0 cancelados**, 87 s | sí |
+| `ks64`: ningún test toca `02-DOCS/wiki/skills/` | `grep -c "wiki/skills" tests/knowledge-sync.test.js` → **0** | sí |
+
+Y leí el instrumento antes de creerle el 274/274, porque un validador que no puede fallar informa lo mismo que uno que pasa: **no es vacuo**. Define parcial/duplicado/digest-incorrecto/fuera-de-sitio **antes** de medir; deriva los 18 destinos de `TARGET_IDS` en vez de cablearlos; compara el `.mdc` de Cursor **byte a byte contra el bloque renderizado** (la única entrega transformada de verdad, donde ni el validador de la base ni el digest verían un fallo); y para `claude` **sigue la ruta guardada en `settings.json`** en vez del retorno de `wireHook` — exactamente la vacuidad que yo introduje en el diseño de la Etapa 1 y que la CORRECCIÓN 2 tuvo que retirar.
+
+### La suite completa — la medición autoritativa que el proyecto no tenía
+
+```
+142 archivos (los 143 menos tests/eval-lint.test.js, por L2)
+# tests 1588 · # pass 1581 · # fail 6 · # cancelled 0 · # skipped 1
+# duration_ms 5617237 → 1 h 33 m 37 s     EXIT=1
+```
+
+**0 cancelados**, que es el defecto que invalidaba todas las mediciones anteriores. Los 6 fallos, **todos atribuidos y ninguno nuevo**: `dsh06` (upstream preexistente), `design-engine A5` (flake preexistente) y `ks30/ks48/ks61/ks63` de `knowledge-sync`. Cifras corregidas: **1 h 33 m 37 s** y **1 588 tests**, no las ≈1 h 48 m / 1 537 que yo venía arrastrando de una reconstrucción.
+
+### `ks64` refutado, y por lectura en vez de por estadística
+
+Yo dije que `ks64` era «el único test de upstream que ese cambio podría romper de verdad». Pasa en **3 de 3** observaciones, pero el argumento decisivo no es el conteo: **ningún test del archivo toca `02-DOCS/wiki/skills/`**, luego `isGoverned()` es falso siempre, `kept` es `[]`, `brought === take`, y la guarda `if (brought.length)` se entra exactamente cuando se entraba `if (take.length)`. El cambio de `byAuthor` de `take` a `brought` es un **no-op demostrable para los 52 tests**. Los 4 fallos son sensibilidad a la carga **en upstream**: el worktree prístino `481b1ec` falla un **superconjunto estricto** (9, los mismos 4 más ks08/ks15/ks44/ks50/ks54).
+
+### Las mutaciones: los tests muerden, y se ve exactamente cuánto
+
+**(a) `governBase` borrada:** conformidad **base 0/274** y **cursor 0/274** en las tres pasadas; 11 fallos sobre 134 tests. **(b) `CATEGORIES[0]`:** 2 fallos, el predicho (categoría *hedged*) **y uno que no predije** — la categoría **ausente**, porque `CATEGORIES[0]` también enmascara la ausencia.
+
+**El dato incómodo de (a), que el agente reporta contra su propia comodidad:** de los tests heredados de upstream, **cero** notan que la gobernanza desaparezca. `base-install`, `apply`, `fresh-install-coherence`, `always-on-body` y `md-block-fidelity` dan 0 fallos. Es lo esperado bajo Estrategia B —upstream no sabe que existe el contrato— pero conviene tenerlo escrito: **la red que protege el criterio 4 son los cuatro archivos de test del fork y nada más.**
+
+### HALLAZGO NUEVO, reproducido por mí y MÁS ANCHO de lo reportado: `rsc restore` deja la base sin gobernar
+
+Hay un **segundo escritor** dentro de `.rsc/skills/`: `restoreEntry` (`backups.js:98-114`, `cpSync` crudo), y `install-apply.js:215` mete `baseDir(…)` en los `managedPaths`. Como `createBackup` corre **antes** de escribir (`install-apply.js:347`), la instantánea de un proyecto cuya base venía de upstream captura esa base **sin gobernar**, y la instalación la gobierna después. Reproducido literalmente por mí:
+
+```
+1. fork install            → governed = true
+2. upstream-shaped base    → governed = false
+3. fork install again      → governed = true   (el punto ciego de la Etapa 2, ya cerrado)
+4. rsc restore latest      → governed = false
+   .claude delivery exists: true | governed = false
+```
+
+Lo que añado a lo reportado: el mismo `restoreBackup` se invoca **automáticamente** en el rollback de onboarding (`onboarding-apply.js:342`), no sólo desde `rsc restore`. Con el matiz honesto: en el rollback devuelve el proyecto a un estado **anterior**, así que no inventa una falta de gobernanza que no estuviera ya ahí; lo que hace es que el consumidor acabe leyendo skills sin contrato **y nada se lo diga**. No es defecto del transformador —`restore` es una máquina del tiempo y debe serlo— pero sí **un hueco en el alcance del criterio 4**. El fondo lo dice el agente mejor que mi briefing: **el validador del criterio 4 corre en el repositorio del fork, no en la máquina del consumidor.** Ningún comando del producto responde hoy «¿están gobernadas mis 274?».
+
+### Afirmaciones mías que la Etapa 4 tumbó
+
+1. **«La máquina es tuya y nadie más la está usando» — FALSO, y es la más grave**, porque es una condición del instrumento que yo declaré cumplida sin medirla. Medido durante la etapa: una VM del usuario del 1,1 % al **94,4 %** de CPU, una suite de `vitest` de otro proyecto con 13 procesos, `docker-scout` al 62 %. **La condición 4 no es alcanzable en esta máquina** y esperar a «carga < 3,0» era esperar a algo que no llega.
+2. **`ks64`** (arriba): no sólo no es el único que podría romperse, es que **ninguno** del archivo puede.
+3. **«El ledger los atribuye a contención»**: el tiempo de reloj no sostiene el caso — la corrida que falló 4 fue **más corta** que la que pasó 52/52.
+4. **Mutación (a), predicción parcialmente errónea**: los tests «de base de install» heredados cayeron **cero**.
+5. **L2 mal atribuido**: `tests/design-engine.test.js` **no** toca la red (`fetchImpl` falso en `:111,114,116`); el límite recae sobre `scripts/design-upstream.js`. Ya estaba corregido en este ledger (línea 1055); la Etapa 4 lo confirma y además **barre** `scripts/`, `targets/` y `tests/`: el único escritor de `/tmp` literal es `eval-lint.sh`, y 105 archivos de test usan `os.tmpdir()`, que sí honra `TMPDIR`.
+
+El patrón sigue siendo el mismo que esta sesión ya tiene registrado como lección operativa, y esta vez cayó sobre una **condición del instrumento**: tomé una propiedad de mi entorno por una propiedad medida.
+
+### Decisiones del coordinador sobre las tres preguntas de la etapa
+
+**D11 — La corrida completa se acepta como autoritativa, con sus condiciones registradas, y la condición 4 pasa a ser el límite L7.** Razones: **0 cancelados** (el defecto que invalidaba las anteriores), **78 de sus 93 minutos** entre carga 1,88 y 3,52, los 6 fallos atribuidos por experimento y **ninguno nuevo**. Y la razón de fondo: las mediciones de **conformidad comparan bytes, no tiempos**, así que son indiferentes a la carga; lo único expuesto son las duraciones y los fallos con forma de timeout, y ésos se atribuyeron re-ejecutando en solitario y contra un worktree prístino de upstream. **L7: «máquina ociosa en sentido estricto» no es alcanzable en esta máquina**; lo que se puede afirmar y se afirma es que **ningún trabajo del proyecto corrió en paralelo**.
+
+**D12 — `knowledge-sync` es deuda heredada, se declara, y NO es puerta binaria.** Es no determinista en **upstream prístino**, que falla un superconjunto estricto; y el único cambio del fork sobre ese archivo es un **no-op demostrable** para sus 52 tests. Consecuencia para los criterios 3, 7 y 14: la suite completa **no sirve como puerta binaria** mientras ese archivo sea no determinista, y eso se escribe en `PLAN.md` §7 en vez de maquillarse con un reintento. **No se sube el tope a ciegas**: la hipótesis del mecanismo (`LOCAL_TIMEOUT_MS = 4_000` con `run()` convirtiendo el timeout en un `{ok:false}` indistinguible de «no había nada») queda **como hipótesis con su experimento escrito**, y la recomendación que adopto es **hacer el fallo ruidoso**, no más permisivo. Arreglar deuda de upstream no es objetivo de este fork (§2); declararla sí.
+
+**D13 — `rsc restore` se NOMBRA, no se cambia la semántica.** Re-gobernar al restaurar convertiría la máquina del tiempo en una mentira: el usuario pide el estado de ayer y recibe otro. Lo que gana el producto, y es la parte que importa, es **un comando que responda «¿están gobernadas mis 274?» en la máquina del consumidor** — porque hoy el criterio 4 sólo se puede comprobar dentro del repositorio del fork. Entregable de la **Etapa 6**, junto con el aviso explícito tras un `restore` que devuelva bases sin gobernar.
+
+**Correcciones al ledger aplicadas** (propuestas por la etapa, verificadas por mí): el 52/52 de `knowledge-sync` pasa a ser **una observación** y no una propiedad; «5,3 MB» era **MiB**; la atribución de L2 ya estaba corregida en la línea 1055.
