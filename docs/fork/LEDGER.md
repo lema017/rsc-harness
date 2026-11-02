@@ -1647,3 +1647,56 @@ homepage    : https://ericrisco.github.io/rsc-harness/                          
 El campo `homepage` es **exactamente** la superficie que §10 describe: quien visita la página del fork pulsa «Website» y aterriza en el sitio **del padre**, que le dice que instale el paquete **del padre**. Es el mismo defecto que D16 cerró dentro de los archivos, sobreviviendo **fuera** de ellos. Toda la instrumentación de esta sesión —`gi03`, `gg25`, `ps01`–`ps06`, las 62 sondas— es estructuralmente ciega a esto porque toda ella barre **archivos rastreados**. **No lo cambio yo:** son ajustes del repositorio del usuario y se los traslado para que decida.
 
 **Hallazgo 2 — el README reescrito todavía no es el que ve el público.** `default_branch` es **`main`**, y todo el trabajo del fork vive en `fork/bootstrap`. Así que la portada pública de `github.com/lema017/rsc-harness` **sigue mostrando el README del padre**, con sus comandos al padre, hasta que esa rama se fusione. Dato que convierte la fusión en parte de la entrega, no en un trámite posterior: mientras no ocurra, el criterio 13 sigue abierto **en la superficie más visible de todas**.
+
+---
+
+## 2y. Revisión independiente de la Etapa 7 — **BLOQUEADA** (5 ALTA, 12 MEDIO, 7 BAJO)
+
+Cinco afirmaciones **falsas publicadas**, cuatro en el `README.md` y **una mía en este ledger**. Nada está publicado todavía y todas son baratas, así que el bloqueo es de corrección, no de rediseño. El diagnóstico del revisor es el que hay que retener: **la etapa validó los diagramas contra la implementación y no validó la prosa.**
+
+### A1 — mi «gg25 verde, 31/31» era FALSO, y el mecanismo es la lección
+
+Ejecutado por el revisor sobre el commit que yo declaré: **`gg25` falla**, denunciando `tests/product-surfaces.test.js`, que lleva dos tokens literales del padre en un comentario y no está en ningún grupo declarado. Lo verifiqué yo: **30 de 31**.
+
+**El mecanismo, que es lo que importa:** yo ejecuté `gg25` y obtuve 31/31 **cuando ese archivo todavía estaba sin rastrear**. `gg25` barre `git ls-files`, o sea **sólo rutas rastreadas**, así que el archivo era invisible para el barrido. Y **el propio commit en el que escribí «verde» es el que lo rastreó y lo puso rojo**. Comprobado: `git log --diff-filter=A -- tests/product-surfaces.test.js` → `1cfe83f`, el commit de la Etapa 7.
+
+**Verificar antes de la acción que cambia lo que se mide no es verificar.** Es la séptima aparición de la familia en esta sesión y la primera en la que el error no está en el instrumento sino en **cuándo lo ejecuté**. Corregido por mí, con el relato dentro del propio test para que la próxima persona lo lea donde ocurrió. **31/31 sobre el estado real.**
+
+Ironía que el revisor señala y conviene conservar: el resto de ese archivo **parte el token a propósito** (`['eric','risco'].join('')`, *«split so this file is not its own hit»*) y esa línea se olvidó.
+
+### A3 — la llamada a la acción del README instala AL PADRE. Verificado por mí
+
+El README decía `git clone https://github.com/lema017/rsc-harness.git` y luego *«prints `rscg 3.7.4`»*. Un `clone` sin `-b` trae la rama por defecto, que es **`main`**. Medido:
+
+```
+$ git archive origin/main | tar -x -C <tmp> && node <tmp>/scripts/rsc.js --version
+rsc 3.7.4                                   ← el PADRE
+paquete: @ericrisco/rsc | bin: rsc,rsc-install
+¿existe scripts/lib/governance.js?  No such file or directory
+```
+
+Quien siga la portada ejecuta el `onboard` **del instalador del padre** y se escribe una base **sin gobernar**. **Es el accidente que §10 y D16 existen para impedir, sobreviviendo en la llamada a la acción principal.** Y lo más afilado del hallazgo: la etapa **razonó sobre ese mismo hecho** —que los diagramas están en `fork/bootstrap` y no en `main`— para elegir rutas relativas en las imágenes, **y no lo aplicó al comando de clonado tres secciones más abajo**.
+
+### A2, A4, A5 — las otras tres falsedades
+
+**A2:** el README afirma, en presente, que *«las opciones del fork viven en un archivo aparte, `.rsc.fork.json`»*. **Ninguna línea de `scripts/`, `targets/`, `tests/` ni `schema/` menciona ese archivo**: es una decisión de la Etapa 1 **que nunca se implementó**, y la gobernanza persiste de hecho en `.rsc/governance`. Agravante: **`SECURITY.md` la repite como superficie de ataque**, mandando a un investigador de seguridad a auditar un archivo inexistente. **Decisión mía: no se implementa** —añadir un archivo de estado nuevo a estas alturas es más riesgo que valor— y la prosa pasa a decir la verdad.
+
+**A4:** el ejemplo que el README manda **copiar** no pasa el validador del propio fork: **2 errores de regla 6** (la decisión no nombra categoría y no lleva `Evidence:`). Con control negativo —quitar `scope:` sube a 3— y con el contraste que cierra el caso: **el ejemplo canónico del esquema da 0 hallazgos**. Lo preciso del defecto es que la prosa nombra las dos reglas que su ejemplo **sí** cumple y calla la que incumple, así que el lector cree que su decisión está en vigor cuando el validador la ha marcado.
+
+**A5:** `02-add-new-skill.svg`, que el README **enlaza**, conserva **cinco** falsedades que esta misma etapa borró de los otros dos —la clave de frontmatter en singular cuando son tres, las evaluaciones semánticas como paso vivo que *«bloquea la promoción»* cuando **no se ha ejecutado ninguna jamás**, «no new skill» donde G3 mide *added and modified*, provenance y 2FA, y el pie con la base y el estado equivocados— **en el dibujo y en el `<desc>`**. Y `stage7/VERIFICATION.md` afirma de él *«sin cambios; no la desmiente nada de lo revisado»*, que es **falso contra la tabla del mismo documento**.
+
+### Los MEDIO que más enseñan
+
+**M1 — el detector de comandos es ciego a tres formas corrientes: 5 de 7 mutaciones no las detecta.** La clase de sufijo excluye `.` y `,`, así que **un comando del padre que cierra una frase pasa los siete checks**; faltan los verbos `help` y `agent-model`, y el README lista `rscg help`, así que **una `g` de menos no la ve nadie**; y la clase de prefijo excluye las comillas, que es **la forma que ya usan las dos páginas** dentro del JSON-LD. `site/llms.txt`, el archivo de instrucciones **para agentes** por el que existe D16, sufre los tres.
+
+**M4 — una superficie de producto que nadie había mirado: `package.json`.** Es el archivo que **npm renderiza** y el único que entra al tarball junto al README. Su `bugs.url` apunta a issues que están **desactivados** —**exactamente** el patrón que el propio test de la etapa prohíbe, en el único archivo que su barrido no mira— y su `homepage` apunta al `#readme` de la **rama por defecto**, o sea al README **del padre**.
+
+**M5 — en el paquete, las dos imágenes de §13 y 18 de los 21 enlaces locales están muertos, y era decidible sin publicar**: `docs/` son 0 archivos del tarball y `docs/fork/diagrams/` **no existe en `origin/main`**. Es la declaración de «no verificado» que sí se podía verificar — tercera revisión seguida en que esa pregunta encuentra algo.
+
+**M11 — a ancho de móvil los diagramas son ilegibles y no hay zoom:** a 375 px se dibujan a **escala 0,249**, el cuerpo aterriza en **~3 px**; y al ser `![]()` sin enlace, **tocar la imagen no hace nada**. Ni verificado ni declarado. **M3** la leyenda «mirrored» promete un SHA-256 por archivo y un test de deriva: cierto para los dos subárboles de `ux`, **falso para `design/engine`**, cuyo recibo no tiene mapa `files`. **M7** la aritmética de la evaluación publicada es **la que `EVALUATION.md` rechaza por su nombre**. **M9** «30 y 5 archivos» son **31 y 6**: se dejó fuera el `LICENSE`, el archivo de atribución, en la fila que la obligación 5 existe para arreglar. **M12** una sola frase se lee como garantía de cumplimiento, que es la distinción que todo el fork sostiene.
+
+### Y una corrección a mí, además de A1
+**«26 correcciones a los diagramas» no se reproduce:** `git diff --numstat` da **7 y 17 líneas**, es decir 24. El 7 es verificable; el 19 no.
+
+### Lo que el revisor atacó y no se rompió
+Recontó **todas** las cifras del README una a una (274, 18 destinos, 787 B, 1 792 archivos, 94 min, el corpus de originalidad con sus 93 337 huellas), midió por su cuenta el **94,69 %** de pérdida de descripción de Cursor sobre las 274, confirmó los conteos especificador/URL (**spec 2, url 24**) y que las cuatro rutas borradas están **de verdad a cero**, confirmó mi medición del renderizado en la página real, comprobó que los `<desc>` coinciden con el dibujo en 01 y 03, resolvió los 21 destinos locales y 27 de 30 enlaces remotos sin un solo 404, y verificó **las seis obligaciones de licencia** incluida la ausencia correcta de `Executive-Lab`. Y **su propio instrumento le mintió dos veces y sus guardas lo cazaron**: una corrida bajo otro runtime no produjo TAP y su aserción de «el arnés no midió nada» abortó en vez de informar cero fallos.
