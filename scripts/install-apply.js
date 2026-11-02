@@ -73,9 +73,18 @@ function ensureBase(id, cwd, baseVersions) {
     // byte-identical forever (Strategy B), and every assistant reads what is downstream of it —
     // 17 of 18 through a symlink to this directory, Cursor by re-reading it, the always-on surface
     // from its own file. Governing here means the invariant holds by construction rather than by
-    // anyone remembering it. Idempotent, so a refresh of an already-governed base is a no-op.
-    governBase(id, dest);
+    // anyone remembering it.
   }
+  // OUTSIDE the branch above, and that placement is the whole point. Inside it, governance only ever
+  // reached a base this function had just created, so an UPDATE over an existing base was delivered
+  // ungoverned: `stale` is false whenever `.rsc/.base-versions.json` already names this CLI version,
+  // and that file is written by upstream code, so a project installed with upstream at the same
+  // version keeps a materialized, ungoverned base and the 17 symlinked targets read a skill with no
+  // contract. Acceptance criterion 4 says EVERY distributed skill carries it, and the update path is
+  // exactly the one REQUIREMENTS §7 and §10 are about. Found by the independent review of stage 2.
+  // Safe to call unconditionally because the transformation strips and re-injects between its own
+  // markers, so on an already-governed base it is a real no-op, not a hopeful one.
+  governBase(id, dest);
   baseVersions[id] = CLI_VERSION;
   return dest;
 }

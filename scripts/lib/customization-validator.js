@@ -210,14 +210,23 @@ export function validateCustomizationSource({ file, src, dirName, catalog = null
   for (const entry of decisions) {
     const label = firstLine(entry) || '(unnamed decision)';
     const categoryLine = /^\s*category\s*:\s*(.+)$/im.exec(entry);
-    const category = categoryLine
-      ? CATEGORIES.find((c) => categoryLine[1].toLowerCase().includes(c))
-      : null;
+    // The category is the FIRST TOKEN of the line (`Category: <one> · Scope: …`), matched exactly.
+    // The previous version was `CATEGORIES.find((c) => line.includes(c))` over a list whose first
+    // element is `approved convention`, so a line reading «observed pattern, not an approved
+    // convention» resolved to `approved convention` — the silent promotion CUSTOMIZATION-SCHEMA.md
+    // §2 says this schema exists to prevent, since it would turn every accident in the codebase into
+    // law. Ambiguity is the finding, not something to settle by declaration order. Found by the
+    // independent review of stage 2.
+    const named = categoryLine ? categoryLine[1].split('·')[0].trim().toLowerCase() : null;
+    const category = CATEGORIES.includes(named) ? named : null;
 
     // Rule 6 — every decision names one of the six categories and carries an evidence reference.
     if (!category) {
       findings.push(finding(file, 'rule 6 — every decision names one of the six categories', 'R6',
-        `decision "${label}" names no category; one of: ${CATEGORIES.join(' · ')}`));
+        named
+          ? `decision "${label}" names "${named}", which is not one of the six categories exactly; `
+            + `an approximate or hedged category is as unusable as none. One of: ${CATEGORIES.join(' · ')}`
+          : `decision "${label}" names no category; one of: ${CATEGORIES.join(' · ')}`));
     }
     if (!/^\s*evidence\s*:\s*\S/im.test(entry)) {
       findings.push(finding(file, 'rule 6 — every decision carries an evidence reference', 'R6',

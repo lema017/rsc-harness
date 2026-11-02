@@ -14,8 +14,11 @@ Flat keys only — the same constraint as the governance preamble, because the r
 ---
 skill: flutter
 governance: v1
+type: skill-customization
 status: approved
 updated: 2026-11-01
+catalog-version: 3.7.4
+reevaluate-when: the flutter skill changes its state-management recommendation, or apps/mobile adopts a second state library
 scope:
   - apps/mobile
 evidence: codebase analysis, 2026-11-01, accepted by the user
@@ -127,8 +130,11 @@ This is acceptance criterion 12, and it is deliberately deterministic: it must h
 ---
 skill: flutter
 governance: v1
+type: skill-customization
 status: approved
 updated: 2026-11-01
+catalog-version: 3.7.4
+reevaluate-when: the flutter skill changes its state-management recommendation, or apps/mobile adopts a second state library
 scope:
   - apps/mobile
 evidence: codebase analysis 2026-11-01, accepted by the user

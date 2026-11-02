@@ -149,6 +149,37 @@ test('a re-install over an already-governed base stays byte-identical', async ()
   assert.equal(governanceOf(first).complete, true);
 });
 
+test('an UPDATE over a base installed by upstream is governed too — the blind spot', async () => {
+  // The hole this closes, found by the independent review of stage 2: `governBase` used to live
+  // inside `if (!existsSync(dest))`, so it only ever reached a base that call had just created. A
+  // project that installed with UPSTREAM at the same version has `.rsc/skills/<id>/` materialized
+  // and ungoverned, and `.rsc/.base-versions.json` naming that version — written by upstream code
+  // that this fork does not touch. `stale` is then false and the directory exists, so nothing ran:
+  // the base stayed ungoverned and the 17 symlinked targets read a skill with no contract.
+  //
+  // It is reachable today rather than hypothetically, because the fork still ships as
+  // `@ericrisco/rsc` at upstream's version. Acceptance criterion 4 says EVERY distributed skill
+  // carries the contract, and this is the update path REQUIREMENTS §7 and §10 are about.
+  //
+  // The mutation that proves this test bites: put `governBase(id, dest)` back inside the `if`.
+  const cwd = mkdtempSync(join(tmpdir(), 'rsc-gov-upstream-'));
+  const home = mkdtempSync(join(tmpdir(), 'rsc-gov-upstream-home-'));
+  await applyInstall({ skillIds: ['suggest', 'flutter'], target: 'claude', home, cwd });
+
+  const md = join(cwd, '.rsc', 'skills', 'flutter', 'SKILL.md');
+  const versions = JSON.parse(readFileSync(join(cwd, '.rsc', '.base-versions.json'), 'utf8'));
+  assert.ok(versions.flutter, 'the install must have marked a version, or the premise is wrong');
+
+  // Rewind the base to what upstream would have left: the pristine catalog file, same version mark.
+  writeFileSync(md, readCatalog('flutter'));
+  assert.equal(governanceOf(readFileSync(md, 'utf8')).complete, false, 'premise: now ungoverned');
+
+  await applyInstall({ skillIds: ['suggest', 'flutter'], target: 'claude', home, cwd });
+
+  assert.equal(governanceOf(readFileSync(md, 'utf8')).complete, true,
+    'criterion 4 on the update path: an existing, non-stale, ungoverned base must still be governed');
+});
+
 test('the full contract lands at .rsc/governance/v1.md on install', async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'rsc-gov-contract-'));
   const home = mkdtempSync(join(tmpdir(), 'rsc-gov-contract-home-'));

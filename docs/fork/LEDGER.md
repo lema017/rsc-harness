@@ -1081,3 +1081,63 @@ La corrida de los 55 tests (52 de upstream + 3 míos) dio **53 pasan / 2 fallan*
 - La condición ya estaba declarada desde el principio: **la máquina está compartida con trabajo del usuario ajeno a este fork**. Esta corrida la pilló ocupada.
 - **`ks64` es, además, el test que mi cambio podría romper de verdad** —toca el crédito por autor, y yo cambié el argumento de `byAuthor` de `take` a `brought`—, así que su verde en solitario es la observación que más vale aquí.
 - **No gasto una ventana de 27 minutos en confirmarlo ahora:** la Etapa 4 corre la suite completa con la máquina ociosa y vuelve a ejecutar este archivo en contexto. Queda anotado como **lo primero que hay que mirar en ese log**.
+
+---
+
+## 2l. Revisión independiente de la Etapa 2 — BLOQUEADA, dos ALTA, las dos arregladas
+
+Revisor independiente, sólo lectura. Acredita la invariante **siguiendo las llamadas y no el diff** (*«no hay ruta que pueda escribir dentro de `skills/`»*), **recalcula las ocho cifras** de `VERIFICATION.md` §2 una por una y le salen exactas, y confirma que los tests nuevos **no son vacuos**. Y encuentra dos cegueras localizadas.
+
+### E2b-A1 — ALTA. **Culpa mía directa:** edité `CONTRACT.md` después de que la Etapa 2 hiciera la copia distribuida
+
+`schema/governance/contract-v1.md` describía la superficie always-on como *«base minus the block»* mientras `docs/fork/stage1/CONTRACT.md` ya decía lo contrario (el prístino). Verificado por mí: `cmp` difiere en **la línea 40**, 20 275 B contra 19 774 B, y `npm run governance:check` salía **exit 1 con `DRIFT`**.
+
+**Lo grave no es el byte.** `.rsc/governance/v1.md` es el archivo al que el preámbulo remite al modelo, y se regenera **desde esa copia** en cada instalación. Cada consumidor habría recibido un contrato que describe un mecanismo **que el código no implementa** — `writeAlwaysOn` es un `copyFileSync` del archivo prístino, no una resta — y dos contenidos distintos bajo la misma etiqueta `v1`, contra la exigencia de §6 de un contrato *«versionado y uniforme»*.
+
+**Arreglado:** `npm run governance:sync` → `governance:check` **exit 0** y copia byte-idéntica, comprobado con `cmp`. **Y la lección, que es de método:** la deriva sólo la vigilaba un test, y el test no se reejecutó tras editar el documento. **Requisito para la Etapa 6: `governance:check` entra en la puerta determinista.**
+
+### E2b-A2 — ALTA. Una actualización sobre una base de upstream entregaba las 274 **sin contrato**
+
+`governBase(id, dest)` vivía **dentro** de `if (!existsSync(dest))`, así que sólo alcanzaba una base que esa misma llamada acababa de crear. Verificado leyendo `scripts/install-apply.js:64-79`. Y es alcanzable **hoy, no en teoría**: el fork **sigue publicándose como `@ericrisco/rsc` en la versión de upstream**, luego un proyecto instalado con upstream tiene `.rsc/.base-versions.json` marcando esa versión —lo escribe código de upstream que el fork no toca— y la base materializada sin gobernar. Con `stale === false` y el directorio existiendo, **no corría nada**: base sin bloque y los 17 destinos que entregan por symlink leyendo una skill sin contrato. Incumple el criterio 4 en la ruta de actualización, que es justo la de §7 y §10.
+
+**Y ningún test lo cubría**, porque todos instalan en un directorio vacío y el de idempotencia **blanquea** `.base-versions.json` para forzar la ruta stale — probando el refresco y dejando ciego el caso real.
+
+**Arreglado:** `governBase` sale del `if` y corre siempre, que es seguro porque la transformación despoja y reinyecta entre sus propios marcadores (no-op real, no esperanzado). **Más el test que faltaba**, con su mutación escrita en el propio test: rebobinar la base al archivo prístino dejando la marca de versión, reinstalar, exigir el bloque.
+
+### E2b-M2 — La categoría se resolvía por orden de lista, **ascendiendo «patrón observado» a «convención aprobada»**
+
+`CATEGORIES.find((c) => line.includes(c))` sobre una lista cuyo primer elemento es `approved convention`: una línea que diga *«observed pattern, not an approved convention»* resolvía a **`approved convention`**, sin hallazgo alguno. Es exactamente la promoción silenciosa que `CUSTOMIZATION-SCHEMA.md` §2 declara como la razón de ser del esquema — *«turn every accident in the codebase into law»* — y arrastraba la regla 7, porque el despacho de migraciones compara contra esa categoría mal resuelta.
+
+**Arreglado:** la categoría es el **primer token** de la línea (`Category: <una> · Scope: …`), comparado **exactamente**; cero o más de una coincidencia es un hallazgo R6 que **cita lo que el archivo dijo**, porque la ambigüedad es el hallazgo y no algo que resolver por orden de declaración. **Con su test**, y con la mutación que lo tumba escrita dentro.
+
+**Los cuatro archivos de gobernanza tras los tres arreglos: 44 tests, 44 pasan.**
+
+### Y un hueco que es mío y que la Etapa 3 heredó: los ejemplos del esquema fallaban su propia regla 1
+
+Añadí `type`, `catalog-version` y `reevaluate-when` al esquema y **dejé sus dos ejemplos normativos sin ellas**, así que el ejemplo que todo el mundo copia incumplía la regla que el mismo documento acababa de imponer. Arreglado, y **verificado pasándolo por el validador de verdad en vez de contando claves**: el ejemplo trabajado extraído a una fixture da *«1 customization checked · 0 errors · 0 orphaned»*.
+
+---
+
+## 2m. Revisión independiente de la Etapa 3 — APROBADA CON CORRECCIONES (3 ALTA, 7 MEDIO, 9 BAJO)
+
+Acredita que los ocho pasos cubren §7 **1:1 sin huecos de cobertura**, que las seis categorías se reutilizan y **no** se duplican, que los siete campos están, y que **las ocho afirmaciones de reutilización y ~120 citas a código eran correctas al cerrar la etapa**. Lo que falla es instrumentación y coordinación.
+
+### E3-A2 — el hallazgo que más lejos llega, y lo MEDÍ porque el revisor lo marcó como inferido
+
+Los ejemplos trabajados anclan la evidencia por **número de línea** a `skills/<id>/SKILL.md`. Dos problemas: en un proyecto consumidor **`skills/` no existe** (la única copia real es `.rsc/skills/<id>/`), y **la transformación inserta el bloque antes del cuerpo**, así que las líneas se desplazan.
+
+**Medido por mí, que el revisor no pudo:** la transformación añade **13 líneas**. En `flutter`, la línea **243 pasa a 256** y la **396 a 409**. Y la regla 4 sólo comprueba que la línea **exista**, no que diga lo que se afirma, así que **una cita desplazada pasa la validación en silencio**.
+
+Esto excede la Etapa 3: **el fork desplaza el cuerpo de las 274 en 13 líneas**, luego cualquier cita por línea a una skill es falsa en el artefacto entregado. La corrección correcta es la del revisor: anclar en `.rsc/skills/`, y cambiar la regla 4 a *«la línea citada contiene el fragmento entrecomillado»* o citar por sección.
+
+### E3-M5 — el umbral del conjunto de competidores es el equivocado, y verificado
+
+`BROWNFIELD.md` menciona el `0.80` de `routing-audit.js:16`, pero ese es el **techo de fallo** (`FLOORS.maxCollision`, comprobado en `:152` como `>= 0.80` → falla). El llamador real usa **`0.45`** (`:119`) y el valor por defecto de la función es `0.5` (`text-rank.js:102`). Con 0.80, un catálogo que **pasa** su propia auditoría produce ~cero candidatos: el conjunto queda inoperante, no sólo mal declarado.
+
+### Las otras dos ALTA y el resto, aceptadas
+
+**A1:** `BROWNFIELD.md` afirma que los artefactos *«are validated at that point»* por `npm run gate`, que **no existe**; y nada lee el informe brownfield (`grep -rn brownfield scripts/ package.json` → vacío). Es el defecto E1-R4 reproducido para el criterio 10. **A3:** en greenfield la única categoría disponible para una decisión conversacional **no puede satisfacer la regla de evidencia**, porque no tiene ruta — así que lo único que §7 asigna al greenfield queda imposible de registrar. **M1:** 36 citas al esquema desplazadas **+3/+5** porque la Etapa 1 insertó líneas **después** de cerrar la etapa — la deuda de coordinación que ya registré. **M2:** tres «huecos del esquema» que la etapa deja abiertos **ya están cerrados**. **M3:** el ejemplo «totalmente medido» falla el test de conflicto de la propia etapa, y dice «cuatro skills» donde nombra ocho. **M4:** falta la casa `docs/adr/`, que es la rama que gobierna el caso central. **M6/M7:** el bloqueo «computable» y tres criterios de parada acotan la forma y no la cobertura.
+
+### Lo que el revisor aporta y nadie había visto
+
+**El criterio 10 sí se puede falsear**: una corrida que emite cero conflictos cumple las 14 reglas, las 17 propiedades deterministas y el único gate que lo toca. Pero añade la salida que yo no vi: **el eje skill↔skill es parcialmente computable con las piezas que ya se usan** — colisiones de descripción, el grafo `recommends:` y las cláusulas `NOT` — así que se puede exigir que el inventario contenga **toda pareja por encima del umbral** y obtener **un suelo de recall sin gastar ni una ejecución de agente**. Eso es mejor que mi propuesta de colisiones plantadas, y mejor que pedir un gate cuyo presupuesto no existe.

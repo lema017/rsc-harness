@@ -199,6 +199,27 @@ test('rule 6 — a decision with no category, and one with no evidence, are both
     'the offending decision is identified by name');
 });
 
+test('rule 6 — a HEDGED category is a finding, not silently promoted to the first match', () => {
+  // The defect this pins, found by the independent review of stage 2: the category used to be
+  // resolved with `CATEGORIES.find((c) => line.includes(c))` over a list whose first element is
+  // `approved convention`. A line reading «observed pattern, not an approved convention» therefore
+  // resolved to `approved convention`, with no finding at all — silently promoting an accident in
+  // the codebase to law, which CUSTOMIZATION-SCHEMA.md §2 names as the reason this schema exists.
+  //
+  // The mutation that proves this test bites: replace the exact match with `CATEGORIES[0]`, or go
+  // back to the `includes` form. Both must fail here.
+  const src = VALID.replace(
+    '  Category: approved convention · Scope: apps/mobile\n',
+    '  Category: observed pattern, not an approved convention · Scope: apps/mobile\n',
+  );
+  const errors = errorsOf(validateCustomizationSource({ file: '/p/x/flutter/README.md', src, dirName: 'flutter' }));
+  assert.ok(errors.some((e) => e.ruleId === 'R6' && /not one of the six categories exactly/.test(e.message)),
+    `a hedged category must be reported, never resolved. Got: ${JSON.stringify(errors.map((e) => e.message))}`);
+  // And the quoted value must be the hedge itself, so the reader sees what was written.
+  assert.ok(errors.some((e) => e.ruleId === 'R6' && /observed pattern, not an approved convention/.test(e.message)),
+    'the finding must quote what the file actually said');
+});
+
 test('rule 7 — a migration that omits target or the decision it requires is named', () => {
   const src = VALID.replace(
     '  Current: 9 widgets on `setState` · Target: Riverpod, matching the convention\n  **Requires a decision** — not scheduled, not started\n',
