@@ -949,3 +949,46 @@ Escribí que *«el frontmatter se despoja en las superficies entregadas»*. **No
 ### El patrón, que es lo que hay que corregir y no cada hallazgo
 
 El revisor lo resume mejor de lo que yo lo habría dicho: **«las correcciones se escribieron más rápido de lo que se verificaron».** Dos describían código que no leí (`claude.js:9` y `:112`) y tres cifras cambiaron en un documento sin cambiar en el otro. Es la **sexta** vez en esta etapa que afirmo algo sobre un mecanismo sin haberlo abierto, y la lección operativa es concreta: **antes de escribir que tres implementaciones hacen lo mismo, leer las tres.** Un `grep` que encuentra el nombre de la función no dice qué hace dentro.
+
+---
+
+## 2j. Etapa 3 — Análisis brownfield y registro de decisiones (entregada, pendiente de revisión independiente)
+
+Cinco documentos en `docs/fork/stage3/` (932 líneas): `BROWNFIELD.md` (los ocho pasos de §7 como B1–B8, **con criterio de parada cada uno**), `CONFLICT-RECORD.md` (los siete campos obligatorios + categoría **por posición**, máquina de estados, 14 reglas, dos ejemplos trabajados), `DECISIONS.md` (enrutado sobre las casas que ya existen), `QUESTIONS.md` (materialidad con cuatro tests) y `DESIGN.md` (en español: 20 decisiones, 10 alternativas descartadas, y una tabla de **32 propiedades** separando determinista / modelo / evaluación).
+
+### Lo mejor de la etapa: reutiliza en vez de reinventar
+
+Con `archivo:línea` en cada caso: `detectRepoProfile()` (`scripts/detect-repo.js:46-86`) como mitad determinista del paso 2, **entrando como hecho y nunca como categoría**; `scanProject()` (`lib/onboarding.js:78`) como discriminador greenfield/brownfield; `recommendDeferredComponents()` y los estados `selected/deferred/excluded` + `reevaluateWhen` (`:194-200,391-424`) como disparador y vocabulario de revalidación; `rsc reassess` (`rsc.js:789`); **`descriptionCollisions()` con el umbral 0.80 de `routing-audit.js:16` para calcular el conjunto de skills competidoras** en vez de enumerarlo a mano; y la regla de *«casas, primera coincidencia»* de `decision-records/SKILL.md:40-43`. Y la decisión de distribuirse como `.rsc/governance/brownfield-v1.md` **y no como una skill 275**, que habría movido la invariante y el conteo 274/274.
+
+### TRES HUECOS EN MI PROPIO ARTEFACTO DE LA ETAPA 1, verificados por mí y aceptados
+
+`CUSTOMIZATION-SCHEMA.md` exigía seis claves. Faltaban tres, y dos de ellas las pide el estándar literalmente:
+
+| Clave | Por qué faltaba y qué la exige |
+|---|---|
+| **`type`** | `02-DOCS/wiki/` es un bundle **OKF v0.1** y su regla 1 exige `type` no vacío en todo `.md` no reservado (`skills/harness/references/wiki-protocol.md:839-840`); sólo `index.md` y `log.md` están exentos (`:856-858`) y **`README.md` no lo está**. Verificado por mí leyendo el protocolo. Sin esta clave, **cada personalización que el fork prescribe es un archivo no conforme dentro de un bundle conforme** — y nada lo detectaría: `grep -rln "okf" scripts/` sale **vacío**, así que la conformidad OKF es prosa, no código |
+| **`catalog-version`** | `REQUIREMENTS.md` §8 pide literalmente *«Skill y versión o commit revisado»*. Las seis claves no lo satisfacían. Sin ella el disparador «la skill cambió» no tiene con qué comparar. Y `governance-digest` **no sirve** aquí: resume el preámbulo, no la skill |
+| **`reevaluate-when`** | §8 pide *«Fecha y condiciones de revisión»*. `updated` daba la fecha; **nada daba la condición**. El nombre reutiliza `reevaluateWhen` de `lib/onboarding.js:194-200`, que ya tiene evaluador, en vez de inventar vocabulario |
+
+Las tres son planas y aditivas, no mueven `governance: v1`. Aplicadas, con las reglas de validación ampliadas de seis a nueve claves.
+
+### MATIZ QUE CORRIGE F35, verificado por mí
+
+F35 decía que `drift:check` exime `02-DOCS/wiki/skills/<id>/README.md` como clase `user-project`. **Incompleto.** `scripts/drift-check.js:133-135`: `if (mode === 'catalog' && CLASSES['user-project'](target)) return 'user-project';` — y el comentario lo dice: *«In knowledge mode this repo IS the project, so `02-DOCS/…` is a real claim about real files»*. **La exención es sólo del modo `catalog`.** Consecuencia práctica: si se corre `drift:knowledge` sobre la wiki del fork, las rutas de ejemplo de estos documentos entran como enlaces reales a comprobar. **F35 queda corregido con el matiz.**
+
+### Decisiones del coordinador sobre las preguntas abiertas de la etapa
+
+1. **El comando que invoca el análisis: Etapa 6.** No tenía dueño en `PLAN.md` §5, y sin él el procedimiento es un documento que nadie ejecuta — exactamente el defecto que la primera revisión encontró en el validador de personalizaciones. Va a la Etapa 6, que es donde se regenera `.rsc/governance/` y a la que la Etapa 1 ya asignó el otro punto de invocación. Es coordinación dentro del plan aprobado, no ampliación de alcance.
+2. **Las tres claves del esquema: aceptadas** (arriba).
+3. **El hueco de detección del criterio 10, y una mitad que SÍ se puede cerrar gratis.** El agente declara, con honradez, el mayor hueco de su diseño: el criterio 10 se cierra con G5, que mide **preguntar**, no **detectar**, así que **una corrida que no encuentra nada produce cero registros y pasa las 14 reglas de validación**. El agente recomienda añadir un gate y declarar cobertura pendiente. Se acepta a medias y se mejora: **la parte determinista no cuesta ni una ejecución de agente** — el conjunto candidato de skills competidoras lo calcula `descriptionCollisions()` con umbral 0.80, luego un test con **colisiones plantadas y clave de respuesta** comprueba el *recall* del detector determinista con cero coste de evaluación. Lo que queda dependiente del modelo (¿reconoce un conflicto genuino?, ¿lo categoriza bien?) **se declara como cobertura pendiente** según exige §11, sin bajar umbrales ni exceder el techo de ~600.
+4. **Dónde se registran las decisiones brownfield: queda `pending-decision`, y es lo correcto.** Hay tres casas vivas en skills instaladas, cada una correcta dentro de la suya (`decision-records/SKILL.md:43`, `continuous-learning/references/lesson-routing.md:64`, y la cadena SDD). Se resuelve **por proyecto leyendo lo que ya existe**, que es la regla de upstream. Lo que no se hace es inventar una cuarta casa.
+
+### Lo que la etapa deja sin verificar, declarado
+
+Que los validadores especificados pasen sobre un archivo real (es especificación; el código es de las Etapas 2 y 4); nada de la suite (prohibido con la medición en curso); que los **189 `verify.sh` sean de sólo lectura y sin red** — **sólo 21 de 189 lo declaran en el encabezado**, es convención documentada y no impuesta; `02-DOCS/wiki/skills/` en un proyecto real; el comportamiento por asistente (§1 lo prohíbe, mismo límite que L3); y el lado «proyecto» de un ejemplo trabajado, que es fixture sintética **marcada como tal**.
+
+Dato de contexto útil que midió: `grep -rn "wiki/skills" skills/ scripts/ targets/ tests/` sale **vacío** — `02-DOCS/wiki/skills/` es un namespace **nuevo del fork**, no una ruta que upstream ya use.
+
+### Aviso operativo que conviene no repetir
+
+La Etapa 1 reescribió `docs/fork/stage1/` **mientras la Etapa 3 corría**, y commiteé sus archivos a mitad de ejecución. El agente remapeó y reverificó sus 34 citas contra el disco al cerrar, y lo avisó. **Lección de coordinación: no reescribir los artefactos de una etapa mientras otro agente los está citando, y no commitear el trabajo de un agente antes de que termine.** Las citas por sección aguantan un movimiento; las de línea, no.
