@@ -992,3 +992,23 @@ Dato de contexto útil que midió: `grep -rn "wiki/skills" skills/ scripts/ targ
 ### Aviso operativo que conviene no repetir
 
 La Etapa 1 reescribió `docs/fork/stage1/` **mientras la Etapa 3 corría**, y commiteé sus archivos a mitad de ejecución. El agente remapeó y reverificó sus 34 citas contra el disco al cerrar, y lo avisó. **Lección de coordinación: no reescribir los artefactos de una etapa mientras otro agente los está citando, y no commitear el trabajo de un agente antes de que termine.** Las citas por sección aguantan un movimiento; las de línea, no.
+
+### La línea base «limpia» no es limpia, y la contención la estropeó YO. Sexta lección, misma familia
+
+**Detenida al 53 %** (801 de ~1 543 tests reportados) y **descartada como línea base autoritativa**, con el motivo medido:
+
+- `tests/knowledge-sync.test.js` → `testTimeoutFailure` a los **1 800 007 ms**. Medido **en solitario** ese archivo tarda **1 146 s**. Es decir, la contención lo infló **un 57 %** por encima de su tiempo honesto, lo justo para reventar un tope que yo había puesto con un 57 % de holgura.
+- **La causa fui yo:** la corrí a la vez que la re-revisión de la Etapa 1 y la Etapa 3. Declaré el riesgo un turno antes de que se materializara, y aun así la lancé.
+- **Lo nuevo, y es lo que vale:** hasta ahora la contención documentada venía de **ejecutar tests en paralelo**. Aquí los dos agentes eran de **sólo lectura** — greps, lecturas de archivo, cero tests — y **fue suficiente**. El umbral de contaminación de esta máquina es mucho más bajo de lo que daba por supuesto.
+- **Consecuencia para el instrumento:** a los tres parámetros (concurrencia 1, timeout ≥1 200 s, techo de git) hay que añadir una **condición de entorno**: *la máquina ociosa*. No es un parámetro de la línea de comandos, y por eso se me escapó dos veces. La línea base autoritativa se corre cuando nada más la necesita, como parte de la puerta de release, no en paralelo con trabajo.
+
+**Lo que sí es utilizable de esta corrida**, porque un «pasa» bajo contención sigue siendo un «pasa» y el mecanismo de estos fallos era descubrimiento de repositorio git, no tiempo:
+
+| Resultado | Lectura |
+|---|---|
+| `ok 206` y `ok 210` — los dos de `capabilities.test.js` | **Pasan con el techo de git puesto.** Confirma la atribución dentro de la suite completa, no sólo en la sonda de dos archivos |
+| `not ok 361` — `A5 · the browser gate…` (`design-engine`) | **Sigue fallando con el techo puesto: candidato REAL a defecto de upstream** |
+| `not ok 493`, `495`, `496` — `eval-lint` | La rama degradada por falta de PyYAML, ya atribuida |
+| `not ok 60` — `knowledge-sync` | **NO se atribuye a upstream:** es mi contención, demostrada arriba |
+
+Quedan sin corroborar en suite completa `session-memory`, `spec-gate-subject` y `onboarding-apply`, que no llegaron a ejecutarse. **No se pierde nada:** los dos primeros están atribuidos por el experimento controlado de cuatro brazos y el tercero por lectura del código (`install-apply.js:459-471` + `.gitignore:11`).
