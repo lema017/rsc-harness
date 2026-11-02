@@ -896,3 +896,56 @@ Dije que en `knowledge-sync.test.js` *«nada dentro del archivo llega a completa
 - **Cómo me equivoqué, por quinta vez y de la misma familia.** Afirmé que el archivo colgaba y que «nada dentro completa». Lo primero era mi tope; lo segundo venía de que **node omite los subtests cuando el test de archivo agota el timeout**, de modo que «cero subtests» nunca fue evidencia de nada. Y dos sondas de streaming dieron logs vacíos por **buffering del reporter**, no por bloqueo. El patrón de los cinco errores es idéntico: **tomé una propiedad de mi instrumento por una propiedad del objeto medido.** Contención, temporal dentro del repo, techos sobre el fuente, timeout corto, reporter que bufferiza.
 
 **Línea base limpia en curso** (`baseline-clean.log`): suite completa con los tres parámetros fijados, para obtener la cifra autoritativa de deuda heredada y cerrar de paso la atribución de los dos fallos que quedan (`design-engine` `A5`, `deepseek-target` `dsh06`).
+
+---
+
+## 2i. Re-revisión independiente de las correcciones (protocolo §12, segundo revisor)
+
+**Veredicto: BLOQUEADAS.** 2 críticos, 5 altos, 6 medios, 4 bajos. Segundo revisor, distinto del primero, que no vio aquella revisión ni mis conclusiones. Sólo lectura; **cumplió §1** (no ejecutó tests con la medición en curso, ni red). Acredita que la retractación de los techos es correcta y que **la estadística de `EVALUATION.md` §8 le sale idéntica con su propia implementación** — Clopper–Pearson, inaplicabilidad de Wald, el corolario del «≥95 %» y el dimensionado de la reserva.
+
+### E2-R1 — CRÍTICO. El despojado que adopté **no existe en `claude`**. Verificado por mí
+
+Afirmé que las tres implementaciones de `wireHook` *«ya hacen `stripFrontmatter(readFileSync(sourceMd,'utf8'))»*. **Falso para `claude`, que es el único destino que puede denegar y el asistente de referencia de la evaluación.** Mis propias comprobaciones:
+
+| Hecho | Comando / línea |
+|---|---|
+| `claude.js` **nunca lee** `sourceMd` | `grep -c sourceMd targets/claude.js` → **1**, y es la firma (`:112`) |
+| No renderiza ningún cuerpo: guarda una **ruta** | `claude.js:137` `suggestRel` → `.claude/skills/suggest/SKILL.md` |
+| El cuerpo lo lee el hook **en ejecución**, entero | `targets/session-start.mjs:52` `process.stdout.write(readFileSync(suggestMd,'utf8'))` |
+| Y ese archivo **es** la skill transformada | `claude.js:9-15` → `linkOrCopy` (`index.js:20-32`): symlink de `.claude/skills/suggest` a `.rsc/skills/suggest` |
+
+**El daño no es de bytes, es de medición.** `EVALUATION.md` elige `claude` para las 447 ejecuciones de amplitud. Con el bloque inyectado en cada SessionStart, **toda** sesión arranca con las cinco reglas en contexto, porte o no la skill bajo prueba el bloque: **G3 (fallback sin personalización) quedaría inmedible**, y es una de las dos conductas de seguridad. Un diseño que invalida su propio instrumento de medida.
+
+**Diseño nuevo, que no es el mío ni exactamente el del revisor.** El mecanismo ya existe: `claude.js:139-148` materializa `.rsc/suggest-always-on.md` y reapunta `suggestRel` en una rama concreta. Se generaliza: el transformador emite `.rsc/governance/always-on.md` sin el bloque, `install-apply.js:294` pasa esa ruta a `wireHook`, y `claude.js` reapunta `suggestRel` en todos los casos. **`_md-block.js` y `cursor.js` no se tocan** — leen el `sourceMd` que se les da, así que cambiar el argumento basta. El revisor proponía editar los adaptadores; esto es más barato y además arregla `claude`, que su versión no arreglaba.
+
+### E2-R2 — CRÍTICO. `npm run gate` NO EXISTE, y yo lo escribí en presente
+
+Mi corrección del criterio 8 sustituyó *«un instrumento que nadie ejecutaba»* por **un instrumento que no se puede ejecutar**. Verificado: `package.json` define 14 scripts y **ninguno es `gate`**. La propia evidencia del fork lo escribía como **propuesta** (`inherited-debt.md:474`), y los «130 s» medían la suma manual de seis scripts, no una puerta. Corregido: el criterio 8 tiene **un** punto de invocación real hoy (`install`/`sync`), y la puerta queda en futuro como entregable de la Etapa 6.
+
+### E2-R3 — ALTO. «0 divergencias» era falso y medido con dos varas
+
+La tabla ponía **0**, y tres secciones antes este mismo documento ya clasificaba parchear un adaptador como *«divergencia de código, no transformación de contenido»*. Cifra honesta: **1 añadida** (`targets/claude.js`, una línea), porque `scripts/install-apply.js` ya diverge por necesidad — es el punto de transformación y la razón de ser del fork. Se paga esa línea porque sin ella `claude` paga el bloque por sesión y G3 no se puede medir; y una reasignación de variable es el conflicto más barato de resolver. **La máquina de mantenimiento debe avisar cuando upstream toque `targets/claude.js`.**
+
+### E2-R4 — ALTO. El criterio 3, como lo redacté, **no podía pasar nunca**
+
+Congelé la lista de exenciones a «campos de marca de tiempo». Pero la instalación escribe **rutas absolutas** en el estado: `install-apply.js:292` guarda `files`/`base` que vienen de `skillDir`/`baseDir` (`targets/index.js:11-13,166`), y `lib/state.js:10` las serializa tal cual. Dos instalaciones en dos directorios difieren ahí, y no son marcas de tiempo. Corregido: la normalización incluye explícitamente esa segunda clase. Y quité «concurrencia y timeout» de esa celda: son parámetros del **corredor de tests**, injertados de otra medición.
+
+### E2-R5 — ALTO. La justificación del `governance-digest` era falsa en 17 de 18
+
+Escribí que *«el frontmatter se despoja en las superficies entregadas»*. **No:** `writeSkill` es `linkOrCopy` en el adaptador `md` y en `claude` (`_md-block.js:23`, `claude.js:9` → `index.js:20-32`), un symlink al directorio base, así que el `SKILL.md` entregado **es** el archivo base, con frontmatter y digest. Sólo `cursor.js:7` lo sustituye. Reescrito por superficies: cubre la base y la entrega por skill en 17 de 18; **no** cubre el `.mdc` de Cursor ni la superficie always-on (que es base *menos* el bloque, y una derivación que resta no distingue «despojado» de «corrompido»). Para esas dos **no se afirma integridad**.
+
+### Altos y medios restantes, aplicados
+
+- **ALTO:** `ACCEPTANCE.md` criterio 14 citaba «180 celdas, 540 ejecuciones, 60 de reserva» — cifras que `EVALUATION.md` ya no tenía → **181, 543, 57**. El commit que rehizo el documento no propagó.
+- **ALTO:** el criterio 16 decía «cinco límites residuales L1–L5» y L6 se añadió el mismo día. Ese criterio existe para que ningún límite se omita, y habría pasado omitiendo justo el que el usuario decidió no arreglar → **L1–L6**.
+- **MEDIO:** `ARCHITECTURE.md` conservaba las 2 h 17 m que `PLAN.md` acababa de revisar → propagado a **≈1 h 48 m** con su marca.
+- **MEDIO:** la revisión de D6 (40→49 escenarios) estaba declarada en el artefacto pero no en el plan aprobado → `PLAN.md` §7 anotado con el mismo patrón, ~~40~~ → 49.
+- **MEDIO:** cifras del preámbulo no propagadas pese a que el commit decía *«propagated»*: el cálculo de `:91` usaba el incremento viejo (777) → **8 844 B y 652 B**; y los «779 B por turno» vivos → **785 renderizados**.
+- **MEDIO:** la cita *«`claude.js:9` ídem [despoja frontmatter]»* afirmaba lo contrario del código — desaparecida al reescribir la sección; era además la premisa falsa de E2-R5.
+- **MEDIO:** `ARCHITECTURE.md` se apoyaba en `transformer-feasibility.md:522`, que es una conclusión **retractada**, y en `EVALUATION.md` *«al excluir `suggest`»*, exclusión que `EVALUATION.md` §5 retiró por errónea. **Cita retirada**: el argumento se sostiene solo.
+- **MEDIO:** el criterio 4 afirmaba «las 274 en los 18 destinos» con instrumentos que sólo miraban la base y la superficie always-on → **tercer test** sobre la entrega por skill, y el alcance acotado en `ACCEPTANCE.md`.
+- **BAJOS:** frase rota en `CONTRACT.md` por una edición; la reserva de 57 eleva 28 celdas y consume 56, **1 ejecución sobra** (dicho, no redondeado); el encabezado §3 del esquema decía «criterion 10» y ahora cubre 8 y 10; el timeout del instrumento es **≥1 200 s** (1 800 fue el tope usado) y el puntero a `PLAN.md:195` estaba obsoleto.
+
+### El patrón, que es lo que hay que corregir y no cada hallazgo
+
+El revisor lo resume mejor de lo que yo lo habría dicho: **«las correcciones se escribieron más rápido de lo que se verificaron».** Dos describían código que no leí (`claude.js:9` y `:112`) y tres cifras cambiaron en un documento sin cambiar en el otro. Es la **sexta** vez en esta etapa que afirmo algo sobre un mecanismo sin haberlo abierto, y la lección operativa es concreta: **antes de escribir que tres implementaciones hacen lo mismo, leer las tres.** Un `grep` que encuentra el nombre de la función no dice qué hace dentro.

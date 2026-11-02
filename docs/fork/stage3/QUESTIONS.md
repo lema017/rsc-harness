@@ -3,7 +3,7 @@
 **Status:** draft, stage 3.
 **Covers:** requirement §7 step 7 and its three literal constraints: questions **explain consequences**; they **do not repeat clearly documented information**; pending decisions **block the affected actions, not all independent work**.
 **Language:** English (D7).
-**Measured by:** G5, threshold ≥ 85 %, with **both** failure modes scored — asking when the evidence already answered is a failure in the same way as not asking (`EVALUATION.md:63-64`, `:209`; `ACCEPTANCE.md:26`).
+**Measured by:** G5, threshold ≥ 85 %, with **both** failure modes scored — asking when the evidence already answered is a failure in the same way as not asking (`EVALUATION.md:63`, `:66`, `:209`; `ACCEPTANCE.md:26`).
 
 ---
 
