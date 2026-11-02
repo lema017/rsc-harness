@@ -1141,3 +1141,32 @@ Esto excede la Etapa 3: **el fork desplaza el cuerpo de las 274 en 13 líneas**,
 ### Lo que el revisor aporta y nadie había visto
 
 **El criterio 10 sí se puede falsear**: una corrida que emite cero conflictos cumple las 14 reglas, las 17 propiedades deterministas y el único gate que lo toca. Pero añade la salida que yo no vi: **el eje skill↔skill es parcialmente computable con las piezas que ya se usan** — colisiones de descripción, el grafo `recommends:` y las cláusulas `NOT` — así que se puede exigir que el inventario contenga **toda pareja por encima del umbral** y obtener **un suelo de recall sin gastar ni una ejecución de agente**. Eso es mejor que mi propuesta de colisiones plantadas, y mejor que pedir un gate cuyo presupuesto no existe.
+
+### Correcciones de la Etapa 3 aplicadas — y el revisor también tenía datos obsoletos
+
+Los cinco documentos de `docs/fork/stage3/`, +496 / −278. Comprobado por mí: `git status` muestra **sólo esos cinco archivos**. Los 19 hallazgos son reales en sustancia; tres traían datos equivocados.
+
+**El mejor hallazgo del corrector es contra el revisor, y lo verifiqué.** El remapeo «+3/+5» que proponía la revisión estaba **él mismo desactualizado**, porque **yo moví el esquema entre la revisión y la corrección** al añadirle las tres claves a sus ejemplos. Consecuencia concreta: el revisor afirmaba que `CUSTOMIZATION-SCHEMA.md:34` es `catalog-version` y que por tanto `BROWNFIELD.md:160` citaba mal; **hoy `:34` es la fila `scope`** (comprobado con `sed -n '34p'`), así que esa cita es **correcta** y aplicar el remapeo la habría roto. El corrector contó en vez de confiar en el desplazamiento: **35 de 36 citas mal, 1 bien y por casualidad.** Y acotó el alcance: las 31 citas a `CONTRACT.md`, 4 a `EVALUATION.md`, 2 a `ARCHITECTURE.md` y 1 a `ACCEPTANCE.md` estaban **todas correctas**; la deriva estaba confinada a dos archivos.
+
+Es el argumento más fuerte posible a favor de la regla que adoptó: **citar por sección + fragmento entrecomillado, no por número de línea.** Tres cadenas de revisión seguidas se tropezaron con el mismo problema; las líneas se mueven y el texto no.
+
+**No reescribió dos ejemplos: cambió el instrumento.** La regla 4 pasa de «la línea existe» a cuatro formas admisibles de evidencia — cita anclada por fragmento (con la línea como pista **subordinada**, y si discrepan **falla y nombra la línea real**), ancla de sección, población contada, y `user-decision, <fecha>` para greenfield —, más **4d: la evidencia de skill se ancla en `.rsc/skills/<id>/`**, porque en un consumidor `skills/` no existe y el cuerpo está 13 líneas más abajo. La prueba de que ahora sirve está dentro del documento: el ejemplo que citaba `:14-15` entrecomillando una frase que sólo está en `:243` **pasaba** la regla antigua y **falla** la nueva. Mismo archivo, veredicto opuesto.
+
+**M5 es peor de lo que decía el hallazgo, y lo corroboré por otra vía.** Medido por el corrector: a **0,80 salen 0 parejas** sobre las 274 — el conjunto no es «casi inoperante», es **vacío** — y el máximo real es **0,737**, luego la fila de ejemplo `0.83` no era una fixture sin marcar sino un valor **imposible**. Mi corroboración independiente: `routing:audit` falla **sólo** por `declared-route top-5 84.9% < 85%` y **no** por colisión, y su suelo de colisión es exactamente `>= 0.80` — si existiera una pareja por encima, fallaría. B1 declara ahora **0,45**, el del llamador.
+
+**Dos hallazgos que el revisor no vio:** `BROWNFIELD.md` afirmaba «274 of 274 carry both `recommends:` y `tags:`» cuando las 274 llevan la **clave** pero sólo **267** un valor no vacío — y esa afirmación sostenía el cálculo de competidores; y una **37ª** cita mal que el remapeo no listaba.
+
+**El suelo de recall de la revisión, medido e incorporado** (0,80 → 0 parejas · 0,60 → 9 · 0,50 → 34 · **0,45 → 46 parejas, 65 skills** · 0,40 → 71; más 1 353 aristas `recommends:` y 273/274 cláusulas `NOT`): es regla 16 —la única que comprueba *recall* y no forma—, criterio de parada de B1 y propiedad determinista. **Cero ejecuciones de agente.**
+
+**Y la honestidad subió al producto en vez de bajar del documento interno**, que era la corrección correcta de M6: donde `DESIGN.md` reconocía que el bloqueo es «D parcial» y el artefacto de producto afirmaba que era computable, ahora lo dice el producto. Más una distinción que faltaba y que vale para todo el fork: **decidible ≠ instrumentado** — las propiedades «D» dicen que un validador daría el mismo veredicto, no que exista.
+
+**Lo que sigue abierto, dividido para que el suelo nuevo no se lea como cobertura:** recall skill↔skill por colisión + aristas + `NOT` → **determinista y completo**; skill↔skill que chocan en el cuerpo describiéndose distinto → **ninguna**; **recall project↔skill → ninguna, y sigue siendo el hueco más grande del diseño.** Con mecanismo y coste nombrados: dos conductas × ~8 celdas × N=3 ≈ **48 ejecuciones** contra un techo ya repartido (599 de 600). Queda como **cobertura pendiente declarada**, que es lo que exige §11, sin bajar umbrales.
+
+### Decisiones del coordinador sobre sus cinco preguntas
+
+Ninguna necesita al usuario; las cinco caen dentro del plan aprobado o las decide el estándar.
+1. **El nombre del comando:** `rscg brownfield`, coherente con el CLI del fork. Lo implementa la **Etapa 6**.
+2. **Extender `customization-validator.js` a `02-DOCS/wiki/brownfield/`: sí.** Sin eso, 16 reglas y 22 propiedades son decidibles y no instrumentadas — literalmente el defecto que la revisión de la Etapa 1 encontró en el criterio 8. Entregable de la **Etapa 6**, con los dos puntos de invocación que ya existen.
+3. **El gate (d) y sus ~48 ejecuciones:** se **especifica** y se declara **cobertura pendiente**. §11 es explícito: no exceder el techo, no bajar umbrales, registrar lo pendiente, no marcar como aprobado lo no verificado.
+4. **La casa de las decisiones brownfield:** por proyecto, primera coincidencia, **recordando que la rama 2 es `docs/adr/`** — la que gobierna el caso central del brownfield y que el borrador se había saltado.
+5. **Citar por sección + fragmento: sí**, en los cuatro artefactos de producto. El coste es real y vale la pena: si upstream reescribe una frase, la regla **falla en voz alta**; el modelo anterior fallaba **invisible**, y esta sesión lleva tres cadenas de revisión demostrándolo.
