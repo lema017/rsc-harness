@@ -1279,3 +1279,63 @@ El renombrado `rsc`→`rscg` en la cadena `ANNOUNCE` de `targets/knowledge-sync.
 **M2** — la fila de condiciones de la suite en `VERIFICATION.md` §10 dice que se esperó a carga < 3,0 y a cero procesos ajenos; la cabecera del propio log registra `load1=7.17` y la misma §10 explica en prosa que esa espera **se abandonó** y que la puerta declarada fue < 9,0. Es la única fila del documento que sobrevende. **M3** — ver arriba, corregido en esta sección. **M4** — el hallazgo estrella no tiene test ni repro commiteado, y el motivo dado (no alterar los 142 archivos congelados) no cierra: una aserción dentro de `tests/governance-base.test.js` ya estaba dentro de los 142. **M5** — `PROPUESTAS.md` reparte a la Etapa 6 algo que es de la 4: el script **sí viaja** al consumidor (`package.json.files` incluye `scripts`, verificado); lo que falta es un **modo de auditoría sobre un árbol existente**, ~15 líneas, que es lo que `CONTRACT.md` §13 ordena.
 
 **BAJO:** B1 (16, no 13 — corregido), B2 (tres de seis archivos — corregido), **B3** (ninguna mutación demuestra que el test **ADDED** muerda: la no-vacuidad del criterio 12 cubre 3 de 4), **B4** (mi celda del criterio 4 inventaba una «mitad E» que `PLAN.md` §11 no pide: la fila es clase **D**, y G1/G2 son del criterio 8 y G5 del 10 — corregido), B5 (`orphaned = false` tumba además 2 tests fuera del criterio 12), B6 (el instrumento de 252 líneas se publica a los consumidores: o se excluye de `files`, o se le da el modo de auditoría de M5 — y preferimos lo segundo), **B7** (el instrumento no tiene suelo sobre el tamaño del catálogo: el denominador es `ids.length`, así que un `skills/` truncado informaría «273/273, failures: 0»; una línea lo cierra), **B8** (marqué ✅ en celdas que en la misma frase declaraban pendiente la revisión que las valida — corregido al retirar los dos ✅).
+
+---
+
+## 2p. Etapa 5 — Mantenimiento manual de upstream (entregada, pendiente de revisión independiente)
+
+`scripts/upstream-maintain.js` (788, diez fases), `scripts/lib/upstream-survey.js` (439), `scripts/lib/upstream-gate.js` (641, la puerta G1–G12), `scripts/lib/upstream-state.js` (346, el diario), `tests/governance-upstream-maintenance.test.js` (680, **22/22** según el agente), más `docs/fork/stage5/{DESIGN.md,MAINTENANCE.md}`. **Pendiente de re-ejecución por mí**, y el motivo es de higiene, no de confianza: la Etapa 6 está en vuelo tocando ~50 archivos, `package.json` y la identidad del CLI, así que cualquier corrida ahora mezclaría dos árboles y un fallo sería inatribuible — exactamente el error que esta sesión lleva cinco veces cometiendo. Se re-ejecuta cuando el árbol vuelva a ser coherente. Sin commits del agente; commiteo yo. Worktrees desechables y sus ramas borrados; `git worktree list` sólo el principal; invariante **0 líneas**.
+
+### UPSTREAM SE MOVIÓ, y la etapa corrió contra el cambio real en vez de contra un fixture
+
+Verificado por mí: `git rev-list --count 481b1ec9..cb9e051d` → **2**. Upstream publicó **3.7.5**. Trae una modificación (`connect-tool/SKILL.md`) y 20 archivos nuevos, y entre ellos lo que importa:
+
+```
+A  skills/connect-tool/THIRD_PARTY.md
+A  skills/connect-tool/bridge-kit/LICENSE        (MIT, © 2026 Executive Lab)
+A  skills/connect-tool/bridge-kit/UPSTREAM.json
+→ Executive-Lab/conectores-pymes, MIT
+```
+
+**El fork pasaría a tener TRES subárboles vendorizados, no los dos que el plan congela** — y `PLAN.md` §2 enumeraba las obligaciones **por nombre de archivo**, así que no conoce ninguno de los tres. El merge no da ni un conflicto textual: las 165 pruebas impactadas pasan, el manifiesto valida, la deriva no se mueve. **Un merge limpio que, aplicado a ciegas, habría hecho al fork incumplir tres atribuciones sin que nada lo dijera.** Es la demostración más fuerte posible de la frase del plan que yo venía citando como consigna: *«un merge sin conflictos textuales no se acepta como prueba de compatibilidad funcional»*.
+
+La puerta lo paró. Veredicto sobre el merge real: **PASS** G1 (espejo intacto), G2 (274 skills, mismo conjunto de ids), G3, G4, G5 (los **tres** subárboles idénticos en repo y en copia entregada), G7 (divergencias intactas), G8 (165 pass / 1 fallo declarado / **0** inesperados / 0 cancelados), G9, G10 — y **FAIL G6** («3 notice change(s) NOT acknowledged»), **FAIL G11** (una skill necesita evaluación semántica, no instrumentada), **FAIL G12** (identidad, porque el worktree se construyó desde `HEAD`, donde el renombrado aún no está commiteado; sobre el árbol vivo la misma comprobación da `@lema017/rsc-governed`, así que **la puerta distingue los dos árboles y no es vacua**).
+
+### Decisiones del coordinador
+
+**D14 — 3.7.5 NO se integra en la entrega.** La base de medición del proyecto entero está congelada en `481b1ec9`: integrar ahora invalidaría la corrida autoritativa de la suite, la conformidad sobre las 274, la línea base de licencias y la lista de divergencias, y obligaría a repetirlas. Además **la propia puerta bloquea** la promoción (G6 y G11). Se registra como **el primer ejercicio real de la máquina de mantenimiento, con veredicto bloqueado**, y la integración queda como la primera ejecución de mantenimiento posterior a la entrega. Dato que acota el riesgo de aplazarlo: 3.7.5 **no añade skills** — el conjunto sigue siendo **274**, verificado —, así que ninguna cifra del proyecto cambia.
+
+**D15 — qué viaja en el tarball y qué no, y la respuesta es distinta por archivo.** El **validador de conformidad sí viaja**, porque es lo que necesita el comando de D13(b) para responder «¿están gobernadas mis 274?» en la máquina del consumidor, y porque `CONTRACT.md` §13 lo ordena. La **maquinaria de mantenimiento no**: `"scripts"` entra entera en `files`, así que hoy viaja sin que ningún `bin` la alcance; se excluye con `"!scripts/upstream-*.js"`. Y **nada de mantenimiento en `bin`**: `REQUIREMENTS.md` §10 dice «Los consumidores no integran upstream directamente», así que exponer `rscg upstream:maintain` crearía la superficie que §10 prohíbe.
+
+### Afirmaciones mías que la Etapa 5 tumbó
+
+**1. «3 archivos / 4 puntos de divergencia» — incompleto, y de la peor forma.** Medido por mí sobre el árbol commiteado: **ocho**. Los tres que faltaban no aparecen en ninguna parte de `ARCHITECTURE.md` §4 — `targets/knowledge-sync.mjs`, `.github/workflows/release.yml` y `.gitignore` —, así que una máquina de mantenimiento que usara mi lista habría dejado **tres divergencias sin vigilar**, y la sección cerraba ordenando «avisar de los tres». Corregido en §4 como CORRECCIÓN 5: la lista **se mide de git en cada ejecución**; la tabla conserva sólo el **porqué** de cada divergencia, que es lo único que ninguna medición da.
+
+**2. Mandé al agente a la sección equivocada:** «LEDGER §4 (decisiones D1–D13)». §4 tiene **D1–D10**; D11–D13 los escribí yo en §2n. Lo encontró por `grep`.
+
+**3. El punto 1 de `stage4/PROPUESTAS.md` no es implementable como está escrito.** Pide registrar el id retirado «con su sucesor o con `null`», pero `replaceRetired` mapea **toda** lista declarada de skills por esa tabla, así que un `null` aterrizaría en los ids que recorren `.rsc.json`, el estado por destino y el recibo de onboarding. Hoy todos los valores son cadenas y ésa es la invariante. Expresar «desapareció sin sucesor» exige tocar `replaceRetired` **y** su copia en línea en `targets/clone-bootstrap.mjs`, que un test mantiene equivalentes. El agente **propuso en vez de escribir** en archivos que no eran suyos, que es lo correcto. Queda como tarea mía.
+
+**4. Detalle del ledger:** la «Verificación de cumplimiento de §1» imprime `epoch 1793495013 = Oct 31 19:03:33`, que en **UTC** es **Nov 1 01:03:33**. Rendering local contra UTC; el epoch es el dato. Importa porque esa tabla es la que se cita para afirmar que nada del usuario se tocó.
+
+### Defectos que sus propios tests le encontraron a su propio código
+
+Los registro porque son la prueba de que la puerta muerde, y porque el primero es **la misma clase de vacuidad** que la revisión de la Etapa 4 encontró en el instrumento del criterio 4, descubierta de forma independiente el mismo día: **`gateVerdict([])` devolvía `pass`** — «ninguna obligatoria falló» es verdad de una puerta que no corrió. Ahora comprueba **cobertura antes que resultado**. Además: `--check` **no hacía fetch** por parecer de sólo lectura, así que habría informado «no hay cambios» con la referencia rancia — respuesta equivocada con forma de correcta, y **la primera corrida real acertó por casualidad**; el merge se pasaba como objeto de opciones y la evidencia desaparecía del veredicto; y un `isAncestor(base, upstreamHead)` **que no podía fallar nunca**, sustituido por la mecánica honesta (un rebase de upstream sólo es visible contra una base registrada).
+
+### Acceso verificado sin revelar secretos, y un hallazgo de aislamiento
+
+```
+git -c credential.helper= -c credential.interactive=false -c core.askPass= \
+  ls-remote --heads https://github.com/ericrisco/rsc-harness.git refs/heads/main → EXIT 0
+```
+
+**Redirigir `HOME` no quita el helper de credenciales:** `git config --show-origin --get-all credential.helper` → `file:/usr/local/etc/gitconfig osxkeychain`, es decir el gitconfig **del sistema**, fuera del alcance de `.fork-tmp/env.sh`. Por eso cada invocación lleva el helper vacío en la línea de comandos y `GIT_ASKPASS`/`SSH_ASKPASS`/`GIT_CREDENTIAL_HELPER` eliminados del entorno, y el aislamiento se afirma **sobre la orden y el entorno calculados**, no sobre el éxito de un fetch. Es un refinamiento real de la restricción §1 del usuario, que hasta hoy se creía cubierta sólo con `HOME`.
+
+**Comprobado por mí:** `~/.claude` tiene mtime **Nov 1 18:16** y `settings.json` **Oct 31 19:03**, ambos anteriores a estas corridas (07:24–08:05 UTC del 2 de noviembre). La configuración real del usuario no se tocó.
+
+### No verificado, registrado (§7)
+
+**NV-E5-1** el `fetch` del flujo contra `github.com` (habría movido `refs/remotes/upstream/main` con otra etapa trabajando en paralelo; el **acceso** sí está verificado y el fetch contra fixture ejercita el mismo código) · **NV-E5-2** la suite completa (L7) · **NV-E5-3** `eval-lint` (L2, y está en `NEVER_RUN` con su motivo) · **NV-E5-4** la fase `publish` con `--promote` (habría fusionado en `main`; sí se verificó **la puerta**) · **NV-E5-5** la release de npm · **NV-E5-6** G7 sobre la superficie **viva** tras el commit de la Etapa 6.
+
+### Tareas que me quedan de esta etapa
+
+Cablear la puerta permanente (`scripts/gate.js`, de la Etapa 6) dentro de `GATE_CHECKS` como comprobación obligatoria **sólo** bajo autorización `publish` — el agente no la cableó porque no era su archivo y no conocía su cobertura real, que es la decisión correcta; hacer expresable «retirada sin sucesor» en `scripts/lib/retired-skills.js` y su copia en línea; y acreditar `Executive-Lab/conectores-pymes` en el README **si y cuando** se integre 3.7.5.

@@ -149,7 +149,18 @@ La tabla anterior ponía **0** divergencias permanentes, y tres secciones antes 
 | `scripts/doctor.js` | la aguja de `alwaysOnBytesFor` | **Regresión cazada al implementar:** exigía `suggest` en el nombre del archivo, así que `.rsc/governance/always-on.md` no casaba, caía al fallback y contaba la base **gobernada**. Es decir, `doctor` **sobre-reportaba el coste por sesión en exactamente el preámbulo**. Lo cazó un test de upstream, `fresh-install-coherence` 7a, que existe para esta clase de defecto |
 | `tests/apply.test.js` | dos aserciones (`:223`, `:503`) | Fijaban `skills/suggest` en el comando del gancho. Se conserva su intención y una se **refuerza** (ahora exige además que el archivo exista en disco) |
 
-**La máquina de mantenimiento de §9 debe avisar de los tres, no de uno.** Y el caso de `doctor.js` deja la lección más útil de la etapa: una divergencia puede no romper nada visible y a la vez **hacer mentir a una herramienta de diagnóstico** sobre el presupuesto de contexto, que es justo lo que el fork existe para no hacer.
+**La máquina de mantenimiento de §9 debe avisar de los tres, no de uno.**
+
+> **CORRECCIÓN 5 (Etapa 5): son OCHO archivos, y la lista no se escribe, se mide.** Esta cuenta —«3 archivos, 4 puntos»— es defendible para lo que contaba (el cableado nuevo, dejando aparte `install-apply.js` y `package.json`, que esta misma sección nombra por separado). Pero como **lista para vigilar** está incompleta, y de la peor forma: faltan tres archivos que esta sección no menciona en ninguna parte — `targets/knowledge-sync.mjs` (B-R1, 31 líneas), `.github/workflows/release.yml` (R6) y `.gitignore` (B1). Si la máquina de mantenimiento hubiera usado esta lista, **tres divergencias quedaban sin vigilar**. Medido por mí sobre el árbol commiteado, que es el dato y no la estimación:
+>
+> ```
+> $ git diff --name-only --diff-filter=M 481b1ec9 HEAD -- . ':!docs/fork' | wc -l
+> 8
+> .github/workflows/release.yml · .gitignore · package.json · scripts/doctor.js
+> scripts/install-apply.js · targets/claude.js · targets/knowledge-sync.mjs · tests/apply.test.js
+> ```
+>
+> Por eso la Etapa 5 **deriva la superficie de git en cada ejecución** en vez de leerla de aquí, y su comprobación G7 falla también si un archivo divergente **no tiene sonda de intención**. Lo que esta tabla conserva, y es lo único que ninguna medición da, es **por qué** se paga cada divergencia. La lista de cuáles es de `git`. Y el caso de `doctor.js` deja la lección más útil de la etapa: una divergencia puede no romper nada visible y a la vez **hacer mentir a una herramienta de diagnóstico** sobre el presupuesto de contexto, que es justo lo que el fork existe para no hacer.
 
 **Por qué se paga esa divergencia en vez de evitarla:** sin ella, `claude` —el único destino que puede **denegar** y el de referencia de la evaluación— pagaría el bloque en cada sesión y la medición de G3 quedaría inservible. Una línea que reasigna una variable es además el conflicto más barato de resolver cuando upstream toque el archivo. La máquina de mantenimiento de §9 debe avisar cuando upstream toque `targets/claude.js`.
 
