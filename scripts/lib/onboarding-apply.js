@@ -93,7 +93,7 @@ function digestGovernedPaths(cwd, paths) {
 function recoveryCommand(plan, planId) {
   const record = plan.record;
   return [
-    'npx @ericrisco/rsc@latest onboard',
+    'npx @lema017/rsc-governed@latest onboard',
     `--technical-level ${record.technicalLevel}`,
     `--project-kind ${record.projectKind}`,
     `--goal-base64 ${encodeGoal(record.goal)}`,
@@ -254,7 +254,7 @@ export function verifyOnboarding(cwd, plan, planId) {
 
 /**
  * The install-time answer «main | branches» becomes the project's trunk decision, as the same two
- * markers `rsc main unlock|lock` writes (both PROJECT opt-outs, recorded in .rsc.json by the install
+ * markers `rscg main unlock|lock` writes (both PROJECT opt-outs, recorded in .rsc.json by the install
  * below, rebuilt in a clone): main → `.no-trunk-guard` (open), branches → `.no-trunk-open` (closed
  * even where nothing in the project looks complex yet).
  */
@@ -339,8 +339,25 @@ export async function applyAcceptedOnboarding({ cwd = process.cwd(), plan, planI
     if (differences.length) throw new Error(differences.join('; '));
     return receipt;
   } catch (error) {
-    restoreBackup({ cwd, id: transaction.id });
-    throw new Error(`RSC_ONBOARDING_INCOMPLETE: ${error.message}. Recover with: ${recoveryCommand(plan, planId)}`);
+    // The rollback. It is the same `restoreBackup` as `rscg restore`, so it has the same property
+    // stage 4 measured (D13): a snapshot taken over a base that had come from upstream holds that
+    // base UNGOVERNED, and restoring it hands it back ungoverned. In a rollback that is milder than
+    // in a restore — the project goes back to a state it was already in, so nothing invents a
+    // missing contract — but the consumer still ends up reading skills with no contract, and
+    // nothing used to say it. Now the error does, because a failed verification that conserves a
+    // working install owes an explanation of the blockage (requirements §10).
+    const rolled = restoreBackup({ cwd, id: transaction.id });
+    let ungovernedNote = '';
+    try {
+      const { ungovernedAmong } = await import('./conformance.js');
+      const ungoverned = ungovernedAmong(cwd, rolled.changed);
+      if (ungoverned.length) {
+        ungovernedNote = ` The rollback left ${ungoverned.length} skill base(s) without a governance`
+          + ` contract (${ungoverned.slice(0, 3).map((u) => u.id).join(', ')}${ungoverned.length > 3 ? ', …' : ''});`
+          + ' that is the state the snapshot held. Run `rscg conformance` to see it, and a sync to govern them again.';
+      }
+    } catch { /* the rollback already happened; a report must never replace the real error */ }
+    throw new Error(`RSC_ONBOARDING_INCOMPLETE: ${error.message}. Recover with: ${recoveryCommand(plan, planId)}.${ungovernedNote}`);
   }
 }
 
@@ -444,7 +461,7 @@ function floorSatisfied(cwd, path) {
 // `floorPaths` sale del recibo persistido en `.rsc.json`: un fichero comiteado, propenso a
 // conflictos de merge, y que un repo clonado puede traer preparado. Así que se valida la forma antes
 // de mirar el disco: un `..` daba el suelo por satisfecho MIRANDO FUERA de la raíz, y un `null` o una
-// cadena en lugar de un array tumbaban `rsc install` después de haber instalado.
+// cadena en lugar de un array tumbaban `rscg install` después de haber instalado.
 //
 // Devuelve los CAMINOS que faltan (como se muestran). `missingHarnessFloor` los redacta para el
 // instalador y `onboardingReadiness` los entrega tal cual a `doctor`: una comprobación, dos lectores.
@@ -498,11 +515,11 @@ export function harnessReadiness(cwd = process.cwd(), plan = {}) {
 //   ready          suelo completo, nada en borrador
 //   pending        suelo completo, pero algo es un borrador que el usuario debe completar
 //   incomplete     falta parte del suelo del plan aceptado (o el recibo no cuadra con su id)
-//   not-onboarded  no hay recibo: instalación manual (`rsc add`) o anterior al onboarding
+//   not-onboarded  no hay recibo: instalación manual (`rscg add`) o anterior al onboarding
 //
 // Un recibo de una versión que no declaraba suelo queda exento por construcción (P3), igual que en
 // el instalador: aquí no se inventa un suelo que el plan aceptado no traía.
-const ONBOARD_ACTION = 'Run `npx @ericrisco/rsc@latest onboard` to record a plan for this harness (optional: what is installed keeps working).';
+const ONBOARD_ACTION = 'Run `npx @lema017/rsc-governed@latest onboard` to record a plan for this harness (optional: what is installed keeps working).';
 const draftAction = (path) => `Complete ${path} with the \`constitution\` phase (tell your agent "constitution") before the first SDD feature; ratifying removes \`status: draft\`.`;
 
 export function onboardingReadiness(cwd = process.cwd(), manifest = readManifest(cwd)) {
@@ -516,7 +533,7 @@ export function onboardingReadiness(cwd = process.cwd(), manifest = readManifest
   if (!identical) {
     return {
       status: 'incomplete', missing: ['<onboarding receipt does not match its accepted plan id>'], pending,
-      action: 'Do not trust the receipt. Re-run `npx @ericrisco/rsc@latest onboard` and accept a fresh plan.',
+      action: 'Do not trust the receipt. Re-run `npx @lema017/rsc-governed@latest onboard` and accept a fresh plan.',
     };
   }
   const missing = harnessFloorGaps(cwd, receipt.plan);

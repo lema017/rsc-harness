@@ -2,30 +2,53 @@ name: ci
 
 on: [push, pull_request]
 
+# Least privilege, explicitly. Without this block the workflow inherits the repository default,
+# which can be read-write: ARCHITECTURE.md §"Dónde pueden correr" flagged exactly that. This job
+# only reads the tree, so `contents: read` is all of it, and no job here gets `id-token`.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The gate's `skills-invariant` check diffs against `origin/main`, so it needs the ref.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: npm ci
-      - name: validate frontmatter
-        run: npm run validate
-      - name: manifest is current
-        run: npm run manifest:check
+      # The deterministic gate, first: seconds, and it covers validate + manifest:check +
+      # governance:check + both project-artifact roots + the `skills/` invariant + drift + originality.
+      # It is the same command a human runs locally, so CI and the desk cannot disagree.
+      - name: gate (deterministic)
+        run: npm run gate
       - name: tests
         run: npm test
+      # eval-lint stays out of the gate (it writes to literal /tmp and needs PyYAML, which §1 of the
+      # requirements forbids installing globally) but a hosted runner is disposable, so it runs here.
       - name: eval-lint
         run: bash scripts/eval-lint.sh
-      - name: drift-check (every prose link in the catalog resolves)
-        run: npm run drift:check
       - name: cleanup gate (no old marketplace-distribution residue)
         # Unambiguous fingerprints of the retired plugin-marketplace model only.
         # NOT bare "marketplace"/"npx skills" — those are legit words in skill
         # content (terms-conditions, shopify, remotion-video, …).
+        #
+        # The `! grep` form that used to be here turned grep's exit 2 — "I could not finish the
+        # scan" — into a PASS, which is textually what `skills/verify/SKILL.md` forbids: a check
+        # that cannot run must not report success. Verified by execution during stage 1's audit.
+        # Three states, three verdicts.
         run: |
-          ! grep -rIn -E "sync-bundles|\.claude-plugin/marketplace|/plugin install [^\"' ]*@rsc-skills" . \
+          set +e
+          grep -rIn -E "sync-bundles|\.claude-plugin/marketplace|/plugin install [^\"' ]*@rsc-skills" . \
             --exclude-dir=node_modules --exclude-dir=.git \
             --exclude-dir=docs --exclude-dir=skill-build --exclude-dir=.github
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "::error::retired marketplace-distribution residue found above"; exit 1 ;;
+            1) echo "clean: no residue"; exit 0 ;;
+            *) echo "::error::the scan itself failed (grep exit $code); a check that cannot run is not a pass"; exit 1 ;;
+          esac

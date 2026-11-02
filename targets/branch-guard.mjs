@@ -17,7 +17,7 @@
 // Every denial carries its way out (constitution P6). Only what the AGENT runs is seen: a person
 // committing in their own terminal is never touched (spec, P3). FAIL-OPEN: no repo, no git, a module
 // missing, anything unclear → allow. Opt-outs, both PROJECT switches: `.rsc/.no-trunk-guard`
-// («desbloquea main» / `rsc main unlock`) and `.rsc/.no-worktree-isolation` (`rsc isolation off`).
+// («desbloquea main» / `rscg main unlock`) and `.rsc/.no-worktree-isolation` (`rscg isolation off`).
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -102,7 +102,7 @@ export function worktreePlaceDenial({ root, here, seg, at }) {
     : `\`git -C ${rel} worktree add ${join(place, `${basename(here)}-${slug}`)}${b}\``;
   return 'rsc: a worktree goes in `.worktrees/` at the root you work in, never inside a project folder ' +
     `and never beside it (${dest} is not under ${place}). Create it with ${how} and work inside it; ` +
-    'tell the person that is where the work now runs. To stop rsc judging worktrees: `npx @ericrisco/rsc isolation off`.';
+    'tell the person that is where the work now runs. To stop rsc judging worktrees: `npx @lema017/rsc-governed isolation off`.';
 }
 
 export const unquoted = (command) => command.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""');
@@ -277,14 +277,14 @@ async function trunkDenial({ root, here, sessionId, self, trunk, policy }) {
   return `This project keeps its default branch "${trunk}" closed for the agent (it looks complex or in production: ${policy.signals.join(', ')}), so this commit was not made. ` +
     `Do not choose for the person: ask them in one line whether to open a branch for this change or to unlock "${trunk}". ` +
     `Branch → ${branch}; it reaches "${trunk}" through a pull request. ` +
-    'Unlock → only on their explicit answer, `npx @ericrisco/rsc main unlock` (a project decision, saved in .rsc.json), then commit again.';
+    'Unlock → only on their explicit answer, `npx @lema017/rsc-governed main unlock` (a project decision, saved in .rsc.json), then commit again.';
 }
 
 function refDenial({ trunk, policy, how = '`git update-ref` and a forced `git branch`' }) {
   return `This project keeps its default branch "${trunk}" closed for the agent (it looks complex or in production: ${policy.signals.join(', ')}), so "${trunk}" was not moved — ` +
     `${how} land${how.includes(' and ') ? '' : 's'} work on it with no review. ` +
     `Work reaches "${trunk}" through a pull request: push the branch and open one (the \`ship\` skill). ` +
-    `Do not choose for the person: if they want "${trunk}" moved by hand, ask them in one line; only on their explicit answer, \`npx @ericrisco/rsc main unlock\` (a project decision, saved in .rsc.json).`;
+    `Do not choose for the person: if they want "${trunk}" moved by hand, ask them in one line; only on their explicit answer, \`npx @lema017/rsc-governed main unlock\` (a project decision, saved in .rsc.json).`;
 }
 
 async function isolationDenial({ root, here, sessionId, self }) {
@@ -293,7 +293,7 @@ async function isolationDenial({ root, here, sessionId, self }) {
   const who = others.map((o) => `${o.target}${o.branch ? ` on "${o.branch}"` : ''}, ${ago(o.updatedAt)}`).join('; ');
   return `Another session is working in this same folder (${who}). Switching branches here would change its files under it. ` +
     'Work in a worktree instead, in `.worktrees/` at the root (never inside a project folder): `git worktree add .worktrees/<branch> -b <branch>` (or without -b for an existing branch; for a project in a folder, `git -C <project> worktree add <root>/.worktrees/<project>-<branch> -b <branch>`) and run everything inside it; tell the person that is where the project now runs. ' +
-    'To turn this rule off for the project: `npx @ericrisco/rsc isolation off`.';
+    'To turn this rule off for the project: `npx @lema017/rsc-governed isolation off`.';
 }
 
 function isMain(metaUrl) {

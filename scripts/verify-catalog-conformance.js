@@ -24,12 +24,19 @@
 //
 // Usage: node scripts/verify-catalog-conformance.js --cwd <dir> --home <dir> [--json <file>]
 
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInstall } from './install-apply.js';
-import { TARGET_IDS, targetPaths } from '../targets/index.js';
-import { BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION, customizationPathFor, digestOf, governanceOf, renderBlock } from './lib/governance.js';
+import { TARGET_IDS } from '../targets/index.js';
+import { BLOCK_BEGIN, BLOCK_END } from './lib/governance.js';
+// The audit itself lives in `scripts/lib/conformance.js`, so `rscg conformance` can run the SAME
+// checks on a consumer's machine without importing the installer (stage 6, D13). This script keeps
+// what is its own: installing the whole catalog for every target, three times, and comparing passes.
+// `auditBase` is re-exported because it is this module's published surface.
+import { auditBase, auditDelivery, alwaysOnSurface, deliveryKind } from './lib/conformance.js';
+
+export { auditBase };
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // All eighteen, not the five in PLAN §9's governance scope. ARCHITECTURE.md §4's "lo que hay que
@@ -49,102 +56,6 @@ export function catalogIds(root = ROOT) {
     .map((e) => e.name).sort();
 }
 
-/** Everything criterion 4 asks of one distributed `SKILL.md`, as a list of failures. */
-export function auditBase(id, text) {
-  const bad = [];
-  const info = governanceOf(text);
-  if (!info.block) bad.push('no governance block');
-  if (!info.keys.governance) bad.push('no `governance` key');
-  if (!info.keys['governance-customization']) bad.push('no `governance-customization` key');
-  if (!info.keys['governance-digest']) bad.push('no `governance-digest` key');
-  // A partial is exactly this: something of governance present, something else missing.
-  if (info.block && !info.complete) bad.push('PARTIAL: block present, a key missing');
-  if (!info.block && Object.keys(info.keys).length) bad.push('PARTIAL: keys present, no block');
-  if (info.block && !info.digestMatches) bad.push('digest does not match its own block');
-  if (info.keys.governance && info.keys.governance !== GOVERNANCE_VERSION) bad.push(`governance is ${info.keys.governance}`);
-  if (info.keys['governance-customization'] && info.keys['governance-customization'] !== customizationPathFor(id)) {
-    bad.push(`customization path is ${info.keys['governance-customization']}`);
-  }
-  if (info.keys['governance-digest'] && info.keys['governance-digest'] !== digestOf(renderBlock(id))) {
-    bad.push('digest is not the digest of THIS skill\'s rendered block');
-  }
-  const opens = text.split(BLOCK_BEGIN).length - 1;
-  const closes = text.split(BLOCK_END).length - 1;
-  if (opens !== 1) bad.push(`DUPLICATE: ${opens} opening markers`);
-  if (closes !== 1) bad.push(`DUPLICATE: ${closes} closing markers`);
-  for (const key of ['governance', 'governance-customization', 'governance-digest']) {
-    const n = (text.match(new RegExp(`^${key}:`, 'gm')) || []).length;
-    if (n !== 1) bad.push(`DUPLICATE: ${n} \`${key}\` keys`);
-  }
-  // "Read this before applying the skill below" is false if the block sits at the bottom.
-  const marker = BLOCK_BEGIN.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-  if (!new RegExp(`\\n---\\n${marker}`).test(text)) bad.push('the block does not open the body');
-  return bad;
-}
-
-/** What the target handed the assistant, audited per target family. */
-function auditDelivery(target, id, cwd, home, basePath) {
-  if (target === 'cursor') {
-    const mdc = join(cwd, '.cursor', 'rules', `${id}.mdc`);
-    if (!existsSync(mdc)) return ['no .mdc delivered'];
-    const text = readFileSync(mdc, 'utf8');
-    const bad = [];
-    const block = (text.match(/<!-- rsc-governance:begin [^\n]*?-->[\s\S]*?<!-- rsc-governance:end -->/) || [])[0] || null;
-    if (!block) bad.push('no governance block in the .mdc');
-    // The one genuinely transformed delivery: a rendering fault here is invisible to both the base
-    // validator and the digest, so the bytes are compared against the rendered block directly.
-    else if (block !== renderBlock(id)) bad.push('the .mdc block is not byte-identical to the rendered block');
-    // The declared hole, asserted rather than assumed (CONTRACT.md §1).
-    for (const key of ['governance:', 'governance-customization:', 'governance-digest:']) {
-      if (new RegExp(`^${key}`, 'm').test(text)) bad.push(`the .mdc now carries \`${key}\` — CONTRACT.md §1 says it does not`);
-    }
-    return bad;
-  }
-  // Derived from the target table rather than hardcoded, so adding a target cannot silently fall
-  // out of this audit.
-  const dir = targetPaths(target, home, cwd).skillDir(id);
-  const md = join(dir, 'SKILL.md');
-  if (!existsSync(md)) return ['no SKILL.md delivered'];
-  const bad = [];
-  // 17 of 18 targets deliver a symlink to the base, so the delivered file IS the base file. Prove
-  // it rather than assume it: a copy that silently stopped tracking the base would read fine here
-  // and go stale forever.
-  try {
-    if (lstatSync(dir).isSymbolicLink() && realpathSync(dir) !== realpathSync(basePath)) {
-      bad.push('the delivered directory does not resolve to the governed base');
-    }
-  } catch { bad.push('could not resolve the delivered directory'); }
-  if (readFileSync(md, 'utf8') !== readFileSync(join(basePath, 'SKILL.md'), 'utf8')) {
-    bad.push('the delivered SKILL.md differs from the governed base');
-  }
-  return bad;
-}
-
-/**
- * The body each target's always-on layer ends up reading. For `claude` that is NOT the hook target
- * — `targets/claude.js` writes a PATH into `settings.json` and the hook reads the file at run time,
- * so following the stored path is the only non-vacuous way to look at it (the vacuity this avoids
- * was shipped once in this design's earlier draft).
- */
-function alwaysOnSurface(target, cwd, home) {
-  const paths = targetPaths(target, home, cwd);
-  if (target === 'claude') {
-    let settings;
-    try { settings = JSON.parse(readFileSync(join(cwd, '.claude', 'settings.json'), 'utf8')); }
-    catch { return { error: 'no .claude/settings.json' }; }
-    const commands = Object.values(settings.hooks ?? {}).flat()
-      .flatMap((e) => e.hooks ?? []).map((h) => h.command).filter((c) => typeof c === 'string');
-    const wired = (commands.join(' ').match(/\$\{CLAUDE_PROJECT_DIR\}\/[^"'\s]+/g) || [])
-      .map((p) => p.replace('${CLAUDE_PROJECT_DIR}/', '')).filter((p) => p.endsWith('.md'));
-    if (wired.length !== 1) return { error: `expected exactly one wired .md body, got ${JSON.stringify(wired)}` };
-    const abs = join(cwd, wired[0]);
-    if (!existsSync(abs)) return { error: `the wired body does not exist: ${wired[0]}` };
-    return { from: wired[0], text: readFileSync(abs, 'utf8') };
-  }
-  if (!existsSync(paths.hookTarget)) return { error: `no hook target at ${relative(cwd, paths.hookTarget)}` };
-  return { from: relative(cwd, paths.hookTarget), text: readFileSync(paths.hookTarget, 'utf8') };
-}
-
 async function main() {
   const cwd = arg('cwd');
   const home = arg('home');
@@ -158,8 +69,32 @@ async function main() {
   const report = { catalog: ids.length, targets: {}, base: {}, idempotence: {}, failures: [] };
   console.log(`catalog: ${ids.length} skills with a SKILL.md`);
 
+  // A FLOOR ON THE DENOMINATOR, which the instrument did not have: every ratio below is `n/ids.length`,
+  // so a truncated `skills/` would report "273/273, failures: 0" and look perfect. §3 of the
+  // requirements forbids fixing the count in code ("no fijes el número de skills en el código"), so
+  // the floor is a CROSS-CHECK against `manifest.json`, which `npm run manifest:check` keeps current,
+  // plus an explicit `--expect <n>` for a release gate that wants to pin the number it measured.
+  // Found by the independent review of stage 4.
+  let manifestCount = null;
+  try { manifestCount = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8')).counts?.skills ?? null; }
+  catch { manifestCount = null; }
+  report.manifestCount = manifestCount;
+  if (manifestCount === null) {
+    report.failures.push('manifest.json could not be read, so the catalog size has no floor: a truncated skills/ would report 100%');
+  } else if (manifestCount !== ids.length) {
+    report.failures.push(`catalog size floor: skills/ has ${ids.length} skills, manifest.json counts ${manifestCount}`);
+  }
+  const expected = arg('expect');
+  if (expected !== null) {
+    report.expected = Number(expected);
+    if (Number(expected) !== ids.length) {
+      report.failures.push(`catalog size floor: --expect ${expected} but skills/ has ${ids.length}`);
+    }
+  }
+
   const basePathOf = (id) => join(cwd, '.rsc', 'skills', id);
   let firstPass = null;
+  let firstPassMdc = null;
 
   // Pass 2 re-installs over the governed base that pass 1 left (the ordinary re-run). Pass 3 first
   // wipes `.rsc/.base-versions.json`, which is what forces `ensureBase` to re-materialize every
@@ -190,14 +125,28 @@ async function main() {
     report.base[`pass${pass}`] = { audited: Object.keys(bases).length, conformant };
     console.log(`pass ${pass}: base conformant ${conformant}/${ids.length}`);
 
-    if (pass === 1) firstPass = bases;
+    // The Cursor `.mdc` is the only delivery that is RE-RENDERED rather than linked, so it is the
+    // only one where a non-idempotent renderer could show up — and it was not in this comparison.
+    const mdcs = {};
+    for (const id of ids) {
+      const path = join(cwd, '.cursor', 'rules', `${id}.mdc`);
+      if (existsSync(path)) mdcs[id] = readFileSync(path, 'utf8');
+    }
+
+    if (pass === 1) { firstPass = bases; firstPassMdc = mdcs; }
     else {
       // Criterion 5 over the INSTALLED tree: a second full install must change nothing.
       const drifted = ids.filter((id) => firstPass[id] !== bases[id]);
+      const driftedMdc = ids.filter((id) => firstPassMdc[id] !== mdcs[id]);
       const label = pass === 2 ? 'reinstall' : 'forcedRefresh';
-      report.idempotence[label] = { compared: ids.length, drifted: drifted.length, examples: drifted.slice(0, 5) };
-      console.log(`idempotence (${label}): ${ids.length - drifted.length}/${ids.length} byte-identical`);
+      report.idempotence[label] = {
+        compared: ids.length, drifted: drifted.length, examples: drifted.slice(0, 5),
+        comparedMdc: Object.keys(firstPassMdc).length, driftedMdc: driftedMdc.length, examplesMdc: driftedMdc.slice(0, 5),
+      };
+      console.log(`idempotence (${label}): ${ids.length - drifted.length}/${ids.length} bases byte-identical`
+        + `, ${Object.keys(firstPassMdc).length - driftedMdc.length}/${Object.keys(firstPassMdc).length} cursor .mdc byte-identical`);
       for (const id of drifted) report.failures.push(`idempotence ${label} ${id}: differs from pass 1`);
+      for (const id of driftedMdc) report.failures.push(`idempotence ${label} ${id}.mdc: differs from pass 1`);
     }
 
     // The always-on surface must stay governance-free and byte-identical to upstream's `suggest`
@@ -220,12 +169,16 @@ async function main() {
     // must carry NO governance at all.
     for (const target of TARGETS) {
       let ok = 0;
+      const kinds = {};
       for (const id of ids) {
         const bad = auditDelivery(target, id, cwd, home, basePathOf(id));
+        const kind = deliveryKind(target, id, cwd, home);
+        kinds[kind] = (kinds[kind] || 0) + 1;
         if (bad.length) report.failures.push(`pass ${pass} ${target} ${id}: ${bad.join('; ')}`);
         else ok += 1;
       }
       report.targets[target][`deliveredPass${pass}`] = ok;
+      report.targets[target][`kindsPass${pass}`] = kinds;
       const surface = alwaysOnSurface(target, cwd, home);
       if (surface.error) report.failures.push(`pass ${pass} ${target} always-on: ${surface.error}`);
       else if (surface.text.includes(BLOCK_BEGIN) || surface.text.includes(BLOCK_END)) {
@@ -234,6 +187,7 @@ async function main() {
       report.targets[target].alwaysOnSurface = surface.from || null;
       report.targets[target].alwaysOnBytes = surface.text ? Buffer.byteLength(surface.text) : null;
       console.log(`pass ${pass}: ${target} delivery conformant ${ok}/${ids.length}`
+        + ` [${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')}]`
         + `, always-on ${surface.error ? 'ERROR ' + surface.error : 'clean (' + Buffer.byteLength(surface.text) + ' B, ' + surface.from + ')'}`);
     }
   }

@@ -27,9 +27,11 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+# Least privilege is PER JOB, not per workflow. A workflow-level `contents: write` +
+# `id-token: write` handed the read-only `news` job the token that can push to main and mint an OIDC
+# identity for npm. Scoped down so only the job that publishes can publish.
 permissions:
-  contents: write      # push the version-bump commit + tag
-  id-token: write      # npm provenance via OIDC
+  contents: read
 
 jobs:
   # A run queued behind another can find the tip already released: two merges seconds apart, and
@@ -37,6 +39,8 @@ jobs:
   # version commit, and releasing it again would publish an empty patch. A manual run always goes.
   news:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read     # it only reads tags
     outputs:
       released: ${{ steps.tip.outputs.released }}
     steps:
@@ -57,6 +61,9 @@ jobs:
     needs: news
     if: needs.news.outputs.released != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write    # push the version-bump commit + tag, and cut the GitHub Release
+      id-token: write    # npm provenance via OIDC — the ONLY job that needs it
     steps:
       # The tip of main, not the commit that triggered the run. Runs queue one behind the other
       # (concurrency above), and the one queued behind a release must start from that release's
@@ -76,16 +83,22 @@ jobs:
       - run: npm ci
 
       # --- gates: never publish a broken catalog -------------------------------
-      - name: validate frontmatter + recommends
-        run: npm run validate
-      - name: manifest is current
-        run: npm run manifest:check
+      # The deterministic gate covers validate, manifest:check, governance:check, both
+      # project-artifact roots, the `skills/` invariant, drift:check and originality:check.
+      - name: gate (deterministic)
+        run: npm run gate
+      # Criterion 4 and criterion 5 over the catalog as INSTALLED: all 274, every target, three
+      # passes. Minutes, not seconds, which is why it is a release gate and not an iteration one.
+      - name: catalog conformance (criteria 4 and 5)
+        run: |
+          node scripts/verify-catalog-conformance.js \
+            --cwd "$RUNNER_TEMP/conformance-project" \
+            --home "$RUNNER_TEMP/conformance-home" \
+            --json "$RUNNER_TEMP/conformance.json"
       - name: tests
         run: npm test
       - name: eval-lint
         run: bash scripts/eval-lint.sh
-      - name: originality
-        run: npm run originality:check
 
       # --- bump version (auto-patch on push; chosen bump on manual run) ---------
       - name: Configure git identity

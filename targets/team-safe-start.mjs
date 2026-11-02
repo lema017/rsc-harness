@@ -135,7 +135,7 @@ ACTION: díselo a la persona en pocas líneas, una vez, antes de su petición:
 3. El agente elige solo entre FTD (lo sencillo) y SDD (lo grande o complejo) y lo dice; se puede
    pedir el otro.
 4. Las herramientas (01-TOOLS/) y la wiki (02-DOCS/wiki/, attachments/) viajan al equipo por la
-   rama rsc/knowledge y llegan a la principal dentro de las PRs. Para apagarlo: rsc knowledge-sync off.
+   rama rsc/knowledge y llegan a la principal dentro de las PRs. Para apagarlo: rscg knowledge-sync off.
 ==============================================
 `,
   en: `
@@ -144,13 +144,13 @@ ACTION: tell the person in a few lines, once, before their request, in their lan
 1. If the default branch is open (simple projects), the agent works on it without asking.
    If it is closed (long-lived code, CI or a team), it asks before each change: this branch,
    a new one, or unlock? It never opens a branch on its own. To change it: "unlock main" or
-   "lock main" (rsc main unlock | lock).
+   "lock main" (rscg main unlock | lock).
 2. If another assistant session is working in this same folder, new work goes to a worktree in
-   .worktrees/<branch>/. To turn that off: "don't use worktrees" (rsc isolation off).
+   .worktrees/<branch>/. To turn that off: "don't use worktrees" (rscg isolation off).
 3. The agent picks between FTD (simple work) and SDD (large or complex work) and says which; you
    can ask for the other.
 4. Tools (01-TOOLS/) and the wiki (02-DOCS/wiki/, attachments/) travel to the team on the
-   rsc/knowledge branch and reach the default branch inside pull requests. Off: rsc knowledge-sync off.
+   rsc/knowledge branch and reach the default branch inside pull requests. Off: rscg knowledge-sync off.
 ==========================================
 `,
 };

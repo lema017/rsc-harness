@@ -50,7 +50,7 @@ function sessionStart(sessionId) {
 
 test('9c · the accept command pins the exact version that produced the plan', () => {
   const line = preview.split('\n').find((l) => l.startsWith('Accept exactly this plan:'));
-  assert.ok(line.includes(`npx @ericrisco/rsc@${VERSION} onboard`), line);
+  assert.ok(line.includes(`npx @lema017/rsc-governed@${VERSION} onboard`), line);
   assert.ok(!line.includes('@latest'), line);
 });
 

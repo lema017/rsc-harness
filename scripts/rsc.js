@@ -38,25 +38,25 @@ const rawArgv = process.argv.slice(2);
 // published may simply not be here yet.
 if (['--version', '-v', 'version'].includes(rawArgv[0])) {
   const v = versionReport(process.cwd());
-  const lines = [`rsc ${v.cli}`];
+  const lines = [`rscg ${v.cli}`];
   if (v.installed) lines.push(`installed in this project: ${v.installed}${v.behind ? ' (behind)' : ''}`);
   else lines.push('installed in this project: none');
-  if (v.behind) lines.push('This project runs older hooks than this CLI. To catch up, run here:', '  npx @ericrisco/rsc@latest');
+  if (v.behind) lines.push('This project runs older hooks than this CLI. To catch up, run here:', '  npx @lema017/rsc-governed@latest');
   process.stdout.write(`${lines.join('\n')}\n`);
   process.exit(0);
 }
 const GENERAL_HELP = [
-  'Use: npx @ericrisco/rsc onboard | reassess | add <id...> | install --profile <p> | consult "<text>" | list | capabilities [--full|gap-log] | audit | registry refresh | doctor | sync | agent-model <target> <model|inherit|status> | agents [status|reset <name|--all>] | memory <on|off|status|save|resume|learn|metrics> | review consolidate [reports…] | ingest <file...> | copy check <file> | copy rules | sello <on|off|status|…> | worktrees [reap [path] [--confirm]] | backups | restore <id|latest> | upgrade | repair | uninstall <id...> | purge | help',
+  'Use: npx @lema017/rsc-governed onboard | reassess | add <id...> | install --profile <p> | consult "<text>" | list | capabilities [--full|gap-log] | conformance | brownfield | audit | registry refresh | doctor | sync | agent-model <target> <model|inherit|status> | agents [status|reset <name|--all>] | memory <on|off|status|save|resume|learn|metrics> | review consolidate [reports…] | ingest <file...> | copy check <file> | copy rules | sello <on|off|status|…> | worktrees [reap [path] [--confirm]] | backups | restore <id|latest> | upgrade | repair | uninstall <id...> | purge | help',
   'Any command takes --target <claude|codex|cursor|copilot|gemini|…> (comma-separate for several)',
   '   → without it, rsc uses the assistant already installed here; if two are, it asks instead of guessing.',
 ].join('\n');
 const UNINSTALL_HELP = [
-  'Use: npx @ericrisco/rsc uninstall <id...> [--dry-run] [--target <assistant>]',
+  'Use: npx @lema017/rsc-governed uninstall <id...> [--dry-run] [--target <assistant>]',
   '  Removes the named skills or agents from this project.',
-  '  To remove everything rsc installed here, run: npx @ericrisco/rsc purge  (keeps 02-DOCS/ unless --with-docs)',
+  '  To remove everything rsc installed here, run: npx @lema017/rsc-governed purge  (keeps 02-DOCS/ unless --with-docs)',
 ].join('\n');
 const PURGE_HELP = [
-  'Use: npx @ericrisco/rsc purge [--dry-run] [--with-docs]',
+  'Use: npx @lema017/rsc-governed purge [--dry-run] [--with-docs]',
   '  Removes everything rsc installed in this project and reports what was removed, cleaned and kept.',
   '  --dry-run shows the report without touching anything. 02-DOCS/ is kept unless --with-docs.',
 ].join('\n');
@@ -77,7 +77,7 @@ const PURGE_HELP = [
 const GLOBAL_VALUE_FLAGS = new Set([
   '--topic', '--target', '--technical-level', '--accompaniment', '--project-kind', '--goal', '--goal-base64', '--software-scope', '--workflow', '--accept-plan',
 ]);
-const COMMANDS = new Set(['ingest', 'copy', 'onboard', 'reassess', 'add', 'install', 'consult', 'catalog', 'audit', 'list', 'doctor', 'memory', 'knowledge-sync', 'git-permissions', 'agent-model', 'agents', 'main', 'isolation', 'sync', 'backups', 'restore', 'upgrade', 'registry', 'worktrees', 'capabilities', 'review', 'sello', 'repair', 'uninstall', 'purge']);
+const COMMANDS = new Set(['ingest', 'copy', 'onboard', 'reassess', 'add', 'install', 'consult', 'catalog', 'audit', 'list', 'doctor', 'memory', 'knowledge-sync', 'git-permissions', 'agent-model', 'agents', 'main', 'isolation', 'sync', 'backups', 'restore', 'upgrade', 'registry', 'worktrees', 'capabilities', 'conformance', 'brownfield', 'review', 'sello', 'repair', 'uninstall', 'purge']);
 function positionalTokens(input) {
   const out = [];
   for (let i = 0; i < input.length; i++) {
@@ -127,7 +127,7 @@ function onboardingRequired(raw, action = 'onboard') {
     code: 'RSC_ONBOARDING_REQUIRED',
     schemaVersion: 1,
     missing: missingOnboardingFields(raw),
-    recovery: `Run npx @ericrisco/rsc@latest ${action} --technical-level <non-technical|mixed|technical> --project-kind <software|operations|research|content|mixed> --goal "<what you want>" --target <assistant> (software or mixed also: --software-scope <small|growing|complex> --workflow <main|branches>)`,
+    recovery: `Run npx @lema017/rsc-governed@latest ${action} --technical-level <non-technical|mixed|technical> --project-kind <software|operations|research|content|mixed> --goal "<what you want>" --target <assistant> (software or mixed also: --software-scope <small|growing|complex> --workflow <main|branches>)`,
     // Each value is the person's own answer, asked as a question. Never infer one from the code or
     // from a nearby answer: a field test mapped «mixto» to technical and «growing» to small.
     ask: {
@@ -209,7 +209,7 @@ function renderPlan(plan, planId) {
   // depends on the catalog of the running version: `@latest` would accept it with whatever version
   // npm resolves next, which answers RSC_PLAN_CHANGED the day a release lands in between.
   const pieces = [
-    `npx @ericrisco/rsc@${versionReport(process.cwd()).cli} onboard`,
+    `npx @lema017/rsc-governed@${versionReport(process.cwd()).cli} onboard`,
     `--technical-level ${plan.record.technicalLevel}`,
     `--project-kind ${plan.record.projectKind}`,
     `--goal-base64 ${encodeGoal(plan.record.goal)}`,
@@ -356,7 +356,7 @@ function runReassessment() {
   const manifest = readManifest();
   const plan = manifest?.onboarding?.plan;
   if (!plan) {
-    console.error('RSC_ONBOARDING_REQUIRED: no accepted onboarding receipt. Run npx @ericrisco/rsc@latest onboard');
+    console.error('RSC_ONBOARDING_REQUIRED: no accepted onboarding receipt. Run npx @lema017/rsc-governed@latest onboard');
     process.exitCode = 2;
     return;
   }
@@ -367,7 +367,7 @@ function runReassessment() {
   const record = recommendations[0].suggestedRecord || plan.record;
   say('Review a new plan; nothing has been installed:');
   say([
-    'npx @ericrisco/rsc@latest onboard',
+    'npx @lema017/rsc-governed@latest onboard',
     `--technical-level ${record.technicalLevel}`,
     `--project-kind ${record.projectKind}`,
     `--goal-base64 ${encodeGoal(record.goal)}`,
@@ -409,7 +409,7 @@ function reportUnknown(ids) {
   const candidates = [...loadManifest().skills.map((skill) => skill.id), ...stackAgentNames()];
   for (const id of ids) {
     const close = [...candidates].sort((a, b) => editDistance(id, a) - editDistance(id, b) || a.localeCompare(b)).slice(0, 3);
-    console.error(`rsc: unknown skill or agent '${id}'. Closest: ${close.join(', ')}`);
+    console.error(`rscg: unknown skill or agent '${id}'. Closest: ${close.join(', ')}`);
   }
   process.exitCode = 1;
   return true;
@@ -530,8 +530,8 @@ function printNextSteps(targets, ids) {
   say(`   ${n++}. From there, work in your own words. orient + suggest stay always-on; unslop is ready on request:`);
   say('      orient talks in short stand-alone sentences (technical or with analogies) and draws a diagram if you do not follow;');
   say('      suggest proposes missing skills; unslop rewrites text you send to other people.');
-  say('\n   Add something by hand anytime:    npx @ericrisco/rsc add <skill>');
-  say('   Browse the catalog / get picks:   npx @ericrisco/rsc consult "whatever you need"');
+  say('\n   Add something by hand anytime:    npx @lema017/rsc-governed add <skill>');
+  say('   Browse the catalog / get picks:   npx @lema017/rsc-governed consult "whatever you need"');
   say('────────────────────────────────────────────────────────');
   if (targets.includes('codex')) say('   Codex: review and trust the project lifecycle hook once with `/hooks`; until then memory is reported as requiring trust.');
   if (targets.includes('deepseek')) say('   DeepSeek Harness: hooks run through rsc\'s bridge in ~/.dsh/cordis.patch.yml (one block, every profile); restart dsh once to load it.');
@@ -670,7 +670,7 @@ async function wizard(flagTargets, declaredTargets = []) {
       { key: 'sdd', label: 'Base + Spec-Driven Development — the specify → plan → implement → ship flow' },
       { key: 'manual', label: 'Pick skills by hand, by area' },
     ]);
-    if (choice === null) { say('\nOK — nothing installed. Anytime: npx @ericrisco/rsc'); return; }
+    if (choice === null) { say('\nOK — nothing installed. Anytime: npx @lema017/rsc-governed'); return; }
     if (choice === 'update') return syncDeclared(declaredTargets);
 
     let ids;
@@ -719,7 +719,7 @@ async function guardCollisions(targets, ids) {
   for (const id of hit) say(`     ${id}`);
   say('   Installing would replace them. A backup is kept, but you would have to know to restore it.');
   if (!isInteractive()) {
-    console.error('rsc: refusing to overwrite hand-written skills. Rename them, or re-run with --force.');
+    console.error('rscg: refusing to overwrite hand-written skills. Rename them, or re-run with --force.');
     process.exitCode = 1;
     return false;
   }
@@ -765,8 +765,8 @@ async function main() {
       targets = picked;
     } else {
       console.error(
-        `rsc: ${resolved.ambiguous.join(' and ')} are both installed here, so I will not guess.\n` +
-        `     Say which one:  npx @ericrisco/rsc ${cmd} --target ${resolved.ambiguous[0]}`,
+        `rscg: ${resolved.ambiguous.join(' and ')} are both installed here, so I will not guess.\n` +
+        `     Say which one:  npx @lema017/rsc-governed ${cmd} --target ${resolved.ambiguous[0]}`,
       );
       process.exitCode = 1;
       return;
@@ -819,7 +819,7 @@ async function main() {
       // replaced it (P6).
       if (flag('profile')) {
         say('⚠️  `--profile` no longer exists: rsc installs one harness — the always-on layer, the FTD lane and the SDD chain.');
-        say('    Everything else still arrives on demand: `npx @ericrisco/rsc add <id>`.');
+        say('    Everything else still arrives on demand: `npx @lema017/rsc-governed add <id>`.');
         return;
       }
       if (!hasDeclaredHarness()) return onboardingRequired(onboardingInput(targets));
@@ -923,11 +923,11 @@ async function main() {
         for (const t of targets) await syncInstalled({ target: t, cwd: root });
         say(isMain
           ? (sub === OFF
-            ? 'rsc main unlock: the agent may now work on the default branch in this project. Commit .rsc.json so the team gets the same decision.'
-            : 'rsc main lock: branches and pull requests for this project — the default branch is closed for the agent, and it asks before each code change where it goes. Commit .rsc.json so the team gets the same decision.')
+            ? 'rscg main unlock: the agent may now work on the default branch in this project. Commit .rsc.json so the team gets the same decision.'
+            : 'rscg main lock: branches and pull requests for this project — the default branch is closed for the agent, and it asks before each code change where it goes. Commit .rsc.json so the team gets the same decision.')
           : (sub === OFF
-            ? 'rsc isolation off: sessions may share this folder without a worktree. Commit .rsc.json so the team gets the same decision.'
-            : 'rsc isolation on: with another session active in this folder, new work goes to .worktrees/<branch>/ at the root, never inside a project folder. Commit .rsc.json so the team gets the same decision.'));
+            ? 'rscg isolation off: sessions may share this folder without a worktree. Commit .rsc.json so the team gets the same decision.'
+            : 'rscg isolation on: with another session active in this folder, new work goes to .worktrees/<branch>/ at the root, never inside a project folder. Commit .rsc.json so the team gets the same decision.'));
         return;
       }
       if (sub === 'status') {
@@ -938,7 +938,7 @@ async function main() {
         const { otherActiveSessions } = await import('../targets/session-memory-core.mjs');
         return void say(JSON.stringify({ isolation: existsSync(marker) ? 'off' : 'on', activeSessions: otherActiveSessions({ cwd: root }) }, null, 2));
       }
-      say(`Use: npx @ericrisco/rsc ${cmd} ${ON}|${OFF}|status`);
+      say(`Use: npx @lema017/rsc-governed ${cmd} ${ON}|${OFF}|status`);
       process.exitCode = 2;
       return;
     }
@@ -956,15 +956,15 @@ async function main() {
         else rmSync(marker, { force: true });
         for (const t of targets) await syncInstalled({ target: t, cwd: root });
         say(sub === 'off'
-          ? 'rsc knowledge-sync off: 01-TOOLS/ and 02-DOCS/ no longer sync on their own in this project. Commit .rsc.json so the team gets the same decision.'
-          : 'rsc knowledge-sync on: 01-TOOLS/ and 02-DOCS/ go up when a turn ends and come down before each message. Commit .rsc.json so the team gets the same decision.');
+          ? 'rscg knowledge-sync off: 01-TOOLS/ and 02-DOCS/ no longer sync on their own in this project. Commit .rsc.json so the team gets the same decision.'
+          : 'rscg knowledge-sync on: 01-TOOLS/ and 02-DOCS/ go up when a turn ends and come down before each message. Commit .rsc.json so the team gets the same decision.');
         return;
       }
       if (sub === 'status') {
         const { knowledgeStatus } = await import('../targets/knowledge-sync.mjs');
         return void say(JSON.stringify(knowledgeStatus(root), null, 2));
       }
-      say('Use: npx @ericrisco/rsc knowledge-sync on|off|status');
+      say('Use: npx @lema017/rsc-governed knowledge-sync on|off|status');
       process.exitCode = 2;
       return;
     }
@@ -978,7 +978,7 @@ async function main() {
       const { gitPermissionsState, explainGitPermissions, GIT_PERMISSION_TARGETS } = await import('../targets/git-permissions.js');
       if (sub === 'on' || sub === 'off') {
         const current = readManifest(root);
-        if (!current) { say('No .rsc.json here: install the harness first (`npx @ericrisco/rsc onboard`).'); process.exitCode = 2; return; }
+        if (!current) { say('No .rsc.json here: install the harness first (`npx @lema017/rsc-governed onboard`).'); process.exitCode = 2; return; }
         writeManifest(root, { ...current, gitPermissions: sub === 'on' });
         for (const t of targets) await syncInstalled({ target: t, cwd: root });
         // What rsc controls, what stops when off, and what is the assistant's own job (#298).
@@ -996,7 +996,7 @@ async function main() {
           notCovered: targets.filter((t) => !GIT_PERMISSION_TARGETS.includes(t)),
         }, null, 2));
       }
-      say('Use: npx @ericrisco/rsc git-permissions on|off|status [--json]');
+      say('Use: npx @lema017/rsc-governed git-permissions on|off|status [--json]');
       process.exitCode = 2;
       return;
     }
@@ -1008,7 +1008,7 @@ async function main() {
         const current = readManifest(root) || { version: 1, targets: targets || [], skills: [], agents: [], ownSkills: [], optOuts: [] };
         writeManifest(root, { ...current, memory: sub === 'off' ? false : { enabled: true } });
         for (const t of targets) await syncInstalled({ target: t, cwd: root });
-        say(`rsc memory ${sub}: ${sub === 'on' ? 'enabled' : 'disabled'} for this project (${targets.join(', ') || 'declaration only'}).`);
+        say(`rscg memory ${sub}: ${sub === 'on' ? 'enabled' : 'disabled'} for this project (${targets.join(', ') || 'declaration only'}).`);
         return;
       }
       const M = await import('../targets/session-memory-core.mjs');
@@ -1044,7 +1044,7 @@ async function main() {
         return void say(JSON.stringify(result, null, 2));
       }
       if (sub === 'metrics') return void say(JSON.stringify(M.metricsSummary({ cwd: root }), null, 2));
-      say('Use: npx @ericrisco/rsc memory on|off|status|save [--session id]|resume [--json]|learn --text "…" --evidence "…" --scope project|global --confidence 0..1 --approve|metrics');
+      say('Use: npx @lema017/rsc-governed memory on|off|status|save [--session id]|resume [--json]|learn --text "…" --evidence "…" --scope project|global --confidence 0..1 --approve|metrics');
       process.exitCode = 1;
       return;
     }
@@ -1068,18 +1068,18 @@ async function main() {
         return void say(JSON.stringify(targets.filter(targetHasAgents).map(describe), null, 2));
       }
       if (!targetHasAgents(t)) {
-        console.error(`rsc: ${t} has no file-based agents. Targets with agents: ${AGENT_TARGET_IDS.join(', ')}`);
+        console.error(`rscg: ${t} has no file-based agents. Targets with agents: ${AGENT_TARGET_IDS.join(', ')}`);
         process.exitCode = 2;
         return;
       }
       if (value === 'status') return void say(JSON.stringify(describe(t), null, 2));
       if (!isValidAgentModel(value)) {
-        console.error(`rsc: '${value}' is not a model id (letters, digits and . _ : / @ + - only), nor 'inherit'.\nUse: npx @ericrisco/rsc agent-model <target> <model|inherit|status>`);
+        console.error(`rscg: '${value}' is not a model id (letters, digits and . _ : / @ + - only), nor 'inherit'.\nUse: npx @lema017/rsc-governed agent-model <target> <model|inherit|status>`);
         process.exitCode = 2;
         return;
       }
       const current = readManifest(root);
-      if (!current) { say('No .rsc.json here: install the harness first (`npx @ericrisco/rsc onboard`).'); process.exitCode = 2; return; }
+      if (!current) { say('No .rsc.json here: install the harness first (`npx @lema017/rsc-governed onboard`).'); process.exitCode = 2; return; }
       const next = { ...(current.agentModels || {}) };
       // `inherit` on a target whose default is inherit stores nothing: the manifest stays as small as the decision.
       if (value === AGENT_MODEL_INHERIT && targetInheritsByDefault(t)) delete next[t];
@@ -1090,8 +1090,8 @@ async function main() {
       const installedAgents = readState(pathsOf(t, undefined, root).stateFile).agents || [];
       const { written, kept } = writeAgentsDetailed(t, root, readDeveloperTier(root), installedAgents);
       say(value === AGENT_MODEL_INHERIT
-        ? `rsc agent-model ${t} inherit: the agents carry no model and use the session's.`
-        : `rsc agent-model ${t} ${value}: the agents are pinned to ${value}.`);
+        ? `rscg agent-model ${t} inherit: the agents carry no model and use the session's.`
+        : `rscg agent-model ${t} ${value}: the agents are pinned to ${value}.`);
       say(`  Re-rendered ${written.length} agent file(s). Commit .rsc.json so the team gets the same decision.`);
       for (const k of kept) say(`  ${k.message}`);
       return;
@@ -1103,7 +1103,7 @@ async function main() {
         const all = argv.includes('--all');
         const names = requestedIds(2);
         if (!all && !names.length) {
-          console.error('Use: npx @ericrisco/rsc agents reset <name...|--all> [--target <assistant>]');
+          console.error('Use: npx @lema017/rsc-governed agents reset <name...|--all> [--target <assistant>]');
           process.exitCode = 2;
           return;
         }
@@ -1119,11 +1119,11 @@ async function main() {
           done += out.reset.length;
           if (out.reset.length) {
             say(`Reset ${t}: ${out.reset.join(', ')} — rsc's version is back.`);
-            if (out.backup) say(`  Your previous files are kept in ${out.backup}/files/ (\`rsc restore\` lists the snapshot).`);
+            if (out.backup) say(`  Your previous files are kept in ${out.backup}/files/ (\`rscg restore\` lists the snapshot).`);
           }
         }
         if (!all && !done) {
-          console.error(`rsc: ${names.join(', ')}: not an agent rsc installed here (${withAgents.join(', ') || 'no target with agents'}).`);
+          console.error(`rscg: ${names.join(', ')}: not an agent rsc installed here (${withAgents.join(', ') || 'no target with agents'}).`);
           process.exitCode = 1;
         }
         return;
@@ -1136,7 +1136,7 @@ async function main() {
           return { target: t, agents: state.agents || [], editedByYou: (state.agentsKept || []).map((k) => k.name) };
         }), null, 2));
       }
-      say('Use: npx @ericrisco/rsc agents status | agents reset <name...|--all>');
+      say('Use: npx @lema017/rsc-governed agents status | agents reset <name...|--all>');
       process.exitCode = 2;
       return;
     }
@@ -1156,13 +1156,37 @@ async function main() {
       const result = restoreBackup({ id, dryRun: dry });
       say(`${dry ? 'Would restore' : 'Restored'} ${result.snapshot.id}`);
       for (const p of result.changed) say(`  ${p}`);
+      // D13(a) — stage 4 measured this and the coordinator decided it: `restore` keeps its
+      // semantics. A snapshot taken over a base that had come from upstream captured that base
+      // UNGOVERNED, so handing it back ungoverned is literally correct — re-governing here would
+      // turn the time machine into a lie, giving the user a state they did not ask for.
+      //
+      // What was missing is that nothing said so, while the 17 symlinking targets read the restored
+      // file immediately. There are two writers inside `.rsc/skills/`: `governBase` and
+      // `restoreEntry` (`scripts/lib/backups.js`, a raw `cpSync`), and only the first one governs.
+      if (!dry) {
+        const { ungovernedAmong } = await import('./lib/conformance.js');
+        const ungoverned = ungovernedAmong(process.cwd(), result.changed);
+        if (ungoverned.length) {
+          say('');
+          say(`⚠️  ${ungoverned.length} restored skill base(s) carry NO governance contract:`);
+          for (const u of ungoverned.slice(0, 12)) say(`      ${u.id} — ${u.reasons[0]}`);
+          if (ungoverned.length > 12) say(`      … and ${ungoverned.length - 12} more`);
+          say('    That is what the snapshot held, so the restore is correct: it is not re-governed,');
+          say('    because you asked for the earlier state and you got it. But every assistant reads');
+          say('    these files now, and they no longer point at their project customization.');
+          say('    To govern them again: run a sync here. The transformation is idempotent, so it');
+          say('    changes nothing for the bases that are already governed.');
+          say('    To see the whole picture first: rscg conformance');
+        }
+      }
       return;
     }
     case 'upgrade': {
       const dry = argv.includes('--dry-run');
       const global = argv.includes('--global');
       const result = runUpgrade({ targets, dryRun: dry, global });
-      if (result.ran) say('Upgraded global @ericrisco/rsc. Restart your shell if needed.');
+      if (result.ran) say('Upgraded global @lema017/rsc-governed. Restart your shell if needed.');
       else say(`${dry ? 'Would run' : 'Upgrade guide'}: ${result.plan.installCommand}`);
       say(`After upgrade: ${result.plan.syncCommand}`);
       return;
@@ -1178,12 +1202,12 @@ async function main() {
         say(JSON.stringify(registryStatus(), null, 2));
         return;
       }
-      say('Use: npx @ericrisco/rsc registry refresh | registry status');
+      say('Use: npx @lema017/rsc-governed registry refresh | registry status');
       return;
     }
     case 'ingest': {
       // "Eat this file": into 02-DOCS/raw/, verified, then gone from where it was dropped (lib/ingest-move.js).
-      const USE = 'Use: npx @ericrisco/rsc ingest <file...> [--topic <topic>] [--keep] [--json]\n  Moves each file into 02-DOCS/raw/ (the copy is verified first, then the original is removed) and records it in 02-DOCS/wiki/.ingested.json.\n  --keep copies without removing. Project files, code and secrets are refused.';
+      const USE = 'Use: npx @lema017/rsc-governed ingest <file...> [--topic <topic>] [--keep] [--json]\n  Moves each file into 02-DOCS/raw/ (the copy is verified first, then the original is removed) and records it in 02-DOCS/wiki/.ingested.json.\n  --keep copies without removing. Project files, code and secrets are refused.';
       const rest = argv.slice(1);
       const files = rest.filter((a, i) => !a.startsWith('--') && rest[i - 1] !== '--topic');
       if (!files.length) { say(USE); process.exitCode = 1; return; }
@@ -1205,7 +1229,7 @@ async function main() {
     case 'copy': {
       // The phrases this project forbids in what it publishes (targets/copy-rules.mjs). `check` is the
       // gate the copy skills run before delivering text; the Claude Stop hook runs the same check.
-      const USE = 'Use: npx @ericrisco/rsc copy check <file|-> [--json] | copy rules [--json]\n  Rules come from 02-DOCS/wiki/: a "Never use" / "Frases prohibidas" section, a "Never use: a, b" line, or a sentence that prohibits quoted phrases.';
+      const USE = 'Use: npx @lema017/rsc-governed copy check <file|-> [--json] | copy rules [--json]\n  Rules come from 02-DOCS/wiki/: a "Never use" / "Frases prohibidas" section, a "Never use: a, b" line, or a sentence that prohibits quoted phrases.';
       const sub = argv[1];
       if (sub !== 'check' && sub !== 'rules') { say(USE); if (sub) process.exitCode = 1; return; }
       const { readFileSync } = await import('node:fs');
@@ -1222,7 +1246,7 @@ async function main() {
         if (file && file !== '-') text = readFileSync(file, 'utf8');
         else if (!process.stdin.isTTY) text = readFileSync(0, 'utf8');
         else { say(USE); process.exitCode = 1; return; }
-      } catch (e) { say(`rsc: cannot read ${file || 'stdin'} (${e.code || e.message}).`); process.exitCode = 1; return; }
+      } catch (e) { say(`rscg: cannot read ${file || 'stdin'} (${e.code || e.message}).`); process.exitCode = 1; return; }
       const hits = C.findViolations(C.proseOnly(text), rules);
       const where = file && file !== '-' ? file : 'stdin';
       if (argv.includes('--json')) say(JSON.stringify({ rules: rules.length, hits }, null, 2));
@@ -1236,20 +1260,20 @@ async function main() {
       // `review consolidate` — the deterministic half of the refuter panel (P1): the three lenses
       // often report one defect three ways, so grouping happens here, by location and evidence, and
       // only the unique serious findings go on to `finding-verifier`, which is judgement.
-      const USE = 'Use: npx @ericrisco/rsc review consolidate [report.md|findings.json ...] [--json] [--window <lines>]\n  Without files it reads stdin. Each lens report carries its findings in ```json findings blocks.';
+      const USE = 'Use: npx @lema017/rsc-governed review consolidate [report.md|findings.json ...] [--json] [--window <lines>]\n  Without files it reads stdin. Each lens report carries its findings in ```json findings blocks.';
       if (argv[1] !== 'consolidate') { say(USE); if (argv[1]) process.exitCode = 1; return; }
       const { readFileSync } = await import('node:fs');
       const R = await import('./lib/review-findings.js');
       const w = flag('window');
       const window = w === undefined ? R.DEFAULT_WINDOW : Number(w);
-      if (!Number.isInteger(window) || window < 0) { say(`rsc: --window takes a whole number of lines, got '${w}'.\n${USE}`); process.exitCode = 1; return; }
+      if (!Number.isInteger(window) || window < 0) { say(`rscg: --window takes a whole number of lines, got '${w}'.\n${USE}`); process.exitCode = 1; return; }
       const rest = argv.slice(2);
       const files = rest.filter((a, i) => !a.startsWith('--') && rest[i - 1] !== '--window');
       const sources = [];
       try {
         if (files.length) for (const f of files) sources.push([readFileSync(f, 'utf8'), f]);
         else if (!process.stdin.isTTY) sources.push([readFileSync(0, 'utf8'), 'stdin']);
-      } catch (e) { say(`rsc: cannot read ${e.path || 'stdin'} (${e.code || e.message}).`); process.exitCode = 1; return; }
+      } catch (e) { say(`rscg: cannot read ${e.path || 'stdin'} (${e.code || e.message}).`); process.exitCode = 1; return; }
       if (!sources.length) { say(USE); process.exitCode = 1; return; }
       const all = []; const errors = [];
       for (const [raw, src] of sources) {
@@ -1314,8 +1338,8 @@ async function main() {
       say(`${candidates.length} worktree(s) whose work has landed:`);
       for (const c of candidates) say(W.describe(c));
       say('');
-      say('Remove the safe ones:  npx @ericrisco/rsc worktrees reap');
-      say('Remove one by name:    npx @ericrisco/rsc worktrees reap <path> [--confirm]');
+      say('Remove the safe ones:  npx @lema017/rsc-governed worktrees reap');
+      say('Remove one by name:    npx @lema017/rsc-governed worktrees reap <path> [--confirm]');
       return;
     }
     case 'capabilities': {
@@ -1356,7 +1380,7 @@ async function main() {
         const where = o.repos.length ? ` · ${o.repos.map((r) => `${r.repo}×${r.n}`).join(', ')}` : '';
         say(`🔁 «${o.procedure}» visto ${o.seen} veces (${o.dates.join(', ')})${where}`);
         say(`   → ${o.kind}: ${o.why}`);
-        say(`   registra la decisión con: rsc capabilities gap-log --procedure "..." --verdict proposed-${o.kind === 'capability' ? 'capability' : 'accepted'}|proposed-declined`);
+        say(`   registra la decisión con: rscg capabilities gap-log --procedure "..." --verdict proposed-${o.kind === 'capability' ? 'capability' : 'accepted'}|proposed-declined`);
         if (rep.uncertain.length) {
           say(`   (${rep.uncertain.length} parecido(s) que NO se agruparon por debajo del umbral — deliberado)`);
         }
@@ -1388,6 +1412,143 @@ async function main() {
       if (!full) say('# catalog shown as ids; add --full for descriptions, or use `catalog --available` to match by meaning');
       return;
     }
+    // ──────────────────────────────────────────────────────────────────────────
+    // `rscg conformance` — acceptance criterion 4, asked on the CONSUMER's machine.
+    //
+    // Stage 4 measured criterion 4 with `scripts/verify-catalog-conformance.js`, which runs inside
+    // the fork's own checkout. Its own report named the gap it could not close: "no command of the
+    // product answers «are my 274 governed?»". Stage 4's D13 made that this command, because the
+    // decision there was that `restore` keeps its semantics — a time machine that hands back an
+    // ungoverned base is literally correct — and what the product owes instead is to SAY so.
+    //
+    // Read-only. It installs nothing, writes nothing and reaches no network.
+    case 'conformance': {
+      const { auditInstalledProject, formatConformance } = await import('./lib/conformance.js');
+      // `targetPaths` ignores `home` — every path it builds is project-relative — so the default is
+      // correct and no HOME is read. Passed explicitly so that stays visible rather than incidental.
+      const { homedir } = await import('node:os');
+      const report = auditInstalledProject({ cwd: process.cwd(), home: homedir(), targets: f ? targets : null });
+      if (argv.includes('--json')) say(JSON.stringify(report, null, 2));
+      else for (const line of formatConformance(report)) say(line);
+      // Exit 1 only when it RAN and found something: "nothing is installed here" is a fact about the
+      // project, not a conformance failure, and a CI that reads the code must not confuse the two.
+      if (report.ran && !report.conformant) process.exitCode = 1;
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // `rscg brownfield` — the invocation point for stage 3's procedure.
+    //
+    // `BROWNFIELD.md` §1 settles what this command is and is not: the procedure is a package-owned
+    // DOCUMENT regenerated at `.rsc/governance/brownfield-v1.md` on install (a 275th skill would
+    // break both the byte-identical `skills/` mirror and the 274-of-274 conformance count), it is
+    // invoked explicitly rather than at install time, and one run covers the SELECTED skills only.
+    //
+    // So this command does the three things a command can do deterministically, and leaves the
+    // reading of the project — which is the model's work — to the model:
+    //
+    //   1. It hands over the procedure, by path, with the skills the run is scoped to.
+    //   2. It computes B1's candidate competitor set: every description collision at or above the
+    //      declared 0.45, every `recommends:` edge, every `NOT`-clause naming. That is B1's
+    //      stopping criterion for coverage, it is the only recall floor anywhere in this design,
+    //      and it costs zero agent runs because the catalog is on disk.
+    //   3. With `--validate`, it runs the 16 rules of `CONFLICT-RECORD.md` §7 over the run reports
+    //      already in `02-DOCS/wiki/brownfield/`.
+    case 'brownfield': {
+      const { brownfieldProcedurePath } = await import('./lib/governance.js');
+      const {
+        BROWNFIELD_ROOT, COLLISION_THRESHOLD, notClauseTargets,
+        validateBrownfieldRuns, formatFindings, errorsOf,
+      } = await import('./lib/customization-validator.js');
+      const { greenfieldOf } = await import('./validate-customizations.js');
+      const { existsSync } = await import('node:fs');
+      const cwd = process.cwd();
+      const json = argv.includes('--json');
+
+      if (argv.includes('--validate')) {
+        const greenfield = await greenfieldOf(cwd);
+        const report = validateBrownfieldRuns({ cwd, greenfield });
+        if (json) { say(JSON.stringify({ ...report, greenfield }, null, 2)); }
+        else if (!report.ran) say(`no ${BROWNFIELD_ROOT}/ in this project — absence is valid; nothing to validate`);
+        else {
+          for (const line of formatFindings(report, cwd)) say(line);
+          say(`\n${report.files.length} run report(s) · ${report.records.length} conflict record(s) `
+            + `· ${errorsOf(report).length} error(s) · coverage floor ${report.floorRan ? 'ran' : 'DID NOT RUN'}`);
+        }
+        if (errorsOf(report).length) process.exitCode = 1;
+        return;
+      }
+
+      const manifest = readManifest(cwd);
+      const selected = manifest?.skills || [];
+      if (!selected.length) {
+        say('No skills are declared in .rsc.json, so there is nothing to analyze. Install the harness first.');
+        process.exitCode = 2;
+        return;
+      }
+      const procedure = brownfieldProcedurePath(cwd);
+      const catalog = loadManifest();
+      const known = new Set(catalog.skills.map((sk) => sk.id));
+      const byId = new Map(catalog.skills.map((sk) => [sk.id, sk]));
+      const { buildTextCorpus, descriptionCollisions } = await import('./lib/text-rank.js');
+      const competitors = new Map();
+      const note = (id, why) => {
+        if (!known.has(id) || selected.includes(id)) return;
+        competitors.set(id, [...(competitors.get(id) || []), why]);
+      };
+      for (const id of selected.filter((x) => known.has(x))) {
+        for (const rec of byId.get(id)?.recommends || []) note(rec, `\`${id}\` recommends: \`${rec}\``);
+        for (const not of notClauseTargets(byId.get(id)?.description, known)) note(not, `named in \`${id}\`'s NOT clause`);
+      }
+      const corpus = buildTextCorpus(catalog.skills);
+      for (const { left, right, score } of descriptionCollisions(corpus, COLLISION_THRESHOLD)) {
+        if (selected.includes(left)) note(right, `description collision ${score.toFixed(3)} with \`${left}\``);
+        if (selected.includes(right)) note(left, `description collision ${score.toFixed(3)} with \`${right}\``);
+      }
+      const rows = [...competitors].sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([id, why]) => ({ id, reasons: why }));
+
+      if (json) {
+        say(JSON.stringify({
+          procedure: existsSync(procedure) ? relative(cwd, procedure) : null,
+          selected, threshold: COLLISION_THRESHOLD, competitors: rows,
+          report: `${BROWNFIELD_ROOT}/<slug>.md`,
+        }, null, 2));
+        return;
+      }
+
+      say('===== brownfield analysis =====');
+      if (existsSync(procedure)) {
+        say(`PROCEDURE: read ${relative(cwd, procedure)} and follow B1–B8 in order. Each step has`);
+        say('           inputs, an output and a stopping criterion; a step with no stopping criterion');
+        say('           is an invitation to read forever.');
+      } else {
+        say(`PROCEDURE: MISSING at ${relative(cwd, procedure)}. Run an install or a sync here first —`);
+        say('           it is package-owned and regenerated every time. Do NOT improvise the procedure.');
+      }
+      say(`SCOPE:     the ${selected.length} selected skill(s) only, never the whole catalog.`);
+      say(`REPORT:    ${BROWNFIELD_ROOT}/<slug>.md, with \`type: brownfield-run\` frontmatter, indexed in`);
+      say('           02-DOCS/wiki/index.md. Proposed per-skill customizations go to');
+      say('           02-DOCS/wiki/skills/<id>/README.md, each one approved by the user BEFORE it is written.');
+      say('');
+      say(`B1 CANDIDATE COMPETITORS — computed, not guessed, at threshold ${COLLISION_THRESHOLD}`);
+      say('(the number routing:audit itself uses. 0.80 is the failure CEILING: over these 274 it');
+      say(' yields zero pairs, so a candidate set built at 0.80 always reports "no competitors".)');
+      if (!rows.length) say('  (none: no collision, no recommends edge and no NOT-clause naming reaches outside the selection)');
+      for (const row of rows) say(`  ${row.id.padEnd(28)} ${row.reasons.join(' · ')}`);
+      say('');
+      say(`COVERAGE FLOOR: all ${rows.length} row(s) above, plus every selected skill, MUST appear in the`);
+      say('           inventory. A deliberate exclusion is a row with its reason, never an absence.');
+      say(`           \`rscg brownfield --validate\` checks it, and the other 15 rules of the record format.`);
+      say('');
+      say('WHAT THIS COMMAND DOES NOT DO, so the report does not claim it: it does not read the');
+      say('project. Project↔skill conflict detection has no instrument anywhere in this design —');
+      say('a run that reads nothing and finds nothing passes every rule, including the floor above,');
+      say('because the floor only asks about pairs computable from the catalog. Declared, not fixed.');
+      say('==============================');
+      return;
+    }
+
     case 'sello': {
       // Deterministic transitions of the sello (review receipt). The `review` skill
       // orchestrates the lenses; every state change and every check runs HERE, token-free.
@@ -1480,14 +1641,14 @@ async function main() {
           const sello = S.readSello(root);
           if (sello.missing || sello.corrupt) { say(S.MESSAGES.notFrozen()); process.exitCode = 1; return; }
           const lines = Number(flag('lines'));
-          if (!Number.isFinite(lines) || lines <= 0) { say('Use: rsc sello budget --lines <N>'); process.exitCode = 1; return; }
+          if (!Number.isFinite(lines) || lines <= 0) { say('Use: rscg sello budget --lines <N>'); process.exitCode = 1; return; }
           S.writeSello(root, { ...sello, budget: { lines, declaredAt: new Date().toISOString() } });
           say(`📏 fix budget declared: ${lines} line(s). budget-check will hold the fix to it.`);
           return;
         }
         case 'budget-check': {
           const sello = S.readSello(root);
-          if (sello.missing || sello.corrupt || !sello.budget) { say('sello: no declared budget. Recover: run `rsc sello budget --lines <N>` BEFORE fixing.'); process.exitCode = 1; return; }
+          if (sello.missing || sello.corrupt || !sello.budget) { say('sello: no declared budget. Recover: run `rscg sello budget --lines <N>` BEFORE fixing.'); process.exitCode = 1; return; }
           const current = S.computeCandidate(root, S.readEffectiveConfig(root));
           const spent = S.budgetSpent(sello, current || { numstat: {} });
           if (spent <= sello.budget.lines) { say(`✅ within budget: ~${spent}/${sello.budget.lines} line(s).`); return; }
@@ -1553,7 +1714,7 @@ async function main() {
           return;
         }
         default:
-          say('Use: npx @ericrisco/rsc sello on|off [--global]|status|freeze|approve --lenses a,b [--accept-partial-lenses]|block --reason "…"|budget --lines N|budget-check [--justify "…"]|check|report');
+          say('Use: npx @lema017/rsc-governed sello on|off [--global]|status|freeze|approve --lenses a,b [--accept-partial-lenses]|block --reason "…"|budget --lines N|budget-check [--justify "…"]|check|report');
           return;
       }
     }
@@ -1564,7 +1725,7 @@ async function main() {
       const ids = requestedIds();
       // No id is not "nothing to remove": it is a command that was not given what it needs.
       if (!ids.length) {
-        console.error(`rsc: uninstall needs at least one skill or agent id.\n${UNINSTALL_HELP}`);
+        console.error(`rscg: uninstall needs at least one skill or agent id.\n${UNINSTALL_HELP}`);
         process.exitCode = 1;
         return;
       }
@@ -1601,13 +1762,13 @@ async function main() {
     case 'purge':
       return void (await runPurge(argv.includes('--dry-run'), argv.includes('--with-docs')));
     default:
-      say(`rsc: unknown command '${cmd}'.`);
+      say(`rscg: unknown command '${cmd}'.`);
       say(GENERAL_HELP);
       process.exitCode = 1;
   }
 }
 
 main().catch((e) => {
-  console.error('rsc error:', e.message);
+  console.error('rscg error:', e.message);
   process.exit(1);
 });

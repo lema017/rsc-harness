@@ -78,7 +78,7 @@ test('renderAuditMarkdown includes the headline and a re-run hint', () => {
   const md = renderAuditMarkdown(audit({ cwd: project(['prisma-orm', 'drizzle-orm']), home: emptyHome(), date: '2026-06-05' }));
   assert.match(md, /# Skill audit — 2026-06-05/);
   assert.match(md, /Possible overlap/);
-  assert.match(md, /rsc audit/);
+  assert.match(md, /rsc-governed audit/);
 });
 
 test('writeAuditReport writes the wiki file when a harness wiki exists, and always stamps audit.json', () => {

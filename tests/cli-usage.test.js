@@ -39,7 +39,7 @@ test('rsc help, --help and -h print the general help and exit 0 without onboardi
     const cwd = fresh();
     const r = run(cwd, args);
     assert.equal(r.status, 0, `${args}: ${r.stdout}${r.stderr}`);
-    assert.match(r.stdout, /Use: npx @ericrisco\/rsc/);
+    assert.match(r.stdout, /Use: npx @lema017\/rsc-governed/);
     assert.match(r.stdout, /purge/);
     assert.doesNotMatch(r.stdout + r.stderr, /unknown command|RSC_ONBOARDING_REQUIRED/);
     assert.deepEqual(readdirSync(cwd), []);

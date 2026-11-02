@@ -244,7 +244,7 @@ export function inspectMemoryWiring(target, cwd = process.cwd(), recorded = null
           : recorded?.reason || 'wired',
     missing,
     tracked: trackedPaths,
-    action: status === 'degraded' ? 'Run `npx @ericrisco/rsc sync`; if a config is tracked, move memory hooks to an untracked local config first.' : null,
+    action: status === 'degraded' ? 'Run `npx @lema017/rsc-governed sync`; if a config is tracked, move memory hooks to an untracked local config first.' : null,
     trustRequired: target === 'codex' && status === 'ready',
   };
 }

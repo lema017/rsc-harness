@@ -144,7 +144,7 @@ test('9 · `rsc ingest` moves several files, prints the next step, and exits 1 i
 test('10 · the text injected at session start no longer says originals are never moved', () => {
   const body = readFileSync(join(ROOT, 'targets', 'session-start.mjs'), 'utf8');
   assert.doesNotMatch(body, /copied, never moved/i);
-  assert.match(body, /rsc ingest/);
+  assert.match(body, /rsc-governed ingest/);
   const skill = readFileSync(join(ROOT, 'skills', 'harness', 'SKILL.md'), 'utf8');
   assert.match(skill, /rsc ingest/);
 });

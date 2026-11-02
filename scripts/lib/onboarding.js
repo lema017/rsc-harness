@@ -235,7 +235,7 @@ export function buildOnboardingPlan(record, evidence) {
   //
   // Without this, an update recomputed the set from the profile and the detected stacks alone, and
   // the install step then deleted from disk whatever was not in that fresh set. Reported from the
-  // field: six skills added with `rsc add` — seo-geo, astro, landing-copy, brand-identity, press-kit,
+  // field: six skills added with `rscg add` — seo-geo, astro, landing-copy, brand-identity, press-kit,
   // article-writing — deleted by the update. And "volvió a borrar": every single time, because
   // nothing ever taught the recomputation to look at the manifest.
   //

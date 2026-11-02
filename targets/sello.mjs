@@ -310,7 +310,7 @@ export function appendFindings(rawRoot, lines) {
   if (!lines?.length) return;
   const p = selloPaths(resolveRoot(rawRoot)).findings;
   mkdirSync(dirname(p), { recursive: true });
-  const header = existsSync(p) ? '' : '# sello — hallazgos no bloqueantes\n\nSe acumulan aquí; `rsc sello report` los muestra. No interrumpen nada.\n';
+  const header = existsSync(p) ? '' : '# sello — hallazgos no bloqueantes\n\nSe acumulan aquí; `rscg sello report` los muestra. No interrumpen nada.\n';
   const flat = lines.map((l) => `- ${String(l).replace(/\s*\n\s*/g, ' ')}`);
   appendFileSync(p, header + flat.join('\n') + '\n');
 }
@@ -357,25 +357,25 @@ export function isDeliveryCommand(command) {
 export const MESSAGES = {
   noReview: (tier) =>
     `sello: this change is risk tier ${tier} and has no review. ` +
-    `Recover: run the \`review\` skill (it freezes, reviews and approves the sello), or \`npx @ericrisco/rsc sello off\` to turn the sello off for this project.`,
+    `Recover: run the \`review\` skill (it freezes, reviews and approves the sello), or \`npx @lema017/rsc-governed sello off\` to turn the sello off for this project.`,
   diverged: (paths) =>
     `sello: the change no longer matches what was reviewed — ${paths.slice(0, 5).join(', ')}${paths.length > 5 ? ` (+${paths.length - 5} more)` : ''} differ from the sealed bytes. ` +
-    `Recover: re-run the \`review\` skill on the divergence (only what changed is re-reviewed), or \`npx @ericrisco/rsc sello off\` for this project.`,
+    `Recover: re-run the \`review\` skill on the divergence (only what changed is re-reviewed), or \`npx @lema017/rsc-governed sello off\` for this project.`,
   baseMoved: () =>
     `sello: the sello belongs to a different base — the branch was rebased/merged, or this sello was left over from a change that already shipped. Either way nothing has reviewed the current candidate. ` +
-    `Recover: re-run the \`review\` skill (only the divergence is re-reviewed), or \`npx @ericrisco/rsc sello off\` for this project.`,
+    `Recover: re-run the \`review\` skill (only the divergence is re-reviewed), or \`npx @lema017/rsc-governed sello off\` for this project.`,
   corrupt: () =>
     `sello: the sello file is unreadable, which counts as "no review" — nothing is ever approved by default. ` +
-    `Recover: re-run the \`review\` skill to produce a fresh sello, or \`npx @ericrisco/rsc sello off\` for this project.`,
+    `Recover: re-run the \`review\` skill to produce a fresh sello, or \`npx @lema017/rsc-governed sello off\` for this project.`,
   blocked: (reason) =>
     `sello: the review left this change BLOCKED${reason ? ` (${reason})` : ''}. ` +
-    `Recover: fix the blocking findings and re-run the \`review\` skill, or \`npx @ericrisco/rsc sello off\` for this project.`,
+    `Recover: fix the blocking findings and re-run the \`review\` skill, or \`npx @lema017/rsc-governed sello off\` for this project.`,
   notFrozen: () =>
     `sello: nothing is frozen yet, so there is nothing to approve. ` +
-    `Recover: run \`npx @ericrisco/rsc sello freeze\` first, then review, then approve.`,
+    `Recover: run \`npx @lema017/rsc-governed sello freeze\` first, then review, then approve.`,
   staleFreeze: () =>
     `sello: the change mutated after it was frozen — approving now would seal bytes nobody reviewed. ` +
-    `Recover: run \`npx @ericrisco/rsc sello freeze\` again and re-review the divergence.`,
+    `Recover: run \`npx @lema017/rsc-governed sello freeze\` again and re-review the divergence.`,
   overBudget: (spent, budget) =>
     `sello: the fix touched ~${spent} line(s) but the declared budget was ${budget} — an unexplained overrun is how over-engineering gets in. ` +
     `Recover: re-run with --justify "<why the budget was not enough>" to record the reason, or shrink the fix.`,
@@ -383,7 +383,7 @@ export const MESSAGES = {
     `sello: risk tier needs ${required} lens(es) but only ${given} were recorded — an incomplete panel must not seal silently. ` +
     `Recover: run the missing lenses and pass them all to --lenses, or accept the gap on purpose with --accept-partial-lenses.`,
   badRiskConfig:
-    'Recover: fix .rsc/sello-config.json — "raise" entries need a valid pattern under 200 chars; "lower" only accepts known classes and never "secrets" or "harness". `npx @ericrisco/rsc sello off` always works, even with a broken config.',
+    'Recover: fix .rsc/sello-config.json — "raise" entries need a valid pattern under 200 chars; "lower" only accepts known classes and never "secrets" or "harness". `npx @lema017/rsc-governed sello off` always works, even with a broken config.',
   riskUnknown: () =>
     `sello: the risk of this change could not be evaluated, so it is treated as risk tier 1 (never silently as 0). ` +
     `Recover: check that this is a git repository with a reachable trunk (origin/main, main, or "trunk" in .rsc/sello-config.json), then retry.`,

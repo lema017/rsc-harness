@@ -87,7 +87,7 @@ export function claimOnce(key, { dir = markerDir(), windowMs = 30_000, now = Dat
 }
 
 // The SDD gate text lives here, not inline in userprompt-gate.mjs, so it has exactly one
-// definition: the hook emits it and `rsc doctor` measures it from the same constant. Anything
+// definition: the hook emits it and `rscg doctor` measures it from the same constant. Anything
 // that reports a byte count for text it does not own drifts the moment the text changes.
 export const SDD_GATE_TEXT = `===== rsc lane decisor (highest precedence) =====
 Classify this turn before acting, and name the lane in one line.

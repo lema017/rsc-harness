@@ -94,7 +94,7 @@ test('#298 — a manual install with no onboarding record is not onboarded, and 
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   const { status, report } = doctorJson(cwd);
   assert.equal(report.onboarding.status, 'not-onboarded');
-  assert.match(report.onboarding.action, /@ericrisco\/rsc(@latest)? onboard/);
+  assert.match(report.onboarding.action, /@lema017\/rsc-governed(@latest)? onboard/);
   assert.equal(report.healthy, before.report.healthy);
   assert.equal(status, before.status);
   const lines = head(doctorText(cwd).stdout);

@@ -142,7 +142,7 @@ test('i298 · an agent the user edited survives sync, and sync says so', async (
   const r = cli(cwd, 'sync', '--target', 'opencode');
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /kept your edited agent developer/);
-  assert.match(r.stdout, /rsc agents reset developer/);
+  assert.match(r.stdout, /rscg agents reset developer/);
   assert.equal(read(dev), mine);
 });
 

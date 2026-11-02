@@ -30,7 +30,7 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
-const PACKAGE = '@ericrisco/rsc';
+const PACKAGE = '@lema017/rsc-governed';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9a-z.-]+)?$/i;
 
 /**
@@ -232,7 +232,7 @@ export function composeOffer(manifest) {
   // accepting an install on a repo they just cloned is entitled to read the exact thing first
   // (spec AC#21). No pin is itself a fact worth showing, not a blank to fill in.
   //
-  // And it has to be IN THE COMMAND, not only in the prose above it. `npx @ericrisco/rsc sync`
+  // And it has to be IN THE COMMAND, not only in the prose above it. `npx @lema017/rsc-governed sync`
   // resolves to the latest published package, so an offer phrased that way hands a clone whatever
   // shipped since — the exact divergence the pin exists to prevent, introduced by the feature meant
   // to honour it. Pinned, the command is reproducible three months from now (spec AC#6).

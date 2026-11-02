@@ -15,12 +15,12 @@
 //   - it never pushes a commit that is not its own — your unpushed code stays unpushed;
 //   - every commit it puts on `rsc/knowledge` says `[skip ci]`, so a wiki edit does not trigger a
 //     deploy (the local copy on your branch does not: see `commitLocal`);
-//   - the first turn says it is on and how to turn it off (`rsc knowledge-sync off`, or
+//   - the first turn says it is on and how to turn it off (`rscg knowledge-sync off`, or
 //     `.rsc/.no-knowledge-sync`, a PROJECT switch that travels in `.rsc.json`).
 //
 // Wired on its own (`knowledge-wiring.js`), on the same two lifecycle events the session memory uses —
 // prompt and end of turn — but never inside the memory: the memory promises it makes no network
-// request, and this exists to talk to `origin`. `rsc memory off` does not turn this off, and the other
+// request, and this exists to talk to `origin`. `rscg memory off` does not turn this off, and the other
 // way round.
 //
 // Two speeds, because a hook should answer in seconds and a push may not:
@@ -912,7 +912,7 @@ function fetchDown(root, timeout) {
 const ANNOUNCE = '🔄 La sincronización del conocimiento está activa: lo que cambies en 01-TOOLS/, 02-DOCS/wiki/ ' +
   `y 02-DOCS/attachments/ viaja a tu equipo por la rama ${KNOWLEDGE_BRANCH} (nunca a la principal; allí con ` +
   '[skip ci]) y lo de los demás te llega a tu rama de trabajo. Llega a la principal dentro de vuestras PRs. ' +
-  'Para apagarla en este proyecto: `rsc knowledge-sync off`.';
+  'Para apagarla en este proyecto: `rscg knowledge-sync off`.';
 
 /** UserPromptSubmit: apply what was fetched, say what happened, fetch again in the background. */
 export function onRequest(root, { spawnFetch = true } = {}) {
@@ -956,7 +956,7 @@ export function onTurn(root, { spawnShip = true } = {}) {
   } catch { /* a hook never takes the turn down */ }
 }
 
-/** For `rsc knowledge-sync status`. */
+/** For `rscg knowledge-sync status`. */
 export function knowledgeStatus(root) {
   const reason = inactiveReason(root);
   const s = readState(root);
@@ -1031,7 +1031,7 @@ export function hook(target, event, native = {}) {
       // later (field test 3.0.4). Same text, so what they each know is the same thing.
       const context = { hookEventName: target === 'gemini' ? 'BeforeAgent' : 'UserPromptSubmit', additionalContext: `rsc knowledge-sync (already shown to the person):\n${said}` };
       // DeepSeek Harness drops systemMessage and rsc's bridge turns it into context: one copy is enough.
-      if (target === 'deepseek') return { hookSpecificOutput: { ...context, additionalContext: `rsc knowledge-sync — tell the person in one line:\n${said}` } };
+      if (target === 'deepseek') return { hookSpecificOutput: { ...context, additionalContext: `rscg knowledge-sync — tell the person in one line:\n${said}` } };
       return { systemMessage: said, hookSpecificOutput: context };
     }
     // `stop_hook_active`: this turn exists because a stop hook asked for it. Nothing new to commit.

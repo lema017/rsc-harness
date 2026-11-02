@@ -16,7 +16,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const UNLOCK = '.no-trunk-guard';
-/** «ramas y PR», chosen at install or with `rsc main lock`: closed whatever the signals say. */
+/** «ramas y PR», chosen at install or with `rscg main lock`: closed whatever the signals say. */
 export const LOCK = '.no-trunk-open';
 
 const CI = ['.github/workflows', '.gitlab-ci.yml', '.circleci', 'azure-pipelines.yml', 'Jenkinsfile',

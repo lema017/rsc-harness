@@ -5,7 +5,7 @@
 // was special. Grepping the always-on layer for repeat|repetit|twice|recurr returns nothing: nothing
 // looks backwards.
 //
-// The registry that would allow it already exists. `rsc capabilities gap-log` writes one line per
+// The registry that would allow it already exists. `rscg capabilities gap-log` writes one line per
 // observed procedure, and the only thing that consumes it is countGaps(), which returns a TOTAL for
 // `doctor` to display. The ledger is written and nobody interrogates it — the passive form of the same
 // P2 defect.

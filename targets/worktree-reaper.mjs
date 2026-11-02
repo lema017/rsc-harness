@@ -14,7 +14,7 @@
 //   integration — does the branch still carry anything the trunk does not have?
 //   contents    — is there anything inside that was never in git and cannot be regenerated?
 //
-// Imported by `.rsc/session-start.mjs` (the sweep) and by `scripts/rsc.js` (`rsc worktrees`), so the
+// Imported by `.rsc/session-start.mjs` (the sweep) and by `scripts/rsc.js` (`rscg worktrees`), so the
 // rule exists once and both entry points cannot drift apart. Same shape as `sello.mjs`.
 import { existsSync, realpathSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, chmodSync, copyFileSync } from 'node:fs';
 import { join, resolve, dirname, basename, relative, sep } from 'node:path';
@@ -727,7 +727,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
     // The unattended entry point, called by the post-merge hook. Prints only what it actually did.
     const out = autoReap(root);
     for (const p of out.reaped) process.stdout.write(`rsc: retired worktree ${p}\n`);
-    for (const b of out.branches.deleted) process.stdout.write(`rsc: deleted merged branch ${b}\n`);
+    for (const b of out.branches.deleted) process.stdout.write(`rscg: deleted merged branch ${b}\n`);
   } else if (process.argv[3] === 'reap') {
     const one = process.argv[4];
     const targets = one ? [resolve(one)] : candidates.filter((c) => c.verdict === 'safe').map((c) => c.path);

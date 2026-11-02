@@ -1,6 +1,6 @@
 // audit.js — inventory installed skills (project + machine), surface possible
 // overlap and over-install (bloat). Advisory only: every finding is a "review
-// this", never a hard error. Run on demand (`rsc audit`), at `init`, and nudged
+// this", never a hard error. Run on demand (`rscg audit`), at `init`, and nudged
 // periodically by the SessionStart hook when the last run is stale.
 //
 // Signals it leans on, all already in the repo:
@@ -196,7 +196,7 @@ export function renderAuditMarkdown(report) {
   }
   if (report.summary.clean) L.push('Nothing to flag. The installed set fits the project.', '');
 
-  L.push('---', `_Advisory only. Trim with \`npx @ericrisco/rsc uninstall <id>\`. Re-run with \`npx @ericrisco/rsc audit\`._`);
+  L.push('---', `_Advisory only. Trim with \`npx @lema017/rsc-governed uninstall <id>\`. Re-run with \`npx @lema017/rsc-governed audit\`._`);
   return L.join('\n') + '\n';
 }
 

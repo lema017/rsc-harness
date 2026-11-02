@@ -99,7 +99,7 @@ test('the unreachable report does not send them back to repair', async () => {
   mkdirSync(join(d, '.githooks'), { recursive: true });
   const report = doctor({ cwd: d, target: 'claude', home: join(d, '.home') });
   assert.equal(report.worktreeCleanup.state, 'unreachable');
-  assert.ok(!/rsc repair/.test(report.worktreeCleanup.action || ''));
+  assert.ok(!/\brepair\b/.test(report.worktreeCleanup.action || ''), report.worktreeCleanup.action || '');
 });
 
 test('a plain repo is still reported as armed once the hook is really there', async () => {

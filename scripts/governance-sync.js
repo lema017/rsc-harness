@@ -18,6 +18,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PAIRS = [
   ['docs/fork/stage1/PREAMBLE-v1.txt', 'schema/governance/preamble-v1.txt'],
   ['docs/fork/stage1/CONTRACT.md', 'schema/governance/contract-v1.md'],
+  // Added by stage 6. The brownfield procedure is a product artifact that has to reach a consumer's
+  // machine for `rscg brownfield` to hand it to the agent, and stage 3 deliberately made it a
+  // DOCUMENT rather than a 275th skill (`DESIGN.md` decision 12).
+  ['docs/fork/stage3/BROWNFIELD.md', 'schema/governance/brownfield-v1.md'],
 ];
 
 /** @returns {{from: string, to: string, same: boolean, missingSource: boolean}[]} */

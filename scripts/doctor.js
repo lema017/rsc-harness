@@ -20,6 +20,7 @@ import { projectOptOuts } from '../targets/opt-outs.js';
 import { versionReport } from './lib/versions.js';
 import { CONSTITUTION_PATH, constitutionIsDraft } from './lib/constitution-draft.js';
 import { onboardingReadiness } from './lib/onboarding-apply.js';
+import { auditInstalledProject } from './lib/conformance.js';
 
 // Gates the committed manifest says the team disarmed, still armed here. Read through the same
 // partition the installer uses, so a machine-only switch somebody's older rsc wrote into the
@@ -124,15 +125,15 @@ function worktreeCleanupStatus(root, policy) {
     // plan and skips the hook again — and it contradicted `healthy: true` on every fresh small
     // software install (E2E 2026-10-07). Said as what it is, with nothing to do.
     if (policy?.codeHooks === false) {
-      return { state: 'not-in-plan', reason: 'the accepted plan defers code hooks, and the post-merge cleanup is one of them; `rsc reassess` revisits that.' };
+      return { state: 'not-in-plan', reason: 'the accepted plan defers code hooks, and the post-merge cleanup is one of them; `rscg reassess` revisits that.' };
     }
-    return { state: 'absent', action: 'Run `npx @ericrisco/rsc repair` to arm the post-merge cleanup in this clone.' };
+    return { state: 'absent', action: 'Run `npx @lema017/rsc-governed repair` to arm the post-merge cleanup in this clone.' };
   }
   try {
     const armed = readFileSync(hook, 'utf8').includes('rsc-managed worktree cleanup');
     return armed
       ? { state: 'armed' }
-      : { state: 'foreign', action: 'A post-merge hook from another tool is in place; `npx @ericrisco/rsc repair` chains ours behind it.' };
+      : { state: 'foreign', action: 'A post-merge hook from another tool is in place; `npx @lema017/rsc-governed repair` chains ours behind it.' };
   } catch { return { state: 'unreadable' }; }
 }
 
@@ -152,8 +153,8 @@ function worktreeHygiene(root) {
       .map((c) => ({ path: relative(realOf(root), c.path).split(sep).join('/') || c.path, branch: c.branch, verdict: c.verdict }));
   } catch { /* unanswerable is not a finding */ }
   const actions = [];
-  if (!ignored) actions.push('`.worktrees/` is not ignored by git here: run `npx @ericrisco/rsc sync` (it adds it to the rsc block of .gitignore) and commit .gitignore so every clone gets it.');
-  if (leftovers.length) actions.push(`${leftovers.length} landed worktree(s) are still on disk: \`npx @ericrisco/rsc worktrees\` lists them, \`npx @ericrisco/rsc worktrees reap\` removes the safe ones.`);
+  if (!ignored) actions.push('`.worktrees/` is not ignored by git here: run `npx @lema017/rsc-governed sync` (it adds it to the rsc block of .gitignore) and commit .gitignore so every clone gets it.');
+  if (leftovers.length) actions.push(`${leftovers.length} landed worktree(s) are still on disk: \`npx @lema017/rsc-governed worktrees\` lists them, \`npx @lema017/rsc-governed worktrees reap\` removes the safe ones.`);
   return { ignored, leftovers, ...(actions.length ? { action: actions.join(' ') } : {}) };
 }
 
@@ -229,14 +230,14 @@ export function doctor({ target, home, cwd }) {
   if (targetHasCommands(target)) {
     for (const id of state.commands || []) {
       const path = commandPath(target, root, id);
-      if (!path || !existsSync(path)) missingCommands.push({ id, path, action: 'Run `npx @ericrisco/rsc sync` to restore this managed command.' });
-      else if (!desiredCommands.has(id)) commandOrphans.push({ id, path, action: 'Restore its backing skill/agent with `rsc add`, or run `rsc sync` to reconcile it.' });
+      if (!path || !existsSync(path)) missingCommands.push({ id, path, action: 'Run `npx @lema017/rsc-governed sync` to restore this managed command.' });
+      else if (!desiredCommands.has(id)) commandOrphans.push({ id, path, action: 'Restore its backing skill/agent with `rscg add`, or run `rscg sync` to reconcile it.' });
     }
   }
   const missingAgents = (state.agents || []).filter((id) => {
     const path = agentPath(target, root, id);
     return path && !existsSync(path);
-  }).map((id) => ({ id, path: agentPath(target, root, id), action: 'Run `npx @ericrisco/rsc sync` to restore this managed agent.' }));
+  }).map((id) => ({ id, path: agentPath(target, root, id), action: 'Run `npx @lema017/rsc-governed sync` to restore this managed agent.' }));
   const report = {
     target,
     installed: Object.keys(state.skills),
@@ -277,8 +278,8 @@ export function doctor({ target, home, cwd }) {
     agentCollisions: state.agentCollisions || [],
     // #298 — generated agents the user edited and sync kept as they are. Not unhealthy: theirs on
     // purpose. Named with the way back, so a stale edit is one command from rsc's version.
-    agentsEditedByYou: (state.agentsKept || []).map((k) => ({ ...k, action: `\`npx @ericrisco/rsc agents reset ${k.name}\` takes rsc's version (yours is backed up first).` })),
-    // Which model the agents carry: the session's (inherit) or a project pin (`rsc agent-model`).
+    agentsEditedByYou: (state.agentsKept || []).map((k) => ({ ...k, action: `\`npx @lema017/rsc-governed agents reset ${k.name}\` takes rsc's version (yours is backed up first).` })),
+    // Which model the agents carry: the session's (inherit) or a project pin (`rscg agent-model`).
     agentModel: targetHasAgents(target) ? (effectiveAgentModel(target, root) || 'inherit') : null,
     missingCommands,
     commandOrphans,
@@ -291,10 +292,10 @@ export function doctor({ target, home, cwd }) {
   // #277 — the three "missing" lists share one shape, { id, path, action }, so whoever builds on top
   // of doctor reads them the same way; and `healthy` is what the exit code says.
   for (const [id, e] of Object.entries(state.skills)) {
-    for (const f of e.files) if (!existsSync(f)) report.missing.push({ id, path: f, action: 'Run `npx @ericrisco/rsc sync` to restore this managed skill.' });
+    for (const f of e.files) if (!existsSync(f)) report.missing.push({ id, path: f, action: 'Run `npx @lema017/rsc-governed sync` to restore this managed skill.' });
   }
   // Pending is not unhealthy: work the harness expects the user to finish, named with what does it.
-  // The draft constitution `rsc onboard` writes is the first entry; it never touches `healthy`.
+  // The draft constitution `rscg onboard` writes is the first entry; it never touches `healthy`.
   report.pending = constitutionIsDraft(root)
     ? [{ id: 'constitution-draft', path: CONSTITUTION_PATH, action: 'Complete it with the `constitution` phase before the first SDD feature; ratifying removes `status: draft`.' }]
     : [];
@@ -303,6 +304,33 @@ export function doctor({ target, home, cwd }) {
   // reported, never folded into `healthy`: `healthy` and the exit code keep meaning "the installed
   // harness works", which is what CI and editor extensions built on #277 read. Wrapped because a
   // report must never fail for asking an extra question.
+  // D13 / PROPUESTAS point 3 option 2: `rsc doctor` reports an ungoverned base.
+  //
+  // Only the BASES, not the per-target deliveries: the bases are the single source every assistant
+  // reads, and auditing the 18 deliveries of every skill would turn a diagnostic into a sweep.
+  // `rscg conformance` is the command that does the whole thing.
+  //
+  // Reported, never folded into `healthy`. `healthy` means "the installed harness works", which is
+  // what CI and editor extensions built on #277 read, and an ungoverned base works — it just works
+  // without a contract, which is a different question and gets a different field.
+  try {
+    const audit = auditInstalledProject({ cwd: root, home, targets: [target], deliveries: false });
+    report.governance = audit.ran
+      ? {
+        version: audit.governanceVersion,
+        installed: audit.installed,
+        governed: audit.governed,
+        ungoverned: audit.ungoverned.map((u) => ({
+          id: u.id,
+          path: join('.rsc', 'skills', u.id, 'SKILL.md'),
+          reasons: u.reasons,
+          action: 'Run a sync here to govern it again; the transformation is idempotent. `rscg conformance` shows the whole picture.',
+        })),
+      }
+      : { installed: 0, governed: 0, ungoverned: [], reason: audit.reason };
+  } catch (error) {
+    report.governance = { error: String(error?.message || error).slice(0, 200) };
+  }
   try { report.onboarding = onboardingReadiness(root); } catch (error) {
     report.onboarding = { status: 'incomplete', missing: ['<onboarding readiness could not be read>'], pending: [], action: String(error?.message || error).slice(0, 200) };
   }
@@ -322,7 +350,7 @@ export function opencodePluginsOutdated(root) {
     try { body = readFileSync(path, 'utf8'); } catch { continue; }
     if (!/:managed/.test(body)) continue; // hand-written: not ours to judge
     if (!/export default\s*\{/.test(body) || !/\bsetup\s*\(/.test(body)) {
-      out.push({ path, action: 'OpenCode 2.x cannot load this plugin (V1 API only). Run `npx @ericrisco/rsc@latest sync` to rewrite it.' });
+      out.push({ path, action: 'OpenCode 2.x cannot load this plugin (V1 API only). Run `npx @lema017/rsc-governed@latest sync` to rewrite it.' });
     }
   }
   return out;
@@ -500,7 +528,7 @@ function duplicateEntryFindings(scopes) {
       summary: `The ${scope.label} scope wires the same hook more than once: ${list}. `
         + `Execution cost is ${worst}× processes per event — every session start, every turn, and every `
         + `Bash command spawns that many. ${contextNote}`,
-      action: 'Re-run an install or sync with a current rsc (`npx @ericrisco/rsc@latest`); one pass '
+      action: 'Re-run an install or sync with a current rsc (`npx @lema017/rsc-governed@latest`); one pass '
         + 'collapses the extra copies. No need to hand-edit settings.json.',
     });
   }
@@ -549,7 +577,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
       severity: 'high',
       summary: `rsc is wired in ${wired.length} scopes (${wired.map((s) => s.label).join(' + ')}), so every `
         + `injected block lands ${wired.length} times — about ${doubled} wasted bytes per session.`,
-      action: 'Keep ONE scope. Remove the other with `npx @ericrisco/rsc uninstall --all` run from that '
+      action: 'Keep ONE scope. Remove the other with `npx @lema017/rsc-governed uninstall --all` run from that '
         + 'root, or update both to a version that de-duplicates at runtime.',
     });
   }
@@ -563,7 +591,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
       summary: `${orphanScripts.length} hook script(s) named by the wiring are not on disk, so those hooks `
         + 'fail every time they fire. This is what a fresh clone looks like: the settings travelled, the '
         + 'scripts did not.',
-      action: 'Rebuild them with `npx @ericrisco/rsc repair` from this project root.',
+      action: 'Rebuild them with `npx @lema017/rsc-governed repair` from this project root.',
     });
   }
   const drift = divergence({ cwd, target, home });
@@ -576,7 +604,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
       id: 'floor-missing',
       severity: 'high',
       summary: `.rsc.json predates a skill the catalog now requires: ${drift.floorMissing.join(', ')}. The always-on body routes work to it, so that route currently answers nowhere.`,
-      action: 'Run `npx @ericrisco/rsc sync` — it adds what the catalog requires and touches nothing else.',
+      action: 'Run `npx @lema017/rsc-governed sync` — it adds what the catalog requires and touches nothing else.',
     });
   }
   if (drift.missing.length || drift.extra.length || drift.ownMissing.length) {
@@ -593,7 +621,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
       summary: `This checkout does not match what .rsc.json declares: ${parts.join('; ')}.`,
       action: drift.ownMissing.length && !drift.missing.length && !drift.extra.length
         ? 'Those come from the repo, not from rsc — pull, or ask whoever wrote them.'
-        : 'Align with `npx @ericrisco/rsc sync`. Nothing is written until you run it.',
+        : 'Align with `npx @lema017/rsc-governed sync`. Nothing is written until you run it.',
     });
   }
   findings.push(...duplicateEntryFindings(scopes));
@@ -605,7 +633,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
         summary: `In the ${s.label} scope, ${s.hookCountsUnknown.join(', ')} is not a list of hook entries, `
           + 'so its copies cannot be counted. A count this report cannot make is said out loud, never '
           + 'reported as zero.',
-        action: 'Fix that entry in settings.json (or remove it), then re-run `rsc doctor`.',
+        action: 'Fix that entry in settings.json (or remove it), then re-run `rscg doctor`.',
       });
     }
     if (s.status === 'unknown') {
@@ -613,7 +641,7 @@ export function contextBudget({ target, home = homedir(), cwd = process.cwd() } 
         id: 'unreadable-scope',
         severity: 'low',
         summary: `The ${s.label} scope at ${s.root} has a settings.json that cannot be parsed, so its weight is unknown.`,
-        action: 'Fix or remove that settings.json, then re-run `rsc doctor`.',
+        action: 'Fix or remove that settings.json, then re-run `rscg doctor`.',
       });
     }
   }

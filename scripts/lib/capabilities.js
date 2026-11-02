@@ -144,7 +144,7 @@ export function shortDesc(d, limit = 220) {
 }
 
 // `full: true` adds catalog descriptions. Off by default because the catalog's
-// descriptions are ~40 KB and `rsc catalog --available` already serves meaning-based
+// descriptions are ~40 KB and `rscg catalog --available` already serves meaning-based
 // matching — paying for the same bytes twice is the cost this harness keeps cutting.
 export function capabilities({ target, home, cwd = process.cwd(), full = false } = {}) {
   const manifest = loadManifest();
@@ -229,7 +229,7 @@ export function appendGap({ procedure, verdict, cwd = process.cwd(), now, home =
   let needsHeader = true;
   try { needsHeader = statSync(p).size === 0; } catch { needsHeader = true; }
   const header = needsHeader
-    ? '# Huecos de automatización\n\nProcedimientos que el asistente observó y qué pasó con ellos. Lo escribe `rsc capabilities gap-log`.\nDebe contener solo la descripción que el asistente hizo de su propio trabajo, no peticiones del usuario — es una regla que sostiene quien escribe, no algo que el código pueda comprobar. Fichero local: no lo commitees.\n\n'
+    ? '# Huecos de automatización\n\nProcedimientos que el asistente observó y qué pasó con ellos. Lo escribe `rscg capabilities gap-log`.\nDebe contener solo la descripción que el asistente hizo de su propio trabajo, no peticiones del usuario — es una regla que sostiene quien escribe, no algo que el código pueda comprobar. Fichero local: no lo commitees.\n\n'
     : '';
   const d = now || new Date();
   const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -243,7 +243,7 @@ export function appendGap({ procedure, verdict, cwd = process.cwd(), now, home =
     let gHeader = true;
     try { gHeader = statSync(g).size === 0; } catch { gHeader = true; }
     const gh = gHeader
-      ? '# Huecos de automatización (global)\n\nAcumulado de todos los repos, para que un procedimiento repetido en varios proyectos sea visible.\nLo escribe `rsc capabilities gap-log`. Cada línea lleva `[repo:<nombre>]`. Fichero local: no lo commitees.\n\n'
+      ? '# Huecos de automatización (global)\n\nAcumulado de todos los repos, para que un procedimiento repetido en varios proyectos sea visible.\nLo escribe `rscg capabilities gap-log`. Cada línea lleva `[repo:<nombre>]`. Fichero local: no lo commitees.\n\n'
       : '';
     appendFileSync(g, `${gh}- ${day} · ${text} · [repo:${repoNameOf(cwd)}] · **${verdict}**\n`);
   } catch { /* the local log is what matters; a global failure is not fatal */ }

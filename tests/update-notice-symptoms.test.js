@@ -48,19 +48,19 @@ const FIXES = [
 test('rsc --version prints the CLI version, offline', () => {
   for (const flag of ['--version', '-v', 'version']) {
     const out = spawnSync('node', [CLI, flag], { cwd: project(), encoding: 'utf8' }).stdout;
-    assert.match(out, new RegExp(`rsc ${PKG.version.replace(/\./g, '\\.')}`), `${flag} → ${out}`);
+    assert.match(out, new RegExp(`rscg ${PKG.version.replace(/\./g, '\\.')}`), `${flag} → ${out}`);
   }
 });
 
 test('rsc --version names the version installed in this project, and says when it is behind', () => {
   const out = spawnSync('node', [CLI, '--version'], { cwd: project('2.0.4'), encoding: 'utf8' }).stdout;
   assert.match(out, /2\.0\.4/);
-  assert.match(out, /npx @ericrisco\/rsc@latest/, 'behind → the exact command to catch up');
+  assert.match(out, /npx @lema017\/rsc-governed@latest/, 'behind → the exact command to catch up');
 });
 
 test('rsc --version stays quiet about catching up when the project is current', () => {
   const out = spawnSync('node', [CLI, '--version'], { cwd: project(PKG.version), encoding: 'utf8' }).stdout;
-  assert.doesNotMatch(out, /npx @ericrisco\/rsc@latest/);
+  assert.doesNotMatch(out, /npx @lema017\/rsc-governed@latest/);
 });
 
 // --- doctor --------------------------------------------------------------------

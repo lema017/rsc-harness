@@ -64,7 +64,7 @@ test('tsd10 · on a closed default branch a commit is denied, and the message sa
   const reason = await evaluate({ root: r, command: 'git commit -m "✨ feat: x"', cwd: r });
   assert.match(reason, /closed for the agent/);
   assert.match(reason, /git switch -c feat\//, 'P6: the way out is in the message');
-  assert.match(reason, /rsc main unlock/, 'P6: and the unlock, for a project that is really simple');
+  assert.match(reason, /rsc-governed main unlock/, 'P6: and the unlock, for a project that is really simple');
   assert.match(await evaluate({ root: r, command: 'git -C . merge feat/x', cwd: r }), /closed for the agent/);
 });
 
@@ -124,7 +124,7 @@ test('tsd15 · the way out of a closed default branch: alone → a branch in thi
   assert.doesNotMatch(alone, /worktree add/);
   // 2026-10-06, Eric: the agent never branches on its own; the denial hands the choice back.
   assert.match(alone, /Do not choose for the person: ask them in one line whether to open a branch for this change or to unlock "main"/);
-  assert.match(alone, /only on their explicit answer, `npx @ericrisco\/rsc main unlock`/);
+  assert.match(alone, /only on their explicit answer, `npx @lema017\/rsc-governed main unlock`/);
   session(r, 'other', 'codex');
   const shared = await evaluate({ root: r, command: 'git commit -m x', cwd: r, sessionId: 'me' });
   assert.match(shared, /git worktree add \.worktrees\/<branch> -b feat\/<what>/);
@@ -183,7 +183,7 @@ test('tsd21 · with another active session, switching branches here is denied, w
   const reason = await evaluate({ root: r, command: 'git switch -c feat/y', cwd: r, sessionId: 'me' });
   assert.match(reason, /Another session is working in this same folder \(codex/);
   assert.match(reason, /git worktree add \.worktrees\//, 'P6: the way out is in the message');
-  assert.match(reason, /rsc isolation off/);
+  assert.match(reason, /rsc-governed isolation off/);
 });
 
 test('tsd22 · alone, or with isolation turned off, switching branches is allowed', async () => {
@@ -317,7 +317,7 @@ test('tsd35 · the 3.0 announcement is said once per project and machine, with e
   const r = repo();
   write(r, '02-DOCS/wiki/harness/user-profile.md', '---\ntechnical_level: technical\nlanguage: es\n---\n# Perfil\n');
   const first = teamSafeAnnouncement(r, {});
-  for (const off of ['desbloquea main', 'no uses worktrees', 'pedir el otro', 'rsc knowledge-sync off']) assert.match(first, new RegExp(off));
+  for (const off of ['desbloquea main', 'no uses worktrees', 'pedir el otro', 'rscg knowledge-sync off']) assert.match(first, new RegExp(off));
   assert.equal(teamSafeAnnouncement(r, {}), '');
 });
 
@@ -327,7 +327,7 @@ test('tsd35b · the 3.0 announcement is English unless the profile or the locale
   const { teamSafeAnnouncement } = await import('../targets/team-safe-start.mjs');
   const english = teamSafeAnnouncement(repo(), {});
   assert.match(english, /rsc 3\.0 · team-safe by default/);
-  for (const off of ['unlock main', 'rsc isolation off', 'ask for the other', 'rsc knowledge-sync off']) assert.match(english, new RegExp(off));
+  for (const off of ['unlock main', 'rscg isolation off', 'ask for the other', 'rscg knowledge-sync off']) assert.match(english, new RegExp(off));
   assert.doesNotMatch(english, /díselo|desbloquea/);
 
   assert.match(teamSafeAnnouncement(repo(), { LANG: 'es_ES.UTF-8' }), /equipo seguro por defecto/, 'Spanish locale');
@@ -420,7 +420,7 @@ test('tsd18 · moving the closed default branch by ref (update-ref, branch -f/-M
     const reason = await evaluate({ root: r, command, cwd: r });
     assert.match(reason ?? '', /closed for the agent/, `not denied: ${command}`);
     assert.match(reason, /pull request/, 'P6: the way out is in the message');
-    assert.match(reason, /rsc main unlock/);
+    assert.match(reason, /rsc-governed main unlock/);
   }
   for (const command of ['git branch -f feat/y main', 'git update-ref refs/heads/feat/y HEAD', 'git branch feat/z',
     'git branch -M old feat/new', 'git branch -d feat/x', 'grep "git branch -f main" notes.md']) {

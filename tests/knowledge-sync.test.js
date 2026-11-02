@@ -325,7 +325,7 @@ test('ks20 · on by default, and the first message says so — once', () => {
   const { eric } = team();
   assert.equal(inactiveReason(eric), null);
   const first = onRequest(eric, { spawnFetch: false });
-  assert.match(first, /rsc knowledge-sync off/);
+  assert.match(first, /rscg knowledge-sync off/);
   assert.doesNotMatch(onRequest(eric, { spawnFetch: false }), /knowledge-sync off/);
 });
 
@@ -375,7 +375,7 @@ test('ks24 · the paths are exactly the knowledge folders', () => {
 test('ks30 · the hook: a message says it to the person, the end of a turn commits', () => {
   const { remote, eric } = team();
   const out = hook('claude', 'request', { session_id: 's1', cwd: eric });
-  assert.match(out.systemMessage || '', /rsc knowledge-sync off/, JSON.stringify(out));
+  assert.match(out.systemMessage || '', /rscg knowledge-sync off/, JSON.stringify(out));
   // Since 3.0.8 the model gets the same text (ks57): a notice only the person saw was news the agent
   // could not explain a turn later.
   assert.ok(out.hookSpecificOutput.additionalContext.includes(out.systemMessage));

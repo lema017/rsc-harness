@@ -84,7 +84,7 @@ function strip(config) {
 const PLUGIN = `// ${PLUGIN_MARKER}
 // rsc knowledge sync for OpenCode. OpenCode has no prompt event and no channel to the person, so what
 // sync has to say goes to the model, to be relayed. Cheap on every call: the fetch is throttled and
-// every notice is said once. Turn it off with \`rsc knowledge-sync off\`.
+// every notice is said once. Turn it off with \`rscg knowledge-sync off\`.
 // One file for both plugin APIs (issue #289): V1 calls the named export or server(); V2 reads id + setup.
 import { onRequest, onTurn } from '../../.rsc/knowledge-sync.mjs';
 

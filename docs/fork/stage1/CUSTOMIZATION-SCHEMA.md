@@ -101,7 +101,7 @@ A validator nobody invokes is not an instrument. It runs in exactly two places, 
 
 | Point | When | Why there |
 |---|---|---|
-| `npm run gate` | **Does not exist yet.** `package.json` defines no `gate` script; it is a Stage 6 deliverable, and the "130 s" figure measured a manual sum of six scripts, not a gate. Written here as the intended second point, in the future tense it deserves | Would be the only gate with Actions disabled |
+| `npm run gate` | **Exists since Stage 6.** `scripts/gate.js`, seven deterministic checks including this validator over **both** roots — `02-DOCS/wiki/skills/` and `02-DOCS/wiki/brownfield/`. Measured at **1.6 s – 36.7 s** on this machine for identical work (the spread is machine load, not the gate), against the "130 s" that was a manual sum of six scripts; the claim is **seconds, not minutes**. It prints what it does **not** cover, with the reason, so "green" is read for what it is | The only gate that runs with Actions disabled, which they are (`{"enabled":false}`, re-checked by Stage 6) |
 | `install` and `sync` | Whenever `02-DOCS/wiki/skills/` exists in the project | Catches a broken file at the moment the harness is set up, not silently three skills later. The harness already walks the project tree here |
 
 **Its negative test, which is what makes criterion 8 falsifiable:** feed it a file with broken YAML, a missing `scope`, and a decision that tries to disable a guard. Each must produce a **named** error identifying the file and the rule. Silence, or an error that does not name the file, fails the test.

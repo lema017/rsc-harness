@@ -52,6 +52,12 @@ const KEY_LINE_RE = new RegExp(`^(?:${KEYS.join('|')}):[^\\n]*\\n`, 'gm');
 // two are byte-identical, so a hand edit to the shipped copy fails a binary rather than drifting.
 export const PREAMBLE_TEMPLATE_PATH = join(PKG_ROOT, 'schema', 'governance', `preamble-${GOVERNANCE_VERSION}.txt`);
 export const CONTRACT_SOURCE_PATH = join(PKG_ROOT, 'schema', 'governance', `contract-${GOVERNANCE_VERSION}.md`);
+// The brownfield procedure, shipped the same way and for the same reason: the package carries
+// `schema`, not `docs`, so the authoritative `docs/fork/stage3/BROWNFIELD.md` is not on a
+// consumer's machine. `DESIGN.md` decision 12 is explicit that the procedure travels as a DOCUMENT
+// and not as a 275th skill, because a new skill would break both the byte-identical `skills/`
+// mirror and the 274-of-274 count the conformance validator asserts.
+export const BROWNFIELD_SOURCE_PATH = join(PKG_ROOT, 'schema', 'governance', `brownfield-${GOVERNANCE_VERSION}.md`);
 
 /** Where a project's customization for `id` lives. Root-anchored, never relative to its citer. */
 export function customizationPathFor(id) {
@@ -67,6 +73,9 @@ export function contractPath(cwd) {
 }
 export function alwaysOnPath(cwd) {
   return join(governanceDir(cwd), 'always-on.md');
+}
+export function brownfieldProcedurePath(cwd) {
+  return join(governanceDir(cwd), `brownfield-${GOVERNANCE_VERSION}.md`);
 }
 
 let templateCache = null;
@@ -192,6 +201,22 @@ export function writeContract(cwd) {
  * The frontmatter matters here too, because `targets/session-start.mjs:52` writes this file out
  * whole, frontmatter included.
  */
+/**
+ * Write `.rsc/governance/brownfield-v1.md` — the brownfield procedure `rscg brownfield` hands the
+ * agent. Package-owned, regenerated on every install and sync, exactly like the contract.
+ *
+ * Returns null when the shipped copy is absent instead of throwing: a project whose harness
+ * predates this file must still install, and the command that needs it says so itself.
+ */
+export function writeBrownfieldProcedure(cwd) {
+  const dest = brownfieldProcedurePath(cwd);
+  try {
+    mkdirSync(dirname(dest), { recursive: true });
+    copyFileSync(BROWNFIELD_SOURCE_PATH, dest);
+    return dest;
+  } catch { return null; }
+}
+
 export function writeAlwaysOn({ cwd, catalogRoot = PKG_ROOT, id = 'suggest' }) {
   const dest = alwaysOnPath(cwd);
   mkdirSync(dirname(dest), { recursive: true });

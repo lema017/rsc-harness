@@ -107,7 +107,7 @@ block and the SDD gate TWICE — once per scope. Only the updated scope can de-d
   this scope:    ${root} (${mine})
   lagging scope: ${other} (${theirs})
 ACTION: update the lagging scope, then it will stay silent on its own:
-  cd "${other}" && npx @ericrisco/rsc@latest
+  cd "${other}" && npx @lema017/rsc-governed@latest
 Opt out with .rsc/.no-scope-check · this notice repeats at most every ${SCOPE_WARN_DAYS} days.
 ===================================
 `);
@@ -179,7 +179,7 @@ if (existsSync(join(root, '02-DOCS', 'wiki')) && existsSync(inbox)) {
 Un-ingested material is waiting in 02-DOCS/inbox/.
 ACTION: run the Auto-Ingest Sweep now — ingest inbox/, then scan the workspace
 (minus .rscignore) for un-ingested documents, recording them in wiki/.ingested.json.
-Loose root files and inbox/ files move into raw/ with \`npx @ericrisco/rsc ingest <file>\`
+Loose root files and inbox/ files move into raw/ with \`npx @lema017/rsc-governed ingest <file>\`
 (verified copy, then removed); files inside the person's own folders are copied; deleting a
 folder needs explicit consent.
 ===========================
@@ -223,14 +223,14 @@ if (emitBody && profileExists) {
 }
 
 // Periodic skill audit: for active rsc projects, nudge to re-audit when the last run
-// is stale (or never ran). Running \`rsc audit\` stamps .rsc/audit.json and silences
+// is stale (or never ran). Running \`rscg audit\` stamps .rsc/audit.json and silences
 // this for the cadence. Opt out with .rsc/.no-audit.
 if (profileExists && auditDue() && !has('.rsc', '.no-audit')) {
   process.stdout.write(`
 ===== rsc skill audit =====
 A skill audit is due (runs at most every ${STALE_AUDIT_DAYS} days). It flags overlapping
 skills and skills with no footprint in this project.
-ACTION: run \`npx @ericrisco/rsc audit\`. Opt out with .rsc/.no-audit.
+ACTION: run \`npx @lema017/rsc-governed audit\`. Opt out with .rsc/.no-audit.
 ===========================
 `);
 }
@@ -289,8 +289,8 @@ if (has('.git')) {
 ${candidates.length} worktree(s) hold work that is already in the trunk:
 ${candidates.map((c) => W.summarize(c, root)).join('\n')}
 ACTION: offer to retire them in ONE line and wait for a yes. On a yes run:
-  npx @ericrisco/rsc worktrees reap          (the ones marked safe)
-  npx @ericrisco/rsc worktrees reap <path>   (one the user confirmed by name)
+  npx @lema017/rsc-governed worktrees reap          (the ones marked safe)
+  npx @lema017/rsc-governed worktrees reap <path>   (one the user confirmed by name)
 A yes in bulk covers only the safe ones; anything marked \`ask\` is confirmed on its own.
 A no holds for this session. Permanent off: .rsc/.no-worktree-cleanup
 ================================

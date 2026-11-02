@@ -158,7 +158,7 @@ test('an UPDATE over a base installed by upstream is governed too — the blind 
   // the base stayed ungoverned and the 17 symlinked targets read a skill with no contract.
   //
   // It is reachable today rather than hypothetically, because the fork still ships as
-  // `@ericrisco/rsc` at upstream's version. Acceptance criterion 4 says EVERY distributed skill
+  // `@lema017/rsc-governed` at upstream's version. Acceptance criterion 4 says EVERY distributed skill
   // carries the contract, and this is the update path REQUIREMENTS §7 and §10 are about.
   //
   // The mutation that proves this test bites: put `governBase(id, dest)` back inside the `if`.

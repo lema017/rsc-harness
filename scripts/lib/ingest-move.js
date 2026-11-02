@@ -1,4 +1,4 @@
-// `rsc ingest <file>`: a document the person hands to the harness ends up in 02-DOCS/raw/ and leaves
+// `rscg ingest <file>`: a document the person hands to the harness ends up in 02-DOCS/raw/ and leaves
 // the place it was dropped.
 //
 // The harness skill already said loose root files MOVE into raw/. The text injected at every session

@@ -5,8 +5,8 @@
 // permission says. No other assistant runs rsc's guards, and `on|off|status` says so (#298).
 //
 // A PROJECT decision, recorded as `gitPermissions` in `.rsc.json`: true on a brand-new project, absent
-// on one adopted before this existed (nothing changes there until `rsc git-permissions on`), false
-// after `rsc git-permissions off`. Only rsc's own entries are ever added or removed; whatever the
+// on one adopted before this existed (nothing changes there until `rscg git-permissions on`), false
+// after `rscg git-permissions off`. Only rsc's own entries are ever added or removed; whatever the
 // person allowed or denied stays exactly as it was.
 //
 // Cursor is left out on purpose: its CLI matches only the first word (`Shell(git)`), so allowing a
@@ -29,7 +29,7 @@ const OPENCODE_BASH = [
 // OpenCode 2 reads an ordered top-level `permissions` array (bash → `shell`); same rules, same order.
 const OPENCODE_V2 = OPENCODE_BASH.map(([resource, effect]) => ({ action: 'shell', resource, effect }));
 const FORCE_PATTERNS = OPENCODE_BASH.filter(([, a]) => a === 'ask').map(([p]) => p);
-const CODEX_RULES = `# rsc-git-permissions:managed — written by rsc; \`rsc git-permissions off\` removes it.
+const CODEX_RULES = `# rsc-git-permissions:managed — written by rsc; \`rscg git-permissions off\` removes it.
 # Commit, push and open a PR without asking; a force-push still asks (the strictest match wins).
 prefix_rule(pattern = ["git", "commit"], decision = "allow", justification = "rsc: close the lane — commit")
 prefix_rule(pattern = ["git", "push"], decision = "allow", justification = "rsc: close the lane — push the branch")
@@ -310,7 +310,7 @@ export function gitPermissionsState(target, cwd = process.cwd()) {
   return { wired: false, format: opencodeFormat(config), path };
 }
 
-// ── What `rsc git-permissions on|off|status` says, per assistant (#298) ─────────────────────────
+// ── What `rscg git-permissions on|off|status` says, per assistant (#298) ─────────────────────────
 // Three things, always: what rsc controls there, what stops when it is off, and what is left to the
 // assistant itself. The guards are named only where they exist: rsc's PreToolUse guards
 // (branch-guard, danger-guard) run in Claude Code alone; no other assistant runs them.
@@ -381,9 +381,9 @@ function block(target, cwd) {
 /** The human explanation for `on`, `off` and `status`, one block per assistant in `targets`. */
 export function explainGitPermissions({ targets, cwd = process.cwd(), mode = 'status', declared } = {}) {
   const head = {
-    on: 'rsc git-permissions on. Saved in .rsc.json: commit it so the team gets the same decision.',
-    off: 'rsc git-permissions off. Saved in .rsc.json: commit it so the team gets the same decision.',
-    status: `rsc git-permissions: ${declared === undefined ? 'undecided (this project was adopted before; nothing is changed until `rsc git-permissions on`)' : declared ? 'on' : 'off'}.`,
+    on: 'rscg git-permissions on. Saved in .rsc.json: commit it so the team gets the same decision.',
+    off: 'rscg git-permissions off. Saved in .rsc.json: commit it so the team gets the same decision.',
+    status: `rscg git-permissions: ${declared === undefined ? 'undecided (this project was adopted before; nothing is changed until `rscg git-permissions on`)' : declared ? 'on' : 'off'}.`,
   }[mode];
   return [head, ...targets.map((t) => block(t, cwd))].join('\n\n');
 }

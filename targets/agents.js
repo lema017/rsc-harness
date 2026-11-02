@@ -83,7 +83,7 @@ ${'```'}json findings
 [{ "lens": "<your lens>", "severity": "blocker|should-fix|nit|question", "file": "path/from/repo/root", "line": 42, "claim": "one sentence: what is wrong", "failure_scenario": "concrete input + state -> wrong result", "evidence": "the exact changed line, quoted" }]
 ${'```'}
 
-${'`rsc review consolidate`'} merges what several lenses reported about the same place and sends each unique blocker or should-fix to ${'`finding-verifier`'}, whose job is to prove it false. A blocker or should-fix with no ${'`file`'}, ${'`line`'} or ${'`failure_scenario`'} is downgraded to a question there, mechanically.
+${'`rscg review consolidate`'} merges what several lenses reported about the same place and sends each unique blocker or should-fix to ${'`finding-verifier`'}, whose job is to prove it false. A blocker or should-fix with no ${'`file`'}, ${'`line`'} or ${'`failure_scenario`'} is downgraded to a question there, mechanically.
 
 **Common false positives to reject:** an equivalent mutant with no diverging input; a documented dummy value that never reaches a sink; a deliberate boundary already enforced by a caller; generated/vendor code outside the change; style preference presented as correctness; and a theoretical race with no shared state or overlapping lifetime.
 
@@ -141,14 +141,14 @@ ${REFUTER_CONTRACT}
 
 **Check the mapping both ways:** every acceptance criterion needs a falsification procedure that can be made to fail, and every test should trace to something someone asked for.`,
   },
-  // The second half of ECC's orch-review, adapted: after `rsc review consolidate` collapses the panel's
+  // The second half of ECC's orch-review, adapted: after `rscg review consolidate` collapses the panel's
   // duplicates, every unique blocker/should-fix gets ONE more fresh context whose default is that the
   // finding is false. A refuter attacks the diff; the verifier attacks the finding. Same asymmetry,
   // pointed the other way — which is what stops an exaggerated lens from reaching the author as a blocker.
   {
     name: 'finding-verifier',
     desc: 'Adversarial verifier of review findings: takes ONE consolidated finding and tries to prove it false against the code. Default stance: the finding is false; only a reproduced or traced failure is CONFIRMED. Fresh context, edits nothing.',
-    body: `You are the **finding verifier** for this project. ${'`review`'} hands you **one** finding that survived ${'`rsc review consolidate`'} — a blocker or should-fix some refuter lens reported against a diff. Your job is to **prove it false**. Your starting position is that it is false; the finding has to beat you.
+    body: `You are the **finding verifier** for this project. ${'`review`'} hands you **one** finding that survived ${'`rscg review consolidate`'} — a blocker or should-fix some refuter lens reported against a diff. Your job is to **prove it false**. Your starting position is that it is false; the finding has to beat you.
 
 **Your inputs:** the finding (location, claim, failure scenario, evidence) plus the same four the lenses had —
 
@@ -292,7 +292,7 @@ function writeDigests(cwd, digests) {
 // model setting, and — for OpenCode — the pre-#298 shape (pinned Anthropic model, `tool: true` map).
 // A file with no digest that matches one of these is rsc's and may be replaced; anything else is the
 // user's. Bodies from older releases are not reconstructed: such a file is kept and reported, the safe
-// direction, and `rsc agents reset` is one command away.
+// direction, and `rscg agents reset` is one command away.
 function knownRenderings(target, cwd, agent) {
   const spec = AGENT_TARGETS[target];
   const out = new Set();
@@ -316,7 +316,7 @@ function ownership(target, cwd, agent, path, digests) {
 const keptNotice = (name, path, cwd) => ({
   name,
   path,
-  message: `kept your edited agent ${name} (${relKey(cwd, path)}; rsc's version differs; \`rsc agents reset ${name}\` to take it)`,
+  message: `kept your edited agent ${name} (${relKey(cwd, path)}; rsc's version differs; \`rscg agents reset ${name}\` to take it)`,
 });
 
 export function agentPath(target, cwd, name = 'developer') {
@@ -327,7 +327,7 @@ export function agentPath(target, cwd, name = 'developer') {
 /**
  * Write the agents, keeping any the user edited. Returns { written, kept }: `kept` names each agent
  * left as the user has it, with the message to show. `force` takes rsc's version regardless — only
- * `rsc agents reset` passes it, after backing the user's file up.
+ * `rscg agents reset` passes it, after backing the user's file up.
  */
 export function writeAgentsDetailed(target, cwd, tier = readDeveloperTier(cwd), names = agentNames(), { force = false } = {}) {
   const spec = AGENT_TARGETS[target];

@@ -220,7 +220,7 @@ test('AC#1/#21 — an unmounted clone gets the offer, and it names the exact pac
     wiredCommands(root).find((c) => c.event === 'SessionStart').command,
     root,
   );
-  assert.ok(stdout.includes('@ericrisco/rsc@1.3.6'), `the offer must name what would be installed; got:\n${stdout}`);
+  assert.ok(stdout.includes('@lema017/rsc-governed@1.3.6'), `the offer must name what would be installed; got:\n${stdout}`);
   assert.ok(/not built on this machine/i.test(stdout), 'the offer must name the symptom');
   assert.ok(stdout.includes('sync'), 'the offer must carry its own way out (P6)');
 });
@@ -258,7 +258,7 @@ test('I-3 — a delegate that crashes is not swallowed in silence, and still doe
 // as a deliberate call. Today it is a number nothing acts on.
 //
 // This spec cannot fix every path that ignores it, but it owns the one path it creates: the sentence
-// a person is about to run. `npx @ericrisco/rsc sync` resolves to the LATEST published package, so an
+// a person is about to run. `npx @lema017/rsc-governed sync` resolves to the LATEST published package, so an
 // offer phrased that way hands the clone whatever shipped since — the precise divergence the pin
 // exists to prevent, introduced by the feature meant to honour it.
 
@@ -266,13 +266,13 @@ test('AC#6 — the offer tells you to install the PINNED version, never a floati
   const offer = composeOffer({ state: 'declared', skills: ['orient'], own: [], catalogVersion: '1.3.6', targets: [] });
   assert.match(
     offer.text,
-    /npx @ericrisco\/rsc@1\.3\.6 sync/,
-    'the command a person runs must carry the pin; a bare `npx @ericrisco/rsc` resolves to latest',
+    /npx @lema017\/rsc-governed@1\.3\.6 sync/,
+    'the command a person runs must carry the pin; a bare `npx @lema017/rsc-governed` resolves to latest',
   );
-  assert.doesNotMatch(offer.text, /npx @ericrisco\/rsc@latest/, 'the offer must never send a clone to latest');
+  assert.doesNotMatch(offer.text, /npx @lema017\/rsc-governed@latest/, 'the offer must never send a clone to latest');
   assert.doesNotMatch(
     offer.text,
-    /npx @ericrisco\/rsc sync/,
+    /npx @lema017\/rsc-governed sync/,
     'an unpinned command resolves to whatever shipped since, which is exactly the divergence the pin prevents',
   );
 });
@@ -353,7 +353,7 @@ test('AC#19 — the always-on body stays under its declared ceiling', () => {
 // ── AC#25: the README has to describe what the product does, not what it meant to do ─────────────
 //
 // It carried a straight contradiction: the sharing section told a teammate to run
-// `npx @ericrisco/rsc@latest sync`, and the very next paragraph promised "same skills, same version
+// `npx @lema017/rsc-governed@latest sync`, and the very next paragraph promised "same skills, same version
 // — .rsc.json pins the catalog". `@latest` is the opposite of a pin. One of the two had to go, and
 // the code says which: measured across the repo, `catalogVersion` had no consumer at all.
 
@@ -363,7 +363,7 @@ test('AC#25 — the README does not send a clone to @latest while promising a pi
   assert.ok(sharing.length > 0, 'the sharing section must still exist');
   assert.doesNotMatch(
     sharing,
-    /@ericrisco\/rsc@latest sync/,
+    /@lema017\/rsc-governed@latest sync/,
     'telling a teammate to sync at @latest contradicts the pin the same section promises',
   );
   assert.match(sharing, /catalogVersion/, 'the command must show where the version comes from');
@@ -401,7 +401,7 @@ test('AC#7 — a manifest that arrived by git pull and no longer matches is anno
   const { stdout } = runBootstrap(root, 'announce', join(root, '.rsc', 'probe.mjs'));
   assert.match(stdout, /verify/, 'the skills that are declared and missing must be named');
   assert.match(stdout, /ship/, 'all of them, not just the first');
-  assert.match(stdout, /@ericrisco\/rsc@1\.3\.6 sync/, 'converging uses the pinned version, like building does');
+  assert.match(stdout, /@lema017\/rsc-governed@1\.3\.6 sync/, 'converging uses the pinned version, like building does');
   assert.match(stdout, /DELEGATE SPOKE/, 'a harness that works must keep working while it is out of date');
 });
 

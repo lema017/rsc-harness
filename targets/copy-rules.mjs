@@ -4,7 +4,7 @@
 // banned recruitment wording in decisions.md, and the agent still delivered "this is not a recruitment
 // network": it judged that negating a banned word was allowed. A rule the model can reinterpret is a
 // preference. This module turns the project's own wording into patterns a script can check, so the
-// copy guard (targets/copy-guard.mjs) and `rsc copy check` enforce it without asking the model.
+// copy guard (targets/copy-guard.mjs) and `rscg copy check` enforce it without asking the model.
 //
 // Where rules come from, all under 02-DOCS/wiki/ (raw/ is unprocessed input, not policy):
 //   1. a heading that names a ban ("## Never use", "## Frases prohibidas") → its bullet items;

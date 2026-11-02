@@ -29,8 +29,8 @@ import { wireGitPermissions, unwireGitPermissions, gitPermissionsPath } from '..
 import { wireDeepseekBridge } from '../targets/deepseek-bridge.js';
 // Fork governance. `governBase` is the transformation; the other three are the artifacts it needs
 // alongside the catalog. See scripts/lib/governance.js for why the always-on body is pristine.
-import { alwaysOnPath, contractPath, governBase, writeAlwaysOn, writeContract } from './lib/governance.js';
-import { CUSTOMIZATION_ROOT, validateCustomizations } from './lib/customization-validator.js';
+import { alwaysOnPath, brownfieldProcedurePath, contractPath, governBase, writeAlwaysOn, writeBrownfieldProcedure, writeContract } from './lib/governance.js';
+import { CUSTOMIZATION_ROOT, validateBrownfieldRuns, validateCustomizations } from './lib/customization-validator.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI_VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -91,7 +91,7 @@ function ensureBase(id, cwd, baseVersions) {
 
 // Every file wireHook() materializes, so they are covered by the pre-write backup and
 // reported by a --dry-run. Keep in sync with targets/claude.js wireHook(): a file it
-// writes but this omits is silently absent from the snapshot, so `rsc restore` cannot
+// writes but this omits is silently absent from the snapshot, so `rscg restore` cannot
 // bring it back.
 export function generatedHookFiles({ target, cwd, policy }) {
   if (target !== 'claude') return [];
@@ -149,6 +149,9 @@ function governProject(cwd) {
   try { contract = relative(cwd, writeContract(cwd)); } catch (err) {
     return { contract: null, reason: err.message, customizations: null };
   }
+  // The brownfield procedure, beside the contract. It never sinks an install: a missing shipped copy
+  // means `rscg brownfield` has nothing to hand over, and that command reports it itself.
+  const procedure = writeBrownfieldProcedure(cwd);
   let report;
   try { report = validateCustomizations({ cwd, catalogRoot: ROOT }); } catch (err) {
     return { contract, customizations: { ran: false, reason: err.message } };
@@ -170,7 +173,34 @@ function governProject(cwd) {
       writeFileSync(dest, JSON.stringify(summary, null, 2) + '\n');
     } catch { /* the report is also returned; a write failure must not sink the install */ }
   }
-  return { contract, customizations: summary };
+
+  // The SECOND root (stage 6, coordinator decision 2): `02-DOCS/wiki/brownfield/`. Same contract as
+  // above and for the same reasons — absence is valid, nothing is thrown, and an install must never
+  // die because a wiki page is malformed. `greenfield` is left unknown here on purpose: deciding it
+  // means walking the project tree, which install has no reason to pay for, and the validator
+  // reports the gate as NOT RUN rather than as passed.
+  let brownfield = { ran: false };
+  try {
+    const runs = validateBrownfieldRuns({ cwd, catalogRoot: ROOT, greenfield: null });
+    brownfield = {
+      ran: runs.ran,
+      root: runs.root,
+      checked: runs.files.length,
+      records: runs.records.length,
+      errors: runs.findings.filter((f) => f.severity === 'error').length,
+      coverageFloorRan: runs.floorRan,
+      findings: runs.findings.map((f) => ({
+        file: relative(cwd, f.file), rule: f.rule, ruleId: f.ruleId, message: f.message, severity: f.severity,
+      })),
+    };
+    if (runs.ran) {
+      const dest = join(cwd, '.rsc', 'governance', 'brownfield.json');
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, JSON.stringify(brownfield, null, 2) + '\n');
+    }
+  } catch (err) { brownfield = { ran: false, reason: err.message }; }
+
+  return { contract, procedure: procedure ? relative(cwd, procedure) : null, customizations: summary, brownfield };
 }
 
 export function managedPathsForInstall({ skillIds, agentIds = [], target, home, cwd, policy }) {
@@ -179,9 +209,9 @@ export function managedPathsForInstall({ skillIds, agentIds = [], target, home, 
   const out = [paths.stateFile, versionFile(cwd), baseVersionsFile(cwd)];
   // The governance artifacts. Declared for EVERY target, not just claude: `install-apply.js` warns
   // a few lines up that a file the installer writes and this inventory omits is silently absent
-  // from the snapshot, so `rsc restore` could not bring it back. The contract is rewritten on every
+  // from the snapshot, so `rscg restore` could not bring it back. The contract is rewritten on every
   // pass; the always-on body only exists where there is a hook step, and is pushed below.
-  out.push(contractPath(cwd));
+  out.push(contractPath(cwd), brownfieldProcedurePath(cwd));
   // The customization report is written only where there is something to validate, and this
   // declaration has to carry the same condition. Declaring it unconditionally made the onboarding
   // route-inventory gate fail with `missing governed path` on every project without a
@@ -830,7 +860,7 @@ export async function syncInstalled({ target, home, cwd = process.cwd(), dryRun 
 }
 
 /**
- * #298 — `rsc agents reset <name|--all>`: take rsc's version of agents the user edited. The user's
+ * #298 — `rscg agents reset <name|--all>`: take rsc's version of agents the user edited. The user's
  * file is snapshotted first (a backup under .rsc/backups/), and the answer says where, so taking rsc's
  * version is never the loss the protection exists to prevent.
  */

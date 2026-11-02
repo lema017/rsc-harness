@@ -3,7 +3,7 @@
 //
 // Usage: node scripts/knowledge-doctor.js [--json]
 //
-// Report-only, on demand. NOT in `rsc doctor`, NOT in any hook, NOT in the release gates — decided in
+// Report-only, on demand. NOT in `rscg doctor`, NOT in any hook, NOT in the release gates — decided in
 // clarify (2026-08-18): the precision a check needs scales with how intrusive it is, and an asked-for
 // report tolerates noise an automatic one does not. Accepted cost, stated here so nobody has to
 // rediscover it: drift is not detected on its own. Somebody has to run this.

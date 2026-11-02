@@ -1,11 +1,11 @@
 {
-  "name": "@ericrisco/rsc",
+  "name": "@lema017/rsc-governed",
   "version": "3.7.4",
-  "description": "A guided harness builder that turns your goal into a minimal, verified AI-agent setup using strict best practices.",
+  "description": "A governed fork of the rsc harness builder: every distributed skill carries a versioned governance contract and reads the project's own per-skill customization before it is applied.",
   "type": "module",
   "bin": {
-    "rsc": "scripts/rsc.js",
-    "rsc-install": "scripts/install-apply.js"
+    "rscg": "scripts/rsc.js",
+    "rscg-install": "scripts/install-apply.js"
   },
   "engines": {
     "node": ">=18"
@@ -24,10 +24,13 @@
     "governance:sync": "node scripts/governance-sync.js",
     "governance:check": "node scripts/governance-sync.js --check",
     "governance:customizations": "node scripts/validate-customizations.js",
+    "gate": "node scripts/gate.js",
+    "upstream:check": "node scripts/upstream-maintain.js --check",
+    "upstream:maintain": "node scripts/upstream-maintain.js",
     "test": "node --test",
     "coverage": "c8 --reporter=text node --test",
     "version": "npm run manifest && git add manifest.json",
-    "prepublishOnly": "npm run manifest && npm run validate && npm run drift:check && npm run originality:check"
+    "prepublishOnly": "npm run manifest && npm run gate"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
@@ -43,7 +46,9 @@
     "skills",
     "manifest.json",
     "!**/__pycache__/**",
-    "!**/*.pyc"
+    "!**/*.pyc",
+    "!scripts/upstream-*.js",
+    "!scripts/lib/upstream-*.js"
   ],
   "keywords": [
     "agent-skills",
@@ -56,17 +61,22 @@
     "antigravity",
     "cli",
     "skills",
+    "governance",
+    "brownfield",
     "ai"
   ],
   "license": "MIT",
-  "author": "Eric Risco",
-  "homepage": "https://github.com/ericrisco/rsc-harness#readme",
+  "author": "lema017",
+  "contributors": [
+    "Eric Risco (upstream author of rsc-harness, from which this package is forked)"
+  ],
+  "homepage": "https://github.com/lema017/rsc-harness#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ericrisco/rsc-harness.git"
+    "url": "git+https://github.com/lema017/rsc-harness.git"
   },
   "bugs": {
-    "url": "https://github.com/ericrisco/rsc-harness/issues"
+    "url": "https://github.com/lema017/rsc-harness/issues"
   },
   "publishConfig": {
     "access": "public"

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 
 // Every update notice, the README, and three replies to real users said: run
-// `npx @ericrisco/rsc@latest` — "that reinstalls and refreshes". In a project that already had a
+// `npx @lema017/rsc-governed@latest` — "that reinstalls and refreshes". In a project that already had a
 // harness it opened the install WIZARD instead, and with no terminal (which is how an agent runs it
 // when it obeys the notice) it did nothing at all. The fix lives in the CLI that npx downloads, so
 // once published every notice already installed and every message already sent becomes true.

@@ -122,7 +122,7 @@ export function ensureShadowClaudeMd(projectRoot) {
 /**
  * Where the shadow would go, or null when this project does not need one — the decision without
  * the write, so the installer can declare the file BEFORE it exists. A path this returns but the
- * install plan omits is a file no --dry-run mentions and no `rsc restore` can bring back.
+ * install plan omits is a file no --dry-run mentions and no `rscg restore` can bring back.
  *
  * @param assumeClaudeWired for a claude install in flight: settings.json names the project as
  * wired only after wireHook writes it, so at plan time the answer has to be assumed, not read.

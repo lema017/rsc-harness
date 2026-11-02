@@ -82,7 +82,7 @@ function launchUpdate(root, version, env) {
   // RSC_AUTO_UPDATE_CMD (a JSON argv) replaces npx in tests; the arguments after it are the real ones.
   const base = env.RSC_AUTO_UPDATE_CMD
     ? JSON.parse(env.RSC_AUTO_UPDATE_CMD)
-    : ['npx', '-y', `@ericrisco/rsc@${version}`];
+    : ['npx', '-y', `@lema017/rsc-governed@${version}`];
   const targets = declaredTargets(root);
   const args = [...base.slice(1), 'sync', ...(targets.length ? ['--target', targets.join(',')] : [])];
   const log = openSync(logFile(root), 'w');
@@ -129,7 +129,7 @@ ACTION: tell the user in one line. Files of the harness may show as changed in g
     else {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 1500);
-      const res = await fetch('https://registry.npmjs.org/@ericrisco%2frsc/latest', { signal: ctrl.signal });
+      const res = await fetch('https://registry.npmjs.org/@lema017%2frsc-governed/latest', { signal: ctrl.signal });
       clearTimeout(timer);
       doc = await res.json();
     }
@@ -169,7 +169,7 @@ rsc ${latest} is out — you have ${installed}. It fixes problems this install s
 ${fixes.map((f) => `  - ${f.symptom} (fixed in ${f.fixedIn})`).join('\n')}
 ${why}ACTION: before starting the task, tell the user in one line that the update fixes what they
 may be seeing, and if they say yes, run it in this project:
-  npx @ericrisco/rsc@latest
+  npx @lema017/rsc-governed@latest
 ================================
 `);
         } else {
@@ -177,7 +177,7 @@ may be seeing, and if they say yes, run it in this project:
 ===== rsc update available =====
 rsc ${latest} is out — you have ${installed}.
 ${why}ACTION: tell the user a new version is available and, if they say yes, run:
-  npx @ericrisco/rsc@latest
+  npx @lema017/rsc-governed@latest
 (That reinstalls and refreshes the skill content to the latest.)
 ================================
 `);

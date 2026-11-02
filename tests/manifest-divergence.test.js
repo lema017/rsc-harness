@@ -83,7 +83,7 @@ test('the notice names the gates and stays one frame', () => {
   const text = composeDivergence(readManifest(root), evaluateHarness(root, readManifest(root)));
   assert.match(text, /gitmoji/);
   assert.match(text, /heavy/);
-  assert.match(text, /npx @ericrisco\/rsc@2\.0\.5 sync/);
+  assert.match(text, /npx @lema017\/rsc-governed@2\.0\.5 sync/);
   const frames = text.split('\n').filter((l) => /^=+ ?(rsc)? ?=+$/.test(l.trim()));
   assert.equal(frames.length, 2, `one opening frame and one closing frame, got: ${frames.join(' | ')}`);
 });

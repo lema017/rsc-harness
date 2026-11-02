@@ -102,7 +102,7 @@ test('session-start: update banner when a newer version is available', () => {
   const out = runSessionStart(root, { RSC_NO_UPDATE_CHECK: '', RSC_LATEST: '0.2.0' });
   assert.ok(out.includes('rsc update available'), 'notifies when a newer version exists');
   assert.ok(out.includes('0.2.0') && out.includes('0.1.0'), 'shows latest and installed versions');
-  assert.ok(out.includes('npx @ericrisco/rsc@latest'), 'gives the update command');
+  assert.ok(out.includes('npx @lema017/rsc-governed@latest'), 'gives the update command');
 });
 
 test('session-start: no update banner when installed is current', () => {

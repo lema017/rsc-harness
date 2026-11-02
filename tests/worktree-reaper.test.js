@@ -333,7 +333,7 @@ test('15b · ship option 1 gets the cleanup executed, and no longer asks anyone 
   const section = ship.slice(start, end);
   const runnable = section.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
 
-  assert.doesNotMatch(runnable, /^npx @ericrisco\/rsc worktrees reap /m,
+  assert.doesNotMatch(runnable, /^npx @(ericrisco\/rsc|lema017\/rsc-governed) worktrees reap /m,
     'landing a branch must not require anyone to remember a cleanup command');
   assert.match(section, /post-merge/,
     'and it must say what does retire it, or the reader is left thinking nothing does');
@@ -1221,7 +1221,7 @@ test('52d · the post-merge hook deletes a merged plain branch and says so', () 
   const r = spawnSync('git', ['-C', root, 'merge', '--no-ff', 'fix/plain', '-m', 'land'], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.ok(!branches(root).includes('fix/plain'), 'the merge itself must have deleted the landed branch');
-  assert.match(r.stdout + r.stderr, /rsc: deleted merged branch fix\/plain/);
+  assert.match(r.stdout + r.stderr, /rscg: deleted merged branch fix\/plain/);
   const out = autoReap(root);
   assert.deepEqual(out.branches.deleted, [], 'nothing left to delete the second time');
 });
