@@ -1497,3 +1497,35 @@ El agente **se paró** donde le dije y me escaló lo único que no podía resolv
 
 ### No verificado
 La suite completa (L7; corrió ~310 tests en los archivos que tocan las superficies cambiadas), `eval-lint` (L2), el barrido 274×18×3 del instrumento (corrió la **misma biblioteca de auditoría** sobre instalaciones completas de 274 para `claude` y `cursor`, o sea las dos familias de entrega incluida la única re-renderizada; **los 16 destinos restantes y las pasadas 2–3 quedan sin verificar**), la rama Windows (L5), y un flake preexistente de `tests/auto-update.test.js` bajo paralelismo que pasa 17/17 en aislamiento y con `--test-concurrency=1`.
+
+---
+
+## 2u. Correcciones de la Etapa 5 — aplicadas (código verificado, commit diferido)
+
+**El commit va detrás a propósito:** la ronda de sondas de intención está editando ahora mismo `scripts/lib/upstream-gate.js`, `tests/governance-upstream-maintenance.test.js` y `docs/fork/stage5/DESIGN.md`, y commitear un archivo a medio escribir es la clase de error que esta sesión lleva castigando. Se commitea cuando esa ronda cierre.
+
+### La disciplina que quiero que quede registrada como ejemplo
+Verificó **cada** corrección contra el código anterior **antes** de tocarlo: copió `HEAD:` de los cuatro módulos a un directorio aparte y ejecutó las aserciones nuevas contra ellos. **19 de 19 fallan pre-fix**, con la salida literal `PRE-FIX FAILS ✓` en las diecinueve. Eso es lo que convierte «añadí un test» en «añadí un test que detecta el defecto», y es la respuesta correcta a la lección que la sesión aprendió cuatro veces.
+
+### A2 — la violación de §1, cerrada. Comprobado por mí
+`SCRATCH_DIR = .rsc-upstream/tmp`, derivado del árbol auditado. Mis comprobaciones: **ninguna llamada real a `tmpdir()`** en el módulo (sólo aparece en el comentario que explica por qué **no** se usa), **`node:os` ya no se importa** (`grep -c "from 'node:os'"` → 0), y `.gitignore` lleva `.rsc-upstream/`. La segunda mitad también está hecha, que era la que más me preocupaba: `MAINTENANCE.md` abre ahora con **«The environment the run must have»** —`. ./.fork-tmp/env.sh`, tabla variable por variable con su motivo— y dice las dos cosas que no son obvias: que la puerta **ya no depende de `TMPDIR`**, y que **redirigir `HOME` no desactiva el helper de credenciales del gitconfig del sistema**.
+
+### Dos cosas que arregló y la revisión no vio
+
+**1. El defecto de A1 existía en seis comprobaciones más.** La frase del revisor —*«una entrada ausente es indistinguible de una entrada que midió cero»*— no afectaba sólo a G7: sin `classification`, G3/G4/G9/G10/G11 calculaban alcance vacío y decían «no skill was added or modified by this change»; sin `attribution`, G6 caía a un literal y decía «no notice changed». Medido: **antes pasaban 12 de 12** con un contexto vacío; **ahora 4 de 12**, y las cuatro que pasan (G1, G2, G5, G12) pasan porque **no reciben ninguna medición** — leen el árbol ellas mismas. Un test fija ese conjunto exacto.
+
+**2. `runTests` no era parseable desde dentro de un proceso de test.** Node elige reporter por `NODE_TEST_CONTEXT`, así que un hijo lanzado desde `node --test` emite el protocolo interno y `parseTap` devolvía `null` en **todos** los contadores: **la puerta medía «`null` pasados de `null` pruebas»**. No se había visto nunca porque G8 jamás se había llamado desde un test. Arreglado con `--test-reporter=tap` explícito y borrando `NODE_TEST_CONTEXT` del entorno del hijo. Es el mismo género que el resto de la sesión —un instrumento que informaba sin medir— y lo encontró solo.
+
+Y **un bug que se introdujo él y cazó**: `renderReport` hacía `v.verdict.verdict` sin guarda y `validate` ahora puede fallar **antes** de calcular veredicto. Guarda, sección «**NOT RUN** — the phase stopped before any check ran», y test propio.
+
+### G7 falla hoy sobre la superficie viva, y eso es lo correcto
+`DIVERGENCE_PROBES` sigue con 8 entradas y la superficie son **51 modificados / 25 añadidos**, con **43 sin sonda** (verificado por mí: 51 y 25). G7 lo denuncia, que es su trabajo. **Se negó a ampliar la tabla**, y con razón: *«ampliarla habría sido inventar intenciones»*. Una sonda equivocada da falsa tranquilidad, que es exactamente el defecto A1 que acababa de corregir. Lanzada una ronda dedicada a escribir las 43 sondas leyendo el diff real de cada archivo, con la instrucción de **declarar los que no sepa interpretar** en vez de inventarlos.
+
+### Dos imprecisiones de la revisión, las dos de cifra
+**«seis pasan» en A3, seguido de una lista de ocho ids: ni seis ni ocho — pasaban las doce.** Medido sobre el código pre-fix. La conclusión del hallazgo era **más fuerte** que su número. Y el «8 contra 9» de M5 era cierto cuando se midió; hoy son 51/52. La lógica era exacta, la aritmética era de aquel momento.
+
+### Lo que NO corrigió, y por qué está bien
+La lista de acciones manuales que `remediate` deriva de la puerta es **inalcanzable**: el bucle de fases hace `if (out.status !== 'done') break`, así que si `validate` bloquea, `remediate` nunca corre, y su recorrido de los fallos sólo se alcanza con veredicto `pass`, que no tiene ninguno. La información no se pierde —la tabla de la puerta imprime cada FAIL con su detalle— pero esas pistas no se emiten. **Arreglarlo exige cambiar el control de flujo de las fases, o sea arquitectura**, así que no lo tocó y lo registró. Correcto: una ronda de correcciones no rediseña.
+
+### Cifras
+Su archivo: **49/49** (eran 22), dos corridas consecutivas, 0 cancelados. Los doce `tests/governance-*.test.js`: 172 tests, **170 pasan, 2 fallan**, y **los dos fallos son de otras rondas en vuelo**, atribuidos por mtime y por el contenido del fallo (`gi03` por los comentarios nuevos de `governance.js`, y `gg25` quejándose **de sí mismo** porque el archivo se editó durante la corrida). Lecturas desgarradas de ediciones concurrentes, no regresiones — y `gi03` ya está verde tras conceder su excepción. `~/.claude` intacto por cuarta comprobación independiente.
