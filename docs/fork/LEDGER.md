@@ -1632,3 +1632,18 @@ La tabla de terceros del README cerraba con *«Adapted, not mirrored»* para **t
 
 ### No verificado
 **NV7-1** el README **publicado** visto en GitHub: queda **una** comprobación para después del commit, abrir el repositorio y mirar las dos imágenes · **NV7-2** renderizado en la página de npm · **NV7-3** suite completa (L7) y `eval-lint` (L2) · **NV7-4** `site/` desplegado: Actions off, y las 4 URLs de autoidentificación del host de Pages del fork dan 404 hoy, medidas y declaradas, **no** son enlaces que un lector pulse · **NV7-5** 2FA · **NV7-6** que el canal de avisos del padre siga activo mañana · **NV7-7** las evaluaciones semánticas del criterio 14, **que no se han ejecutado en ninguna etapa** — no es hueco suyo, pero el README tenía que decirlo y lo dice.
+
+### NV7-1 cerrado por mí, y dos hallazgos que sólo aparecen mirando la página real
+
+**NV7-1 cerrado.** Abrí `github.com/lema017/rsc-harness/tree/fork/bootstrap` y medí el DOM del README renderizado: **los dos diagramas se muestran**. Las rutas relativas se resolvieron a `github.com/lema017/rsc-harness/raw/fork/bootstrap/docs/fork/diagrams/…`, los dos `decode()` correctos, **1240×850** y **1240×820**, y los cinco badges también. Y el texto alternativo que llega al lector de pantalla lleva **las correcciones de la etapa**, no la versión vieja: *«semantic evaluations are specified but not instrumented and not yet run»*, *«nothing is published yet and GitHub Actions are disabled»*. La decisión de usar rutas relativas en vez de URLs con rama queda validada en el sitio donde importa.
+
+**Hallazgo 1 — los metadatos del repositorio del fork siguen siendo los del padre, y ningún barrido de este proyecto podía verlo, porque no están en ningún archivo.** Medido con `gh api repos/lema017/rsc-harness`:
+
+```
+description : «Your agent invents things because it has no memory… rsc is the meta-harness…»   (la copia del padre, intacta)
+homepage    : https://ericrisco.github.io/rsc-harness/                                          (el SITIO DEL PADRE)
+```
+
+El campo `homepage` es **exactamente** la superficie que §10 describe: quien visita la página del fork pulsa «Website» y aterriza en el sitio **del padre**, que le dice que instale el paquete **del padre**. Es el mismo defecto que D16 cerró dentro de los archivos, sobreviviendo **fuera** de ellos. Toda la instrumentación de esta sesión —`gi03`, `gg25`, `ps01`–`ps06`, las 62 sondas— es estructuralmente ciega a esto porque toda ella barre **archivos rastreados**. **No lo cambio yo:** son ajustes del repositorio del usuario y se los traslado para que decida.
+
+**Hallazgo 2 — el README reescrito todavía no es el que ve el público.** `default_branch` es **`main`**, y todo el trabajo del fork vive en `fork/bootstrap`. Así que la portada pública de `github.com/lema017/rsc-harness` **sigue mostrando el README del padre**, con sus comandos al padre, hasta que esa rama se fusione. Dato que convierte la fusión en parte de la entrega, no en un trámite posterior: mientras no ocurra, el criterio 13 sigue abierto **en la superficie más visible de todas**.
