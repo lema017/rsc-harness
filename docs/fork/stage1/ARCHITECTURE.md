@@ -129,7 +129,7 @@ Ni lo que yo escribí ni exactamente lo que propone la re-revisión. El mecanism
 
 Lo que esto consigue y lo anterior no: `_md-block.js` y `cursor.js` **no se tocan** — leen el `sourceMd` que se les da, así que cambiar el argumento basta. El coste se concentra en dos archivos y uno de ellos iba a cambiar de todos modos.
 
-### CORRECCIÓN 3: «0 divergencias» era falso. La cifra honesta es 1 añadida
+### CORRECCIÓN 3 (y 4): «0 divergencias» era falso. Y «1 añadida» también: son **3 archivos y 4 puntos**
 
 La tabla anterior ponía **0** divergencias permanentes, y tres secciones antes este mismo documento ya clasificaba parchear un adaptador como *«divergencia de código, no transformación de contenido»*. Medir con dos varas.
 
@@ -139,7 +139,17 @@ La tabla anterior ponía **0** divergencias permanentes, y tres secciones antes 
 | Coste por turno en los 17 sin gancho | 779 B con el preámbulo de entonces (hoy **785** renderizados para `suggest`) | **0 B** |
 | Coste por sesión en `claude` | 785 B en cada SessionStart y tras cada compactación | **0 B** |
 | Techos que cambian | 3 | **0** |
-| Divergencias permanentes con upstream | **3** (`clone-bootstrap`, `ftd-lane`, `always-on-body`, más un comentario) | **1 añadida**: `targets/claude.js`, una línea. `scripts/install-apply.js` ya diverge por necesidad: es el punto de transformación y la razón de ser del fork |
+| Divergencias permanentes con upstream | **3** (`clone-bootstrap`, `ftd-lane`, `always-on-body`, más un comentario) | **3 archivos, 4 puntos** (medido al implementar, §abajo): `targets/claude.js`, una línea. `scripts/install-apply.js` ya diverge por necesidad: es el punto de transformación y la razón de ser del fork |
+
+**La cuenta real, medida al implementar la Etapa 2 y no estimada.** Además de `scripts/install-apply.js` — que diverge por necesidad, es el punto de transformación y la razón de ser del fork — y de `package.json` (tres scripts aditivos), el cableado nuevo toca **tres archivos en cuatro puntos**:
+
+| Archivo | Punto | Por qué |
+|---|---|---|
+| `targets/claude.js` | `suggestRel` se **deriva de `sourceMd`** | El adaptador aceptaba ese parámetro y lo ignoraba. Derivarlo es mejor que cablear una ruta: quien decide qué cuerpo se paga es el llamante, y los tests de upstream que llaman sin `sourceMd` siguen obteniendo su string exacto |
+| `scripts/doctor.js` | la aguja de `alwaysOnBytesFor` | **Regresión cazada al implementar:** exigía `suggest` en el nombre del archivo, así que `.rsc/governance/always-on.md` no casaba, caía al fallback y contaba la base **gobernada**. Es decir, `doctor` **sobre-reportaba el coste por sesión en exactamente el preámbulo**. Lo cazó un test de upstream, `fresh-install-coherence` 7a, que existe para esta clase de defecto |
+| `tests/apply.test.js` | dos aserciones (`:223`, `:503`) | Fijaban `skills/suggest` en el comando del gancho. Se conserva su intención y una se **refuerza** (ahora exige además que el archivo exista en disco) |
+
+**La máquina de mantenimiento de §9 debe avisar de los tres, no de uno.** Y el caso de `doctor.js` deja la lección más útil de la etapa: una divergencia puede no romper nada visible y a la vez **hacer mentir a una herramienta de diagnóstico** sobre el presupuesto de contexto, que es justo lo que el fork existe para no hacer.
 
 **Por qué se paga esa divergencia en vez de evitarla:** sin ella, `claude` —el único destino que puede **denegar** y el de referencia de la evaluación— pagaría el bloque en cada sesión y la medición de G3 quedaría inservible. Una línea que reasigna una variable es además el conflicto más barato de resolver cuando upstream toque el archivo. La máquina de mantenimiento de §9 debe avisar cuando upstream toque `targets/claude.js`.
 

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { linkOrCopy } from './index.js';
 import { ensureShadowClaudeMd, removeShadowClaudeMd } from './agents-md-shadow.js';
@@ -135,7 +135,23 @@ export function wireHook(paths, sourceMd, policy = {}) {
   mkdirSync(dirname(bootstrapDest), { recursive: true });
   copyFileSync(join(HERE, 'clone-bootstrap.mjs'), bootstrapDest);
 
-  let suggestRel = at(relative(paths.projectRoot, paths.skillDir('suggest')).split(sep).join('/'), 'SKILL.md');
+  // The always-on body, as a PATH: this adapter never renders a body (the hook reads the file at
+  // run time — `targets/session-start.mjs:52` writes it out whole), so `sourceMd` used to be the
+  // one parameter here that was accepted and ignored. It is honored now, which is what lets the
+  // caller decide which body the session pays for: the fork points it at `.rsc/governance/
+  // always-on.md`, the governance-free copy, instead of at the governed `.claude/skills/suggest/
+  // SKILL.md` symlink. Generalized from the `.rsc/suggest-always-on.md` mechanism just below, which
+  // already repointed this variable for the no-code-hooks case — one mechanism, two callers.
+  //
+  // Falls back to the skill path when `sourceMd` is absent or points outside the project, so a
+  // caller that passes nothing (or an absolute path from another tree) gets exactly what upstream
+  // computed. `.claude/skills/suggest/SKILL.md` is what `paths.skillDir('suggest')` yields, so the
+  // fallback and the old line are the same string.
+  const relSource = sourceMd ? relative(paths.projectRoot, sourceMd) : '';
+  const usable = Boolean(relSource) && !relSource.startsWith('..') && !isAbsolute(relSource);
+  let suggestRel = usable
+    ? at(relSource.split(sep).join('/'))
+    : at(relative(paths.projectRoot, paths.skillDir('suggest')).split(sep).join('/'), 'SKILL.md');
   const operationsSuggest = join(paths.projectRoot, '.rsc', 'suggest-always-on.md');
   // The lane decision (FTD or SDD) belongs to every SOFTWARE project, small ones included. Tying it to
   // the code gates was the cause behind the E2E of 2026-10-07: a small project got a three-line stub

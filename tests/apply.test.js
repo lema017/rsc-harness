@@ -220,7 +220,12 @@ test('claude: project-local install links to .rsc base, wires hook, list/uninsta
   assert.equal(lstatSync(join(cwd, '.claude/skills/fastapi')).isSymbolicLink(), true, 'is a symlink, not a copy');
 
   const settings = JSON.parse(readFileSync(join(cwd, '.claude/settings.json'), 'utf8'));
-  assert.ok(JSON.stringify(settings.hooks.SessionStart).includes('skills/suggest'));
+  // FORK DIVERGENCE (governance): this used to look for `skills/suggest`, because upstream points
+  // the session hook at the suggest skill itself. The fork points it at `.rsc/governance/
+  // always-on.md` — the governance-free copy — so the five rules are not re-injected at every
+  // SessionStart and after every compaction. The assertion's intent is unchanged: the wiring hands
+  // the hook an always-on body. See docs/fork/stage1/ARCHITECTURE.md §4.
+  assert.ok(JSON.stringify(settings.hooks.SessionStart).includes('.rsc/governance/always-on.md'));
 
   assert.ok(listInstalled({ target: 'claude', cwd }).includes('fastapi'));
 
@@ -500,7 +505,11 @@ test('claude: SessionStart runs session-start.mjs via node (Windows-safe), mater
   const cmd = settings.hooks.SessionStart[0].hooks[0].command;
   assert.ok(cmd.startsWith('node '), 'invoked via node, not bash, so it runs on Windows');
   assert.ok(cmd.includes('.rsc/session-start.mjs'), 'hook runs the node script');
-  assert.ok(cmd.includes('skills/suggest'), 'passes suggest SKILL.md as arg');
+  // FORK DIVERGENCE (governance): same change as above — the always-on body passed as an argument
+  // is the governance-free copy, not the suggest skill. The file must exist, which is the half of
+  // this assertion that was actually load-bearing.
+  assert.ok(cmd.includes('.rsc/governance/always-on.md'), 'passes the always-on body as arg');
+  assert.ok(existsSync(join(cwd, '.rsc/governance/always-on.md')), 'and that body is on disk');
 
   const script = join(cwd, '.rsc/session-start.mjs');
   assert.ok(existsSync(script), 'script materialized into .rsc/');

@@ -1012,3 +1012,54 @@ La Etapa 1 reescribió `docs/fork/stage1/` **mientras la Etapa 3 corría**, y co
 | `not ok 60` — `knowledge-sync` | **NO se atribuye a upstream:** es mi contención, demostrada arriba |
 
 Quedan sin corroborar en suite completa `session-memory`, `spec-gate-subject` y `onboarding-apply`, que no llegaron a ejecutarse. **No se pierde nada:** los dos primeros están atribuidos por el experimento controlado de cuatro brazos y el tercero por lectura del código (`install-apply.js:459-471` + `.gitignore:11`).
+
+---
+
+## 2k. Etapa 2 — Integración de la gobernanza en los 5 asistentes (entregada, pendiente de revisión independiente)
+
+**La invariante, comprobada por mí al cerrar:** `git diff --stat origin/main -- skills/` → **vacío**; `ls skills | wc -l` → **274**; `git worktree list` → **una** entrada, sin huérfanos. Y la etapa no se fía de que alguien se acuerde de mirar: hay un test que **instala de verdad** y compara las 274 antes y después (`tests/governance-base.test.js`). Estructuralmente, el único escritor de gobernanza se invoca **después** del `cpSync` que materializa la base en el proyecto consumidor, así que el catálogo del repositorio nunca es argumento de una escritura.
+
+**Código nuevo:** `scripts/lib/governance.js` (transformación, digest, `stripGovernance`, emisión de `.rsc/governance/{v1,always-on}.md`), `scripts/lib/customization-validator.js` (nueve claves, ocho reglas; **devuelve hallazgos, nunca lanza**), `scripts/governance-sync.js` (mantiene las copias distribuidas byte-idénticas, `--check` sale 1 con deriva), `scripts/validate-customizations.js`, `schema/governance/{preamble-v1.txt,contract-v1.md}` y cuatro archivos de test. **Modificados:** `scripts/install-apply.js`, `targets/claude.js`, `scripts/doctor.js`, `tests/apply.test.js`, `package.json`.
+
+**Por qué hay copias en `schema/`:** `package.json` → `files` distribuye `scripts/ targets/ schema/ skills/ manifest.json` y **no `docs/`**, luego el transformador no puede leer el artefacto autoritativo en la máquina de un consumidor. La copia la genera un script y un test afirma identidad por sha256: editarla a mano **falla un binario** en vez de derivar en silencio.
+
+### Medición sobre las 274 y sobre instalaciones reales
+
+Idempotencia **274/274**; bloques dobles **0**; digest incorrecto **0**; delimitadores de código desequilibrados **0**; `origin:` más profundo **880 B** de 2048; crecimiento máximo **+936 B**. Y lo que cierra el criterio 4 por el lado de la entrega, verificado por mí en los cinco proyectos instalados: **la superficie always-on mide 7 280 B en los cinco, exactamente el `skills/suggest/SKILL.md` de upstream.** La gobernanza cuesta **0 B** ahí.
+
+### L1 CERRADO
+
+`node --test --test-concurrency=1 --test-timeout=1800000` sobre los diez archivos que leen el cuerpo más los cuatro nuevos: **147 tests, 147 pasan, 0 fallan**, 448 s. **Los tres techos de `suggest` verdes sin tocar una cifra**, como predecía la retractación. Y 21 archivos de los cinco destinos y la superficie de instalación: **267 tests, 266 pasan, 1 falla** — y ese uno es preexistente.
+
+**Los tests no son vacuos, y lo demostró con cuatro mutaciones** aplicadas, ejecutadas y revertidas. La decisiva: desactivar el reapuntado de `claude` tumba **exactamente un test y ninguno más**. Un test que mirase el valor de retorno de `wireHook` habría seguido verde en las cuatro — que es el defecto que la Etapa 1 había especificado sin darse cuenta.
+
+### CUATRO CORRECCIONES A MIS INSTRUCCIONES, verificadas por mí
+
+1. **«Que `claude.js` reapunte en todos los casos» habría roto upstream.** La rama `codeHooks === false && !laneGate` escribe un **stub de tres líneas**; reapuntar sin condición habría hecho que un proyecto de operaciones pequeño pasara de ese stub al cuerpo completo de `suggest`. Regresión disfrazada de cumplimiento del diseño. Lo implementado cambia el **valor por defecto** y el stub sigue sobrescribiéndolo. Y la solución es mejor que mi instrucción: **`suggestRel` se deriva de `sourceMd`**, así el adaptador deja de ignorar el único parámetro que aceptaba e ignoraba.
+2. **«1 divergencia añadida» era falso: son 3 archivos y 4 puntos.** `targets/claude.js`, `tests/apply.test.js` (×2) y **`scripts/doctor.js`**, cuya aguja exigía `suggest` en el nombre del archivo: `.rsc/governance/always-on.md` no casaba, caía al fallback y contaba la base **gobernada**, de modo que **`doctor` sobre-reportaba el coste por sesión en exactamente el preámbulo**. Verificado en el diff. Lo cazó un test de upstream (`fresh-install-coherence` 7a) que existe para esta clase de defecto. `ARCHITECTURE.md` §4 corregido con la cuenta real.
+3. **`CONTRACT.md` §1 decía «base menos el bloque», y así el test de la Etapa 1 no podía pasar**, porque la base lleva también las tres claves planas y en `claude` el gancho escribe el archivo **entero, frontmatter incluido** (`session-start.mjs:52`): serían ~111 B por sesión y el tamaño **no** sería el de upstream. **Decisión aceptada: el always-on es el `SKILL.md` prístino de upstream, byte-idéntico.** Mejor en las dos direcciones — coste exactamente 0 B, y el test exige **igualdad byte a byte** en vez de un techo. `CONTRACT.md` corregido.
+4. **`PREAMBLE-v1.txt` ya trae sus propios marcadores.** Un primer intento los añadió otra vez y produjo bloques dobles. Queda escrito.
+
+### ATRIBUCIÓN COMPLETA de los 10 fallos de la línea base. Se cierra
+
+| Fallos | Causa | Cómo se estableció |
+|---|---|---|
+| **5** | **Míos**: temporal dentro del repositorio | Experimento controlado de cuatro brazos + lectura de código para `onboarding-apply` |
+| **3** | Entorno: rama degradada de `eval-lint` por falta de PyYAML, que §1 prohíbe instalar | Ya atribuidos |
+| **1** | **`design-engine` A5: FLAKY preexistente de upstream** | Corregido abajo |
+| **1** | **`deepseek-target` dsh06: fallo preexistente de upstream** | Falla idéntico en un worktree prístino de `origin/main`, y ya aparecía en mi primera línea base en serie, antes de que existiera una línea de este fork |
+| **0** | Cuelgues | `knowledge-sync` pasa 52/52 en 19 min: es el archivo más lento, no un cuelgue |
+
+**Cero defectos introducidos por el fork.**
+
+**Corrección a mi propio ledger:** llamé a A5 *«candidato REAL a defecto de upstream»*, lo que daba a entender determinista. **Lo medí yo tres veces: pasa, falla, falla.** Con las tres observaciones del agente (2 fallos, uno en worktree prístino) son **2 pases y 4 fallos en 6 observaciones**: es un **flake preexistente de upstream**, no un fallo determinista. La distinción importa porque un test intermitente **no puede ser puerta de release**, y porque «pasó» no significa «arreglado». Dato adicional medido: **A5 no usa red** — inyecta un `fetchImpl` falso (`design-engine.test.js:111,114,116`); la prohibición de §1 es del script `design-upstream.js`, no del test.
+
+**Y una corrección al informe del agente:** dice que `dsh06` *«NO estaba en la lista»*. **Sí estaba** — es el fallo nº 3 de la tabla de `LEDGER.md:761`, entre los dos sin atribuir. Lo que el agente aporta no es el hallazgo sino la **atribución**, que es justo lo que faltaba. No se copia un error por venir en un informe que acierta en todo lo demás.
+
+### Lo que la etapa declara sin verificar
+
+`eval-lint.sh` (L2, escribe en `/tmp` literal); `design-upstream.js` (red); **que el modelo obedezca** el contrato en cualquiera de los cinco (exigiría los clientes reales con la sesión del usuario — §1 lo prohíbe; es G1–G6 y los límites L3/L4); Windows (L5); la suite entera y la conformidad sobre las **274 instaladas**, que son de la Etapa 4 por reparto. Y lo dice con la distinción correcta: **conformidad ≠ cumplimiento.** Lo entregado es que el artefacto porte el contrato en las cinco superficies, que es determinista y comprobable.
+
+### Nota de método, para el acta
+
+El agente intentó escribir un tercer documento con sus hallazgos y **el harness lo rechazó** por parecer un archivo de informe de subagente. Reaccionó bien: incorporó la parte factual a `stage2/VERIFICATION.md` §5 y §6.4, *«que es donde el revisor independiente la encontrará sin depender de este mensaje»*. Es el criterio correcto — un hallazgo que sólo vive en un mensaje de agente no es un hallazgo del proyecto.

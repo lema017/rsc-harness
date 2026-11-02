@@ -351,13 +351,23 @@ const bytesOf = (p) => { try { return statSync(p).size; } catch { return 0; } };
 // command meant the current wiring never matched and the fallback counted the full skill: doctor said
 // 7.1 KB for a hook that injects 0.3 KB of body (E2E 2026-10-07). The command names the project
 // through ${CLAUDE_PROJECT_DIR}, so that is resolved against the scope before measuring.
+//
+// FORK DIVERGENCE (governance): the needle used to require `suggest` in the FILENAME, which was an
+// incidental narrowing — the sentence above already says the right rule, "read it from the command
+// rather than guessing the layout". The fork's always-on body is `.rsc/governance/always-on.md`, so
+// a `suggest`-only needle matched nothing, fell through, and counted the GOVERNED base instead:
+// doctor over-reported the per-session cost by exactly the preamble. Caught by
+// `tests/fresh-install-coherence.test.js` 7a, which is the same defect class its own comment
+// records from 2026-10-07. `always-on` is accepted alongside `suggest` so a user's unrelated `.md`
+// in some other hook still cannot be mistaken for ours.
 function alwaysOnBytesFor(scopeRoot, settingsRaw) {
   const raw = (settingsRaw || '').replace(/\\\\/g, '/');
-  const candidates = [...raw.matchAll(/\\?"([^"\\]*suggest[^"\\]*\.md)\\?"/g)].map((m) => m[1]
+  const candidates = [...raw.matchAll(/\\?"([^"\\]*(?:suggest|always-on)[^"\\]*\.md)\\?"/g)].map((m) => m[1]
     .replace(/\$\{CLAUDE_PROJECT_DIR\}|\$CLAUDE_PROJECT_DIR/g, scopeRoot)
     .replace(/^~(?=\/)/, homedir()));
   for (const file of candidates) if (bytesOf(file)) return bytesOf(file);
-  return bytesOf(join(scopeRoot, '.rsc', 'skills', 'suggest', 'SKILL.md'));
+  return bytesOf(join(scopeRoot, '.rsc', 'governance', 'always-on.md'))
+    || bytesOf(join(scopeRoot, '.rsc', 'skills', 'suggest', 'SKILL.md'));
 }
 
 // Every hook rsc wires, as a table rather than a chain of `if`s: adding one is a row, and

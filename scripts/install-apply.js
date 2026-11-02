@@ -27,6 +27,10 @@ import { wireUpdate, unwireUpdate, updateManagedPaths, updateArtifactsPresent } 
 import { wireKnowledge, unwireKnowledge, knowledgeManagedPaths, knowledgeArtifactsPresent } from '../targets/knowledge-wiring.js';
 import { wireGitPermissions, unwireGitPermissions, gitPermissionsPath } from '../targets/git-permissions.js';
 import { wireDeepseekBridge } from '../targets/deepseek-bridge.js';
+// Fork governance. `governBase` is the transformation; the other three are the artifacts it needs
+// alongside the catalog. See scripts/lib/governance.js for why the always-on body is pristine.
+import { alwaysOnPath, contractPath, governBase, writeAlwaysOn, writeContract } from './lib/governance.js';
+import { CUSTOMIZATION_ROOT, validateCustomizations } from './lib/customization-validator.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI_VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
@@ -64,6 +68,13 @@ function ensureBase(id, cwd, baseVersions) {
   if (!existsSync(dest)) {
     mkdirSync(dirname(dest), { recursive: true });
     cpSync(join(ROOT, 'skills', id), dest, { recursive: true });
+    // THE POINT OF TRANSFORMATION, and the only one. This is the boundary where the catalog stops
+    // being a mirror of upstream and starts being a delivery: `skills/` upstream of this line stays
+    // byte-identical forever (Strategy B), and every assistant reads what is downstream of it —
+    // 17 of 18 through a symlink to this directory, Cursor by re-reading it, the always-on surface
+    // from its own file. Governing here means the invariant holds by construction rather than by
+    // anyone remembering it. Idempotent, so a refresh of an already-governed base is a no-op.
+    governBase(id, dest);
   }
   baseVersions[id] = CLI_VERSION;
   return dest;
@@ -106,10 +117,67 @@ export function generatedHookFiles({ target, cwd, policy }) {
     join(cwd, '.rsc', 'sello.mjs'), ...(laneGate ? [join(cwd, '.rsc', 'ftd-nudge.mjs')] : [])];
 }
 
+/**
+ * The project-level half of governance, run on every install and every sync (sync reaches it
+ * through `applyInstall`, so there is one implementation and not two that drift).
+ *
+ * Two things happen here, and neither may stop an install:
+ *
+ *   The full contract is regenerated at `.rsc/governance/v1.md`. Package-owned, not project-owned.
+ *   The preamble in every governed skill points at it and says, in its last line, that the five
+ *   rules still stand if it is missing — because `.rsc/` is gitignored, so in a fresh clone it does
+ *   not exist until this runs.
+ *
+ *   Every per-skill customization is validated, but only where `02-DOCS/wiki/skills/` exists:
+ *   absence is a valid state and is not a finding. The report is written next to the contract and
+ *   returned, so a broken customization is named at the moment the harness is set up rather than
+ *   silently three skills later. It is NOT thrown: the contract's answer to a broken file is to ask
+ *   how to proceed, and an install that aborted over a wiki page would be a regression against
+ *   upstream for a condition upstream does not even look at.
+ */
+function governProject(cwd) {
+  let contract = null;
+  try { contract = relative(cwd, writeContract(cwd)); } catch (err) {
+    return { contract: null, reason: err.message, customizations: null };
+  }
+  let report;
+  try { report = validateCustomizations({ cwd, catalogRoot: ROOT }); } catch (err) {
+    return { contract, customizations: { ran: false, reason: err.message } };
+  }
+  const summary = {
+    ran: report.ran,
+    root: report.root,
+    checked: report.files.length,
+    errors: report.findings.filter((f) => f.severity === 'error').length,
+    orphaned: report.orphaned,
+    findings: report.findings.map((f) => ({
+      file: relative(cwd, f.file), rule: f.rule, ruleId: f.ruleId, message: f.message, severity: f.severity,
+    })),
+  };
+  if (report.ran) {
+    try {
+      const dest = join(cwd, '.rsc', 'governance', 'customizations.json');
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, JSON.stringify(summary, null, 2) + '\n');
+    } catch { /* the report is also returned; a write failure must not sink the install */ }
+  }
+  return { contract, customizations: summary };
+}
+
 export function managedPathsForInstall({ skillIds, agentIds = [], target, home, cwd, policy }) {
   const paths = targetPaths(target, home, cwd);
   const plan = planInstall({ skillIds, target, home, cwd, hooks: policy?.alwaysOn !== false });
   const out = [paths.stateFile, versionFile(cwd), baseVersionsFile(cwd)];
+  // The governance artifacts. Declared for EVERY target, not just claude: `install-apply.js` warns
+  // a few lines up that a file the installer writes and this inventory omits is silently absent
+  // from the snapshot, so `rsc restore` could not bring it back. The contract is rewritten on every
+  // pass; the always-on body only exists where there is a hook step, and is pushed below.
+  out.push(contractPath(cwd));
+  // The customization report is written only where there is something to validate, and this
+  // declaration has to carry the same condition. Declaring it unconditionally made the onboarding
+  // route-inventory gate fail with `missing governed path` on every project without a
+  // `02-DOCS/wiki/skills/` — the gate was right, and it is the reason it exists.
+  if (existsSync(join(cwd, CUSTOMIZATION_ROOT))) out.push(join(cwd, '.rsc', 'governance', 'customizations.json'));
   if (policy?.context7 === false) out.push(join(cwd, '.rsc', '.no-context7'));
   if (policy?.memory !== false) out.push(...memoryManagedPaths(target, cwd));
   out.push(...updateManagedPaths(target, cwd));
@@ -137,7 +205,7 @@ export function managedPathsForInstall({ skillIds, agentIds = [], target, home, 
     if (step.kind === 'skill') {
       out.push(step.to, baseDir(step.id, cwd));
     } else if (step.kind === 'hook') {
-      out.push(step.to, ...generatedHookFiles({ target, cwd, policy }));
+      out.push(step.to, alwaysOnPath(cwd), ...generatedHookFiles({ target, cwd, policy }));
     }
   }
   // The shadow CLAUDE.md that keeps a natively-read AGENTS.md from doubling the always-on body.
@@ -291,10 +359,17 @@ export async function applyInstall({ skillIds = [], agentIds = [], target, home,
       const files = await writeSkill(target, step.id, base, step.to);
       state.skills[step.id] = { files, base };
     } else if (step.kind === 'hook') {
-      await wireHook(target, paths, join(ensureBase('suggest', cwd, baseVersions), 'SKILL.md'), policy);
+      // The always-on surface gets its OWN body, free of the governance block: there is no "skill
+      // below" being applied in an ambient operations layer, so the preamble has no referent there,
+      // and in Claude Code this body is re-emitted at every SessionStart and after every compaction.
+      // `ensureBase` is still called for its own sake — it materializes and governs `.rsc/skills/
+      // suggest`, which the per-skill delivery links to — but the hook is pointed elsewhere.
+      ensureBase('suggest', cwd, baseVersions);
+      await wireHook(target, paths, writeAlwaysOn({ cwd, catalogRoot: ROOT }), policy);
     }
   }
   writeBaseVersions(cwd, baseVersions);
+  state.governance = governProject(cwd);
   // Install the catalog's subagents for targets that support file-based agents (Claude
   // Code, Cursor, OpenCode, Gemini, Copilot, Junie, Kiro, Codex): `developer` plus the three
   // adversarial refuter lenses `review` dispatches at tier 2. They run at the balanced tier
