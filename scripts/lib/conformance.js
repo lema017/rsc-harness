@@ -27,8 +27,8 @@ import { join, relative } from 'node:path';
 import { baseDir, targetPaths, TARGET_IDS } from '../../targets/index.js';
 import { readManifest } from './manifest-file.js';
 import {
-  BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION,
-  customizationPathFor, digestOf, governanceOf, renderBlock,
+  BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION, PARENT_PACKAGE,
+  customizationPathFor, digestOf, governanceOf, parentReferences, renderBlock,
 } from './governance.js';
 
 /** Everything criterion 4 asks of one distributed `SKILL.md`, as a list of failures. */
@@ -61,6 +61,15 @@ export function auditBase(id, text) {
   // "Read this before applying the skill below" is false if the block sits at the bottom.
   const marker = BLOCK_BEGIN.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   if (!new RegExp(`\\n---\\n${marker}`).test(text)) bad.push('the block does not open the body');
+  // D16, and the half of criterion 4 that was decidable but not instrumented. A distributed skill
+  // that still names the parent's package hands the reader a runnable `npx <parent> add <id>` whose
+  // installer writes a base with NO contract into a fork-governed project. That is a governance
+  // failure in the delivery, measured in the same place every other one is, with the line number so
+  // the finding is actionable instead of merely true. (The literal specifier lives in exactly one
+  // place, `PARENT_PACKAGE` in governance.js, so `gi03` has one exception to make and not many.)
+  for (const { line, text: at } of parentReferences(text)) {
+    bad.push(`line ${line} names the parent package ${PARENT_PACKAGE}: ${at}`);
+  }
   return bad;
 }
 
@@ -94,6 +103,12 @@ export function auditDelivery(target, id, cwd, home, basePath) {
     // The declared hole, asserted rather than assumed (CONTRACT.md §1).
     for (const key of ['governance:', 'governance-customization:', 'governance-digest:']) {
       if (new RegExp(`^${key}`, 'm').test(text)) bad.push(`the .mdc now carries \`${key}\` — CONTRACT.md §1 says it does not`);
+    }
+    // D16 on the one RE-RENDERED delivery. `auditBase` cannot speak for a file cursor.js rebuilt
+    // from its own frontmatter plus a body it rewrote, which is exactly why the duplicate-marker
+    // class had to be added here too after stage 4's review.
+    for (const { line, text: at } of parentReferences(text)) {
+      bad.push(`the .mdc names the parent package at line ${line}: ${at}`);
     }
     return bad;
   }
@@ -311,13 +326,20 @@ export function auditInstalledProject({ cwd = process.cwd(), home = homedir(), t
         // The always-on body applies no skill, so the preamble has no referent there. A block that
         // reached it is a defect in the other direction: context paid on every turn, for nothing.
         carriesGovernance: surface.text.includes(BLOCK_BEGIN) || surface.text.includes(BLOCK_END),
+        // D16, and the WORST case of it: this is the surface Claude Code re-emits at every
+        // SessionStart and after every compaction, so a parent-named command here is an instruction
+        // the agent is handed again and again. Until now this class was decidable from the bytes the
+        // instrument already had in hand and nothing asked the question — the same shape of gap the
+        // stage-4 review found twice, where a check existed and measured nothing.
+        namesParent: parentReferences(surface.text),
       };
   }
 
   report.deliveriesAudited = deliveries;
   report.conformant = report.ungoverned.length === 0
     && Object.values(report.targets).every((t) => t.failures.length === 0)
-    && Object.values(report.alwaysOn).every((a) => !a.error && !a.carriesGovernance);
+    && Object.values(report.alwaysOn).every((a) => !a.error && !a.carriesGovernance
+      && !(a.namesParent || []).length);
   return report;
 }
 
@@ -330,8 +352,13 @@ export function formatConformance(report) {
     for (const { id, reasons } of t.failures) out.push(`DELIVERY ${target} ${id}: ${reasons.join('; ')}`);
   }
   for (const [target, a] of Object.entries(report.alwaysOn)) {
-    if (a.error) out.push(`ALWAYS-ON ${target}: ${a.error}`);
-    else if (a.carriesGovernance) out.push(`ALWAYS-ON ${target}: the governance block reached ${a.from} — it must not`);
+    if (a.error) { out.push(`ALWAYS-ON ${target}: ${a.error}`); continue; }
+    if (a.carriesGovernance) out.push(`ALWAYS-ON ${target}: the governance block reached ${a.from} — it must not`);
+    // File and line, because this finding is a line of text a consumer has to be able to go and
+    // look at — and because a verdict with no location is the kind of report nobody can act on.
+    for (const { line, text } of a.namesParent || []) {
+      out.push(`ALWAYS-ON ${target}: ${a.from}:${line} names the parent package — ${text}`);
+    }
   }
   out.push('');
   out.push(`${report.governed}/${report.installed} installed skills carry the governance contract (${report.governanceVersion}).`);
@@ -339,7 +366,13 @@ export function formatConformance(report) {
     const kinds = Object.entries(t.kinds || {}).map(([k, n]) => `${n} ${k}`).join(', ');
     out.push(`  ${target}: ${t.delivered}/${t.of} delivered conformant`
       + `${kinds ? ` (${kinds})` : ''}`
-      + `, always-on ${report.alwaysOn[target]?.error ? 'ERROR' : report.alwaysOn[target]?.carriesGovernance ? 'CARRIES GOVERNANCE' : 'clean'}`);
+      + `, always-on ${(() => {
+        const a = report.alwaysOn[target];
+        if (a?.error) return 'ERROR';
+        if (a?.carriesGovernance) return 'CARRIES GOVERNANCE';
+        if (a?.namesParent?.length) return `NAMES THE PARENT (${a.namesParent.length}×)`;
+        return 'clean';
+      })()}`);
   }
   if (report.targetsDeclaredButNotInstalled.length) {
     out.push(`  declared in .rsc.json but not installed on this machine: ${report.targetsDeclaredButNotInstalled.join(', ')}`);

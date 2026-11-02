@@ -29,6 +29,48 @@ token.
 
 Node 18 or newer. No API key, no external service, nothing leaves the machine.
 
+### The environment the run must have
+
+`REQUIREMENTS.md` §1 is a constraint on every process this project starts, and it is literal:
+
+> No realices instalaciones globales. Ejecuta los procesos con `HOME` y las variables de
+> configuración apuntando a un directorio temporal dentro de la carpeta dedicada, para no tocar la
+> configuración real de los asistentes del usuario, como `~/.claude`. No uses ni expongas a esos
+> procesos credenciales, tokens o sesiones del usuario.
+
+So **source the project's instrument before running anything**, from the repository root:
+
+```sh
+. ./.fork-tmp/env.sh
+```
+
+It redirects, all inside the dedicated folder:
+
+| Variable | Why it matters here |
+|---|---|
+| `HOME` | the installer writes a target's configuration under `$HOME`; the real `~/.claude` must be unreachable |
+| `TMPDIR` | anything that asks the OS for a temporary directory lands inside the folder instead of `/tmp` |
+| `XDG_CONFIG_HOME`, `XDG_DATA_HOME` | the same, for tools that ignore `HOME` |
+| `npm_config_cache` | no global installs, no writes to the user's npm cache |
+| `GIT_CEILING_DIRECTORIES` | without it five tests fail with plausible, false messages — the gate reports a run without it as `instrumentUnsound` rather than as a pass |
+
+Two things are worth knowing about how far that goes.
+
+**The gate does not depend on you remembering.** The disposable project and the disposable `HOME`
+the gate installs into are rooted at `.rsc-upstream/tmp/` **inside the repository under audit**, not
+at `os.tmpdir()`. `os.tmpdir()` honours `TMPDIR` only when somebody exported it, and without it the
+value is a literal `/tmp` — outside the dedicated folder, which is the very reason
+`tests/eval-lint.test.js` is never run (see G8). An invariant that depends on an environment
+variable being remembered is not an invariant, so the root is derived from the tree instead.
+`.rsc-upstream/` is git-ignored, and so are the worktrees `--worktree` creates there.
+
+**Redirecting `HOME` does not disable git's credential helper.** On macOS the helper is configured
+in the *system* gitconfig, outside the reach of anything `env.sh` sets. Every git invocation here
+therefore clears it on the command line (`-c credential.helper=`, `-c
+credential.interactive=false`, `-c core.askPass=`) and the askpass hooks are deleted from the
+environment. The parent repository is public and none of this is needed to read it — which is not
+the same as it not having been offered.
+
 ---
 
 ## The monthly run
@@ -127,6 +169,30 @@ npm run upstream:maintain -- --resume --ack 'G11=N=3 over connect-tool, all case
 
 Decidable is not instrumented. Where this fork cannot run something, it says so instead of passing it.
 
+### An acknowledgement is recorded, and checked
+
+Three checks can only be cleared by a recorded human result: G6, G10 and G11. `--ack` is how you
+supply one. It is **not a password**: `--ack G6="anything at all"` used to clear G6, which turned the
+one check a clean merge and a green test suite both miss into a check a single word defeats — and
+produced a `PASS` line in a committed report with nothing behind it.
+
+Each one now declares a shape that is checked against this repository:
+
+| Check | Shape | Example |
+|---|---|---|
+| G6 | the **path of the file** that now records the obligation, and the path must exist | `--ack 'G6=README.md third-party table, docs/fork/PLAN.md §2'` |
+| G10 | a **commit this repository can resolve** | `--ack 'G10=added in 1a2b3c4'` |
+| G11 | the **repetition count** `N=<n>` and the **skills** it evaluated | `--ack 'G11=N=3 over connect-tool, all cases above threshold'` |
+
+A rejected acknowledgement is reported as **rejected**, naming the shape it wanted — not as an
+acknowledgement nobody gave, because the difference matters to whoever typed it. None of this
+decides the question; it decides only that an answer was given in a form that can be followed back
+to something real.
+
+The flag is the *input*. What it does is **record a decision in the run journal**, on a fresh run as
+well as on a resume, and the gate then reads its acknowledgements out of `state.decisions`. So the
+report always shows which decision cleared which check, and the next pass finds it.
+
 ### When the gate blocks
 
 Each failing check names its own fix. The ones you will actually meet:
@@ -147,9 +213,23 @@ fork's edits (the probe says which, and what the edit was *for*), or a file this
 has no intent probe yet. Re-apply the edit, or add the probe to `DIVERGENCE_PROBES` in
 `scripts/lib/upstream-survey.js`.
 
+The surface it judges is measured against the **working tree** (`git diff <base>`, not
+`<base>..HEAD`), and the gate takes its **own** measurement rather than reusing the one `classify`
+took before the merge. Both matter for the same case: you resolve a conflict by hand, you have not
+committed it, and `classify` does not re-run on a resume — so a reused range measurement would be
+guaranteed to describe the wrong tree. And a surface git **could not** measure is reported as a
+failure, never as zero divergences: `[]` from a failed measurement and `[]` from a fork with no
+divergences are the same value, and only one of them is a pass.
+
 **G8 — a new test failure.** Preexisting upstream failures are declared with their provenance and do
 not block; anything else does. `tests/eval-lint.test.js` is never run, because it writes outside the
 project, and the run reports that rather than counting it as a pass.
+
+A run that measured **nothing** is also a failure. The subset always contains this fork's governance
+suite, which is derived from `tests/` rather than listed, so an empty subset means the enumeration
+broke — not that nothing was impacted. An unreadable `tests/` directory, or a subset with no files
+in it, is reported as `the impacted test subset could not be enumerated`. A skip never counts as a
+pass without declaring why.
 
 **G10 — a deleted skill.** When upstream deletes a skill, the delivered link is pruned but the
 **shared base under `.rsc/skills/<id>/` is not** — the installer prunes a base only for an id listed
@@ -209,6 +289,20 @@ An interrupted phase is **re-run**, never assumed finished. Every phase is writt
 repeat: `prepare` reuses its own branch, `integrate` notices it already merged, `govern` installs
 into a fresh disposable project.
 
+**Your repository goes back where it was.** Without `--worktree`, `integrate` checks out the
+maintenance branch in this clone, and blocking is the *normal* outcome — G6, G10 and G11 each need a
+human. So any exit that is not a finished run restores the ref `prepare` recorded, and the report
+says whether it managed to; a `--resume` that needs the integrated tree re-enters the branch by
+itself. If git refuses to move (an unresolved conflict in the index, usually) the report names the
+command instead of claiming a tree state it did not reach. A `--worktree` run never moves this
+clone's `HEAD`, so there is nothing to restore.
+
+Every path in the journal and the report is **relative to the repository**, and `repo` holds the
+repository directory's name rather than its absolute path. This directory is committed to a
+repository meant to be published; `/Users/<name>/…` has no business in it, and neither does the
+value of `GIT_CEILING_DIRECTORIES`, which the evidence records as a boolean because that is the only
+way the gate ever uses it.
+
 The journal lives under `docs/fork/` because it is version-controlled: the record of what was
 incorporated belongs beside the merge that incorporated it.
 
@@ -244,6 +338,14 @@ Everything else becomes a **named manual action** in the report. In particular t
 `RETIRED_SKILLS` entry, never resolves a rename, and never edits a skill: those are decisions, and
 surfacing a decision is not the same as taking one.
 
+What it regenerates it also **commits**, on the integration branch, and then **re-opens the gate**.
+Both of those matter together: the generators write, and a verdict computed before they wrote does
+not describe the tree they produced. Leaving the regeneration uncommitted meant `--promote` merged a
+branch that did not contain it, with the authority of that earlier verdict. So `remediate` commits
+exactly the two bounded paths (`manifest.json`, `schema/governance/`), sets `validate` back to
+pending, and the gate runs again over what is now on disk. A run with nothing to regenerate commits
+nothing and leaves the verdict alone.
+
 Nothing in this flow ever writes inside `skills/`. That directory is a byte-identical mirror of
 upstream, and the governance transformation happens at install time instead. The run measures the
 invariant before and after the transformation and fails if it moved.
@@ -257,7 +359,7 @@ invariant before and after the transformation and fails if it moved.
 | `--check` | survey and classify only; no branch, no merge |
 | `--authorize <scope>` | `survey` \| `integrate` \| `validate` \| `publish` |
 | `--resume [runId]` | continue a run; with no id, the most recent one |
-| `--ack <CHECK>=<text>` | record the result a check needs (`G6`, `G10`, `G11`) |
+| `--ack <CHECK>=<text>` | record the result a check needs (`G6`, `G10`, `G11`) — **checked**, see below |
 | `--promote <branch>` | merge the integration branch into `<branch>`; needs `publish` and a pass |
 | `--worktree [dir]` | integrate in an isolated worktree instead of switching branches |
 | `--remote <name>` | default `upstream` |

@@ -49,12 +49,12 @@ import {
   hasRemote, isAncestor, lastIncorporated, probeRemote, revParse,
 } from './lib/upstream-survey.js';
 import {
-  DEFAULT_STATE_ROOT, PHASES, beginPhase, blockPhase, completePhase, evidenceDir, failPhase,
-  latestRunId, loadRun, newRun, nextPhase, recordDecision, recordEvidence, reportPath, resumeRun,
-  runDir, saveRun, scopeAllows, skipRest, summarize,
+  DEFAULT_STATE_ROOT, PHASES, acknowledgementsFrom, beginPhase, blockPhase, completePhase,
+  evidenceDir, failPhase, latestRunId, loadRun, newRun, nextPhase, recordDecision, recordEvidence,
+  repoRelative, reportPath, resumeRun, runDir, saveRun, scopeAllows, skipRest, summarize,
 } from './lib/upstream-state.js';
 import {
-  formatGate, gateVerdict, impactedTests, promotable, runGate, scopedConformance,
+  formatGate, gateVerdict, impactedTests, promotable, runGate, scopedConformance, validateAck,
 } from './lib/upstream-gate.js';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -82,6 +82,96 @@ function acknowledgementsFromArgv() {
 }
 
 const short = (sha) => (sha ? String(sha).slice(0, 8) : '—');
+
+/** The ref the fork's repository is on right now: a branch name, or the commit when detached. */
+function currentRef(repo) {
+  const branch = git(['symbolic-ref', '--quiet', '--short', 'HEAD'], { cwd: repo });
+  if (branch.ok && branch.stdout) return branch.stdout;
+  const sha = git(['rev-parse', 'HEAD'], { cwd: repo });
+  return sha.ok && sha.stdout ? sha.stdout : null;
+}
+
+/**
+ * The tree the phases after `integrate` operate on, as an absolute path.
+ *
+ * The journal stores it RELATIVE to the repository (see `repoRelative`), because the journal is
+ * committed; it is resolved back here. `.` is the repository itself, which is the in-place case.
+ */
+function treeOf(ctx) {
+  const rel = ctx.state.phases.integrate.data?.tree;
+  return rel ? resolve(ctx.repo, rel) : ctx.repo;
+}
+
+/**
+ * Put the fork's repository back on the branch the maintenance branch was cut from.
+ *
+ * Without `--worktree`, `phaseIntegrate` runs `git checkout <branch>` in the fork's own clone and
+ * no path used to put it back, so a run that blocked at `validate` — the normal outcome, since G6,
+ * G10 and G11 all need a human — left the operator's repository sitting on a maintenance branch
+ * with a merge on it. A worktree run never moves the repository's HEAD, so there is nothing to
+ * restore there.
+ *
+ * A failure to restore is REPORTED, not swallowed: the usual cause is an unresolved conflict in the
+ * index, and in that case the operator needs to be on the maintenance branch anyway.
+ */
+function restoreStartRef(ctx) {
+  const { state, repo } = ctx;
+  const prep = state.phases.prepare?.data;
+  if (!prep?.branch || prep.worktree) return null;
+  const start = state.startRef;
+  if (!start) return null;
+  const current = currentRef(repo);
+  if (current === start) return { ok: true, ref: start, movedBack: false, note: 'already on the starting ref' };
+  const co = git(['checkout', start], { cwd: repo });
+  return {
+    ok: co.ok,
+    ref: start,
+    from: current,
+    movedBack: co.ok,
+    error: co.ok ? null : co.stderr,
+    hint: co.ok ? null : `the repository is still on \`${current}\`; restore it with \`git checkout ${start}\``,
+  };
+}
+
+/**
+ * The other half of `restoreStartRef`: a resumed run whose next phase reads the INTEGRATED tree has
+ * to be on the integration branch again, because the previous pass put the repository back.
+ */
+function reenterIntegrationBranch(ctx) {
+  const { state, repo } = ctx;
+  const prep = state.phases.prepare?.data;
+  if (!prep?.branch || prep.worktree) return null;
+  const next = nextPhase(state);
+  if (!next || PHASES.indexOf(next) <= PHASES.indexOf('integrate')) return null;
+  const current = currentRef(repo);
+  if (current === prep.branch) return null;
+  const co = git(['checkout', prep.branch], { cwd: repo });
+  return {
+    ok: co.ok, from: current, to: prep.branch, error: co.ok ? null : co.stderr,
+  };
+}
+
+/**
+ * Every absolute path out of a phase, rewritten relative to the repository.
+ *
+ * The structural fields are relativized where they are produced; this catches the prose — a summary
+ * that names a worktree, a `why` from a directory comparison, a stack trace. The journal and the
+ * report are committed to a repository meant to be published, so `/Users/<name>/...` has no
+ * business in either, and relying on remembering to relativize each new string is how it got there.
+ */
+function scrubPaths(value, repo) {
+  const real = resolve(repo);
+  const rewrite = (s) => s.split(real).join('.');
+  const walk = (v) => {
+    if (typeof v === 'string') return rewrite(v);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, walk(val)]));
+    }
+    return v;
+  };
+  return walk(value);
+}
 
 // ------------------------------------------------------------------ phases
 
@@ -192,6 +282,20 @@ function phaseClassify(ctx) {
   const upstreamChanged = git(['diff', '--name-only', '--no-renames', `${base}..${head}`], { cwd: repo })
     .stdout.split('\n').filter(Boolean);
   const surface = divergenceSurface({ cwd: repo, base });
+  // AN UNMEASURED SURFACE FAILS THE PHASE. `divergenceSurface` returns `{ ok: false, modified: [] }`
+  // when git cannot answer, and `[]` is a value the rest of this phase cannot distinguish from "the
+  // fork has no divergences": `collisions` would then report severity `none` and the report would
+  // print "upstream did not touch the fork's divergence surface" — a reassurance computed from a
+  // failure. Nothing downstream gets the chance.
+  if (surface.ok !== true) {
+    return {
+      status: 'failed',
+      summary: `the fork's divergence surface could not be measured against ${short(base)}: `
+        + `${surface.error || 'unknown git failure'}. Everything after this phase reads that surface, `
+        + 'and a surface that measured nothing is not a surface measuring zero',
+      data: { surface, upstreamChanged, classification },
+    };
+  }
   const hits = collisions({ surface, upstreamChanged });
   const attribution = attributionDelta({ cwd: repo, base, head });
   const tests = impactedTests({ cwd: repo, upstreamChanged, classification });
@@ -239,29 +343,57 @@ function phasePrepare(ctx) {
   const branch = `fork/upstream-${short(head)}`;
   const existing = state.phases.prepare.data;
 
+  // THE STARTING REF IS RECORDED HERE, before anything moves, and restored on any exit that is not
+  // a finished run. Recorded on the state rather than in this phase's data so a resume that re-runs
+  // `prepare` cannot lose it.
+  if (!state.startRef) state.startRef = existing?.startRef || currentRef(repo);
+  const startRef = state.startRef;
+
   // Idempotent: a resumed run finds its own branch and reuses it rather than failing on it.
   if (existing?.branch === branch && revParse(repo, branch)) {
-    return { status: 'done', summary: `reusing \`${branch}\` from the interrupted run`, data: existing };
+    return {
+      status: 'done',
+      summary: `reusing \`${branch}\` from the interrupted run`,
+      data: { ...existing, startRef },
+    };
   }
   if (revParse(repo, branch)) {
-    return { status: 'done', summary: `branch \`${branch}\` already exists; reusing it`, data: { branch, worktree: existing?.worktree || null, reused: true } };
+    return {
+      status: 'done',
+      summary: `branch \`${branch}\` already exists; reusing it`,
+      data: {
+        branch, worktree: existing?.worktree || null, reused: true, startRef,
+      },
+    };
   }
 
   if (ctx.worktree) {
     const dir = ctx.worktree === true ? join(repo, '.rsc-upstream', `worktree-${state.runId}`) : resolve(ctx.worktree);
     const res = git(['worktree', 'add', '-b', branch, dir, 'HEAD'], { cwd: repo });
-    if (!res.ok) return { status: 'failed', summary: `cannot create the worktree: ${res.stderr}`, data: { branch, dir } };
+    if (!res.ok) {
+      return {
+        status: 'failed',
+        summary: `cannot create the worktree: ${res.stderr}`,
+        data: { branch, dir: repoRelative(repo, dir), startRef },
+      };
+    }
+    const rel = repoRelative(repo, dir);
     return {
       status: 'done',
-      summary: `worktree at ${dir} on \`${branch}\``,
+      summary: `worktree at ${rel} on \`${branch}\``,
       data: {
-        branch, worktree: dir, cleanup: `git worktree remove ${dir}`,
+        // Stored relative to the repository (the journal is committed) and resolved by `treeOf`.
+        branch, worktree: rel, cleanup: `git worktree remove ${rel}`, startRef,
       },
     };
   }
   const res = git(['branch', branch, 'HEAD'], { cwd: repo });
-  if (!res.ok) return { status: 'failed', summary: `cannot create \`${branch}\`: ${res.stderr}`, data: { branch } };
-  return { status: 'done', summary: `branch \`${branch}\` created from HEAD`, data: { branch, worktree: null } };
+  if (!res.ok) return { status: 'failed', summary: `cannot create \`${branch}\`: ${res.stderr}`, data: { branch, startRef } };
+  return {
+    status: 'done',
+    summary: `branch \`${branch}\` created from \`${startRef}\``,
+    data: { branch, worktree: null, startRef },
+  };
 }
 
 /**
@@ -271,12 +403,13 @@ function phasePrepare(ctx) {
 function phaseIntegrate(ctx) {
   const { state, repo } = ctx;
   const prep = state.phases.prepare.data;
-  const tree = prep.worktree || repo;
+  const tree = prep.worktree ? resolve(repo, prep.worktree) : repo;
+  const treeRel = repoRelative(repo, tree);
   const upstreamRef = state.phases.survey.data.upstreamRef;
 
   if (!prep.worktree) {
     const co = git(['checkout', prep.branch], { cwd: repo });
-    if (!co.ok) return { status: 'failed', summary: `cannot check out \`${prep.branch}\`: ${co.stderr}`, data: { tree } };
+    if (!co.ok) return { status: 'failed', summary: `cannot check out \`${prep.branch}\`: ${co.stderr}`, data: { tree: treeRel } };
   }
 
   // Already merged? A resumed run must not merge twice.
@@ -284,7 +417,9 @@ function phaseIntegrate(ctx) {
     return {
       status: 'done',
       summary: `\`${upstreamRef}\` is already merged into \`${prep.branch}\``,
-      data: { tree, branch: prep.branch, textualConflicts: 0, alreadyMerged: true, counts: false },
+      data: {
+        tree: treeRel, branch: prep.branch, textualConflicts: 0, alreadyMerged: true, counts: false,
+      },
     };
   }
 
@@ -298,21 +433,21 @@ function phaseIntegrate(ctx) {
     return {
       status: 'blocked',
       summary: `${conflicts.length} textual conflict(s): ${conflicts.slice(0, 8).join(', ')}. Resolve `
-        + `them in ${tree} and resume; the merge is left in place`,
+        + `them in ${treeRel} and resume; the merge is left in place`,
       data: {
-        tree, branch: prep.branch, textualConflicts: conflicts.length, conflicts, counts: false,
+        tree: treeRel, branch: prep.branch, textualConflicts: conflicts.length, conflicts, counts: false,
       },
     };
   }
   if (!merge.ok) {
-    return { status: 'failed', summary: `merge failed: ${merge.stderr}`, data: { tree, branch: prep.branch } };
+    return { status: 'failed', summary: `merge failed: ${merge.stderr}`, data: { tree: treeRel, branch: prep.branch } };
   }
   return {
     status: 'done',
     summary: 'merged with 0 textual conflicts — which proves nothing about functional compatibility '
       + '(PLAN §8); the gate decides',
     data: {
-      tree,
+      tree: treeRel,
       branch: prep.branch,
       textualConflicts: 0,
       counts: false,
@@ -330,8 +465,8 @@ function phaseIntegrate(ctx) {
  * landed — and asserts, by measurement, that `skills/` was not written to.
  */
 async function phaseGovern(ctx) {
-  const { state } = ctx;
-  const tree = state.phases.integrate.data.tree;
+  const { state, repo } = ctx;
+  const tree = treeOf(ctx);
   const cls = state.phases.classify.data.classification;
   const ids = [...new Set([...cls.added, ...cls.modified])];
 
@@ -362,7 +497,9 @@ async function phaseGovern(ctx) {
       scope: ids,
       failures: result.failures,
       drifted: result.drifted,
-      project: result.project,
+      // The disposable project lives under `.rsc-upstream/tmp/` inside the tree under audit (never
+      // `/tmp`, never the user's `$HOME`), and is recorded relative to the repository.
+      project: repoRelative(repo, result.project),
       catalogUntouched: !wroteCatalog,
     },
   };
@@ -370,15 +507,31 @@ async function phaseGovern(ctx) {
 
 /** §9.7. The gate. */
 async function phaseValidate(ctx) {
-  const { state } = ctx;
-  const tree = state.phases.integrate.data.tree;
+  const { state, repo } = ctx;
+  const tree = treeOf(ctx);
   const classify = state.phases.classify.data;
+
+  // THE SURFACE IS RE-MEASURED HERE, against the integrated tree, and not reused from `classify`.
+  // Two reasons, both of which bite exactly where it matters. `classify` ran before the merge, so
+  // its surface describes the tree the merge was applied TO. And `classify` is not re-run on a
+  // resume, so the one case where the surface has certainly changed — a human resolving a conflict
+  // in `integrate` and resuming — is the case where reusing it is guaranteed to be wrong. Measured
+  // against the working tree, so an uncommitted resolution counts.
+  const surface = divergenceSurface({ cwd: tree, base: state.phases.survey.data.base });
+  if (surface.ok !== true) {
+    return {
+      status: 'failed',
+      summary: `the divergence surface could not be re-measured in ${repoRelative(repo, tree)}: `
+        + `${surface.error || 'unknown git failure'}. The gate is not run against a surface it could not measure`,
+      data: { surface },
+    };
+  }
 
   const gateCtx = {
     cwd: tree,
     upstreamRef: state.phases.survey.data.upstreamRef,
     classification: classify.classification,
-    surface: classify.surface,
+    surface,
     attribution: classify.attribution,
     upstreamChanged: classify.upstreamChanged,
     impactedTests: classify.impactedTests,
@@ -404,7 +557,8 @@ async function phaseValidate(ctx) {
       label: 'impacted test subset',
       command: `node --test --test-concurrency=1 --test-timeout=1800000 ${(g8.measured.files || []).join(' ')}`,
       exit: g8.ok ? 0 : 1,
-      stdoutPath: file,
+      // Relative, like everything else in the journal: this record is committed.
+      stdoutPath: repoRelative(repo, file),
       measured: g8.measured.tap || null,
     });
   }
@@ -413,18 +567,24 @@ async function phaseValidate(ctx) {
     status: verdict.verdict === 'pass' ? 'done' : 'blocked',
     summary: `${verdict.verdict}: ${verdict.requiredChecks - verdict.failed.length}/${verdict.requiredChecks} `
       + `required checks pass${verdict.failed.length ? `; failing ${verdict.failed.join(', ')}` : ''}`,
-    data: { results, verdict },
+    data: { results, verdict, surface },
   };
 }
 
 /** §11. The semantic half, which no script here can run. */
 function phaseEvaluate(ctx) {
-  const { state } = ctx;
+  const { state, repo } = ctx;
   const cls = state.phases.classify.data.classification;
   const ids = [...new Set([...cls.added, ...cls.modified])];
   if (!ids.length) return { status: 'done', summary: 'nothing to evaluate', data: { scope: [] } };
 
-  const ack = ctx.acknowledgements?.G11 || null;
+  // Validated with the SAME rule G11 applies, so the phase and the check cannot disagree about
+  // whether a result was recorded. A rejected acknowledgement leaves the decision open.
+  const supplied = ctx.acknowledgements?.G11 || null;
+  const verdictOnAck = supplied
+    ? validateAck('G11', supplied, { cwd: treeOf(ctx), classification: cls })
+    : { ok: false, error: 'is absent' };
+  const ack = verdictOnAck.ok ? supplied : null;
   const worklist = {
     scope: ids,
     repetitions: 3,
@@ -435,22 +595,27 @@ function phaseEvaluate(ctx) {
   mkdirSync(dir, { recursive: true });
   const file = join(dir, 'semantic-evaluation-worklist.json');
   writeFileSync(file, `${JSON.stringify(worklist, null, 2)}\n`);
+  const rel = repoRelative(repo, file);
 
   if (!ack) {
     recordDecision(state, {
       id: 'G11',
       kind: 'evaluation',
       question: `${ids.length} added or modified skill(s) need a semantic evaluation at N=3 before `
-        + `promotion: ${ids.join(', ')}. Record the result with --ack G11=<summary>`,
+        + `promotion: ${ids.join(', ')}. Record the result with --ack G11=<summary>`
+        + (supplied ? ` — the result supplied ${verdictOnAck.error}` : ''),
     });
     return {
       status: 'blocked',
-      summary: `${ids.length} skill(s) await a semantic evaluation; worklist written to ${file}`,
-      data: { ...worklist, worklist: file, instrumented: false },
+      summary: `${ids.length} skill(s) await a semantic evaluation; worklist written to ${rel}`
+        + (supplied ? `; the recorded result was REJECTED: it ${verdictOnAck.error}` : ''),
+      data: {
+        ...worklist, worklist: rel, instrumented: false, ackRejected: supplied ? verdictOnAck.error : null,
+      },
     };
   }
   recordDecision(state, { id: 'G11', kind: 'evaluation', question: 'semantic evaluation of the touched skills', answer: ack });
-  return { status: 'done', summary: `semantic evaluation recorded: ${ack}`, data: { ...worklist, worklist: file, recorded: ack } };
+  return { status: 'done', summary: `semantic evaluation recorded: ${ack}`, data: { ...worklist, worklist: rel, recorded: ack } };
 }
 
 /**
@@ -467,7 +632,7 @@ function phaseEvaluate(ctx) {
  */
 function phaseRemediate(ctx) {
   const { state } = ctx;
-  const tree = state.phases.integrate.data.tree;
+  const tree = treeOf(ctx);
   const applied = [];
   const manual = [];
 
@@ -476,12 +641,14 @@ function phaseRemediate(ctx) {
       id: 'manifest',
       check: ['node', ['scripts/build-manifest.js', '--check']],
       fix: ['node', ['scripts/build-manifest.js']],
+      paths: ['manifest.json'],
       why: 'manifest.json is generated from the catalog',
     },
     {
       id: 'governance-artifacts',
       check: ['node', ['scripts/governance-sync.js', '--check']],
       fix: ['node', ['scripts/governance-sync.js']],
+      paths: ['schema/governance'],
       why: 'the shipped preamble and contract are copies of the authoritative documents',
     },
   ];
@@ -492,9 +659,56 @@ function phaseRemediate(ctx) {
     const res = runNode(tree, f.fix[1]);
     const after = git(['status', '--porcelain'], { cwd: tree }).stdout;
     applied.push({
-      id: f.id, why: f.why, ok: res.ok, changed: before !== after, output: res.stdout.slice(-400),
+      id: f.id,
+      why: f.why,
+      ok: res.ok,
+      changed: before !== after,
+      paths: f.paths,
+      output: res.stdout.slice(-400),
     });
     if (!res.ok) manual.push(`\`node ${f.fix[1].join(' ')}\` failed: ${res.stderr.slice(-200)}`);
+  }
+
+  // THE FIXES ARE COMMITTED, AND THE GATE IS RE-OPENED.
+  //
+  // Both of these scripts WRITE. Nothing used to commit what they wrote, and `publish` then ran
+  // `git checkout <target>` and `git merge --no-ff <branch>` — promoting a branch that does not
+  // contain the remediation, with the authority of a verdict computed before it was written. The
+  // regenerated files were left as an uncommitted diff in the operator's tree, which a checkout
+  // would carry across or refuse.
+  //
+  // Committing them is in scope: these are the two files PLAN §9.8's "límites acordados" names, and
+  // both are regenerations of files this repository already treats as generated, so neither can
+  // invent a decision. Anything outside the bound stays a named manual action and is never
+  // committed here.
+  const changed = applied.filter((a) => a.ok && a.changed);
+  let committed = null;
+  if (changed.length) {
+    const paths = [...new Set(changed.flatMap((a) => a.paths))];
+    const add = git(['add', '--', ...paths], { cwd: tree });
+    const commit = add.ok
+      ? git(['-c', 'user.name=rsc-governed maintenance', '-c', 'user.email=maintenance@localhost',
+        'commit', '-m', `Maintenance: regenerate ${changed.map((a) => a.id).join(', ')}`,
+        '--', ...paths], { cwd: tree })
+      : { ok: false, stderr: add.stderr };
+    committed = {
+      ok: commit.ok,
+      paths,
+      commit: commit.ok ? revParse(tree, 'HEAD') : null,
+      error: commit.ok ? null : commit.stderr,
+    };
+    if (!commit.ok) manual.push(`the bounded fixes could not be committed (${commit.stderr.slice(-200)}); commit \`${paths.join(' ')}\` by hand before promoting`);
+  }
+
+  // A verdict computed before the remediation does not describe the tree the remediation produced,
+  // so `validate` goes back to `pending` and the gate runs again over what is now on disk. It can
+  // only happen once: `remediate` is `done` by the time the loop comes back round.
+  let revalidate = null;
+  if (changed.length && state.phases.validate.status === 'done') {
+    state.phases.validate.status = 'pending';
+    state.phases.validate.endedAt = null;
+    revalidate = 'the bounded fixes changed the tree, so `validate` was re-opened: the gate re-runs '
+      + 'over the remediated tree rather than standing on a verdict that predates it';
   }
 
   // The named manual actions, derived from the gate rather than guessed.
@@ -509,8 +723,12 @@ function phaseRemediate(ctx) {
 
   return {
     status: 'done',
-    summary: `${applied.length} bounded fix(es) applied, ${manual.length} manual action(s) named`,
-    data: { applied, manual, bounds: fixes.map((f) => f.id) },
+    summary: `${applied.length} bounded fix(es) applied, ${manual.length} manual action(s) named`
+      + (committed ? `; committed ${short(committed.commit)}` : '')
+      + (revalidate ? '; `validate` re-opened' : ''),
+    data: {
+      applied, manual, committed, revalidate, bounds: fixes.map((f) => f.id),
+    },
   };
 }
 
@@ -523,11 +741,12 @@ function runNode(cwd, args) {
 
 /** §9.9. The evidence, as a file beside the journal. */
 function phaseEvidence(ctx) {
-  const { state } = ctx;
+  const { state, repo } = ctx;
   const file = reportPath(ctx.stateRoot, state.runId);
   mkdirSync(runDir(ctx.stateRoot, state.runId), { recursive: true });
   writeFileSync(file, renderReport(state, ctx));
-  return { status: 'done', summary: `report written to ${file}`, data: { report: file } };
+  const rel = repoRelative(repo, file);
+  return { status: 'done', summary: `report written to ${rel}`, data: { report: rel } };
 }
 
 /**
@@ -580,7 +799,13 @@ function phasePublish(ctx) {
   };
 }
 
-const RUNNERS = {
+/**
+ * The phases, callable. Exported so each one can be exercised against a fixture repository: the
+ * properties that matter most here — `remediate` committing what it regenerated, `validate`
+ * re-measuring the surface, the repository being put back where it was — are properties of single
+ * phases, and a test that can only drive the whole sequence cannot pin any of them.
+ */
+export const PHASE_RUNNERS = {
   survey: phaseSurvey,
   classify: phaseClassify,
   prepare: phasePrepare,
@@ -626,9 +851,21 @@ export function renderReport(state, ctx = {}) {
   }
   if (c.collisions) {
     L.push('## Where it lands on the fork', '');
-    L.push(`- divergence surface (measured): ${c.surface.modified.length} upstream-owned file(s) this fork has modified`);
+    // The surface is printed with WHAT IT WAS MEASURED AGAINST. The previous version of this line
+    // could print "0 upstream-owned file(s)" and the note "upstream did not touch the fork's
+    // divergence surface" from a measurement that had failed, because `classify` did not read
+    // `surface.ok`. It now cannot get here unmeasured — `classify` fails first — and the report
+    // says which tree the number came from rather than leaving it to be assumed.
+    L.push(`- divergence surface (measured against the ${c.surface.measuredAgainst || 'tree'}): `
+      + `${c.surface.modified.length} upstream-owned file(s) this fork has modified`);
     L.push(`- collisions: **${c.collisions.severity}** — ${c.collisions.onDivergence.join(', ') || 'none'}`);
     L.push(`- ${c.collisions.note}`, '');
+    const revalidated = state.phases.validate.data?.surface;
+    if (revalidated && revalidated.modified.length !== c.surface.modified.length) {
+      L.push(`> The gate re-measured the surface on the integrated tree and found `
+        + `**${revalidated.modified.length}** modified file(s), not ${c.surface.modified.length}. `
+        + 'The gate\'s number is the one the verdict used.', '');
+    }
   }
   if (c.attribution && (c.attribution.added.length || c.attribution.changed.length || c.attribution.removed.length)) {
     L.push('## Attribution obligations', '');
@@ -648,10 +885,16 @@ export function renderReport(state, ctx = {}) {
   }
 
   const v = state.phases.validate.data;
-  if (v) {
+  if (v?.verdict) {
     L.push('## Gate', '', `**${v.verdict.verdict.toUpperCase()}** — `
       + `${v.verdict.requiredChecks - v.verdict.failed.length}/${v.verdict.requiredChecks} required checks pass`, '');
     L.push('```', ...formatGate(v.results), '```', '');
+  } else if (v) {
+    // `validate` can now fail BEFORE it computes a verdict — it refuses to run the gate against a
+    // divergence surface it could not measure. There is no verdict to print in that case, and
+    // printing a verdict shaped like one would be the whole mistake this correction is about.
+    L.push('## Gate', '', '**NOT RUN** — the phase stopped before any check ran:',
+      '', `> ${state.phases.validate.summary || 'no reason recorded'}`, '');
   }
   const rem = state.phases.remediate.data;
   if (rem?.manual?.length) {
@@ -668,7 +911,15 @@ export function renderReport(state, ctx = {}) {
   for (const row of summarize(state)) L.push(`| ${row.phase} | ${row.status} | ${(row.summary || '').replace(/\|/g, '\\|')} |`);
   L.push('');
   L.push(`Publication: **${state.publication.status}**${state.publication.detail ? ` — ${state.publication.detail}` : ''}`, '');
-  if (ctx.stateRoot) L.push(`Journal: \`${join(runDir(ctx.stateRoot, state.runId), 'state.json')}\` — resume with \`--resume ${state.runId}\``, '');
+  if (state.treeRestored) {
+    L.push(`Working tree: ${state.treeRestored.ok
+      ? `restored to \`${state.treeRestored.ref}\``
+      : `**NOT restored** — ${state.treeRestored.hint || state.treeRestored.error}`}`, '');
+  }
+  if (ctx.stateRoot) {
+    const journal = repoRelative(ctx.repo || '', join(runDir(ctx.stateRoot, state.runId), 'state.json'));
+    L.push(`Journal: \`${journal}\` — resume with \`--resume ${state.runId}\``, '');
+  }
   return `${L.join('\n')}\n`;
 }
 
@@ -711,19 +962,52 @@ export async function maintain(options = {}) {
     if (loaded.error) return { ok: false, error: loaded.error };
     state = loaded.state;
     resumed = resumeRun(state, { authorization: options.authorize || arg('authorize') || null });
-    // An acknowledgement given on a resume answers the decision that blocked the previous pass.
-    for (const [id2, answer] of Object.entries(ctx.acknowledgements)) {
-      recordDecision(state, { id: id2, kind: 'acknowledgement', question: `recorded for gate check ${id2}`, answer });
-    }
   } else {
     state = newRun({ repo, authorization: check ? 'survey' : authorize });
   }
+
+  // EVERY ACKNOWLEDGEMENT IS RECORDED IN THE JOURNAL, AND THE GATE READS THE JOURNAL.
+  //
+  // This loop used to sit inside the `if (resumeId)` branch, so a FRESH run given `--ack` cleared
+  // the gate and left no trace: the report had no decision to show and the next pass had nothing to
+  // find. And `runGate`'s own comment said the acknowledgements came "from the run journal, never
+  // from a flag typed at the moment of being blocked" while the only sources were argv and the
+  // options object, and nothing read `state.decisions` at all (`decisionFor` was exported and never
+  // called). Both halves are fixed in one place: the flag RECORDS a decision here, and
+  // `ctx.acknowledgements` is then read back out of the journal, which is what the gate consumes.
+  for (const [ackId, answer] of Object.entries(ctx.acknowledgements)) {
+    recordDecision(state, {
+      id: ackId,
+      kind: 'acknowledgement',
+      question: `recorded for gate check ${ackId}`,
+      answer,
+      decidedBy: resumeId ? '--ack on resume' : '--ack',
+    });
+  }
+  ctx.acknowledgements = acknowledgementsFrom(state);
 
   const say = (line) => { if (!ctx.quiet) console.log(line); };
   if (resumed.length) say(`resuming run ${state.runId} at: ${resumed.join(', ')}`);
   else say(`run ${state.runId} (authorization: ${state.authorization})`);
 
   ctx.state = state;
+  const reentered = reenterIntegrationBranch(ctx);
+  if (reentered) {
+    state.treeRestored = null;
+    if (!reentered.ok) {
+      return {
+        ok: false,
+        runId: state.runId,
+        stateRoot,
+        state,
+        noChanges: Boolean(state.noChanges),
+        blocked: ['integrate'],
+        error: `cannot re-enter the integration branch \`${reentered.to}\`: ${reentered.error}`,
+        report: null,
+      };
+    }
+    say(`  re-entered \`${reentered.to}\` (the previous pass restored \`${reentered.from}\`)`);
+  }
   saveRun(state, { stateRoot });
 
   for (;;) {
@@ -735,10 +1019,14 @@ export async function maintain(options = {}) {
     let out;
     try {
       // eslint-disable-next-line no-await-in-loop -- the phases are a sequence by definition.
-      out = await RUNNERS[name](ctx);
+      out = await PHASE_RUNNERS[name](ctx);
     } catch (err) {
       out = { status: 'failed', summary: `${name} threw: ${err.message}`, data: { stack: err.stack } };
     }
+    // The journal and the report are committed, so the repository's absolute path is rewritten out
+    // of everything a phase says — including prose and stack traces, which no amount of
+    // relativizing structural fields would have caught.
+    out = { ...out, summary: scrubPaths(out.summary, repo), data: scrubPaths(out.data ?? null, repo) };
     if (out.status === 'done') completePhase(state, name, out);
     else if (out.status === 'blocked') blockPhase(state, name, out);
     else failPhase(state, name, out);
@@ -749,13 +1037,30 @@ export async function maintain(options = {}) {
     if (check && name === 'classify') break;
   }
 
+  const blocked = PHASES.filter((p) => state.phases[p].status === 'blocked' || state.phases[p].status === 'failed');
+
+  // THE REPOSITORY GOES BACK WHERE IT WAS on any exit that is not a finished run. `phaseIntegrate`
+  // checks out the maintenance branch in the fork's own clone when no worktree was asked for, and
+  // blocking at `validate` is the NORMAL outcome — G6, G10 and G11 each need a human — so without
+  // this the operator was routinely left standing on a maintenance branch. A finished run keeps the
+  // branch, because that is where promotion happens; a `--resume` re-enters it (see
+  // `reenterIntegrationBranch`). If git refuses, the reason is reported and the hint names the
+  // command, rather than the run claiming a tree state it did not achieve.
+  if (blocked.length) {
+    const restored = restoreStartRef(ctx);
+    if (restored) {
+      state.treeRestored = restored;
+      say(restored.ok
+        ? `  working tree: restored to \`${restored.ref}\``
+        : `  working tree: NOT restored — ${restored.hint}`);
+    }
+  }
+
   // The report is written even when a phase blocked: evidence of a blocked run is still evidence.
   if (!check) {
     try { writeFileSync(reportPath(stateRoot, state.runId), renderReport(state, ctx)); } catch { /* reported below */ }
   }
   saveRun(state, { stateRoot });
-
-  const blocked = PHASES.filter((p) => state.phases[p].status === 'blocked' || state.phases[p].status === 'failed');
   const result = {
     ok: blocked.length === 0,
     runId: state.runId,

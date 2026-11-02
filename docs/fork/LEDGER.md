@@ -1529,3 +1529,39 @@ La lista de acciones manuales que `remediate` deriva de la puerta es **inalcanza
 
 ### Cifras
 Su archivo: **49/49** (eran 22), dos corridas consecutivas, 0 cancelados. Los doce `tests/governance-*.test.js`: 172 tests, **170 pasan, 2 fallan**, y **los dos fallos son de otras rondas en vuelo**, atribuidos por mtime y por el contenido del fallo (`gi03` por los comentarios nuevos de `governance.js`, y `gg25` quejándose **de sí mismo** porque el archivo se editó durante la corrida). Lecturas desgarradas de ediciones concurrentes, no regresiones — y `gi03` ya está verde tras conceder su excepción. `~/.claude` intacto por cuarta comprobación independiente.
+
+---
+
+## 2v. Correcciones de la Etapa 6 — aplicadas, con 13 mutaciones que muerden
+
+**Y una corrección mía primero, de proceso:** el commit `09854e5`, cuyo mensaje describe D16 entero, **llevó sólo el ledger y `governance-identity.test.js`**. El código de D16 —`governance.js`, `install-apply.js`, `conformance.js`, `verify-catalog-conformance.js`, los tres tests de gobernanza, los documentos de la Etapa 1 y el contrato regenerado— se quedó sin commitear en el árbol de trabajo, y yo le dije al usuario que estaba commiteado. Va en el commit de esta sección. El mensaje de un commit no es evidencia de su contenido: `git show --stat` sí.
+
+### Verificado por mí
+`prepublishOnly` es ahora **`npm run gate`** a secas · `package-lock.json` con **0** apariciones del padre y renombrado en la raíz **y** en `packages[""]` · mi corrección de `gate.js` **intacta** · `npm run gate` → **7/7, EXIT 0**.
+
+### Lo que arregló, y cómo lo demostró
+**13 mutaciones ejecutadas, las 13 muerden**, cada una restaurada y comprobada `cmp` byte a byte. La que mejor resume la etapa es la de **A1**: un barrido sobre **toda** ruta rastreada fuera de `skills/` (341 rutas), con lista de excepciones **fechada** y dos conteos por ruta, y una aserción que **obliga a vaciarla** —una entrada a cero pone el test rojo—, más la mutación de `git ls-files` roto que exige *«a FAILED check, not a passed one»*. **Encontró su propio archivo de test en la primera corrida.**
+
+**M3:** el aviso de D13 sale de `if (!dry)`, y en dry-run audita **los bytes que guarda la instantánea** (`snapshotSkillBases()` nuevo, con el mismo `auditBase`). La mutación es la buena: auditar el proyecto en vez de la instantánea **no pasa**, porque la base instalada sí está gobernada — así que el arreglo débil queda descartado por medición.
+
+**M4:** `gr11` reescrito a dos destinos, el primero instalado **de verdad** (32 skills, 138 rutas gobernadas), el fallo inyectado en el **segundo**, y comparación del árbol posterior al rollback contra el anterior a la transacción. Con `restoreBackup` neutralizado, **384 de 384 rutas residuales son estado real**; sin mutación, residuo **6** y los seis son directorios vacíos **nombrados**. Matiz que añadió y la revisión no: `.rsc` sólo está vacío **si se excluye `.rsc/backups/`**, y la exclusión es correcta —la instantánea es el artefacto de recuperación— pero ahora está **escrita en el test** en vez de escondida en un filtro.
+
+**M5:** eligió **tratar la negación y declarar el recall** en vez de bajar la severidad, y el argumento es el correcto: el nivel 1 de precedencia **no es negociable desde un artefacto de proyecto**, así que un intento declarado debe seguir parando la puerta y lo que se va son los falsos positivos. Una sola definición exportada compartida por las dos reglas, con escaneo de negación hacia atrás. Medido: 4 negaciones que disparaban ya callan, 4 intentos siguen disparando, y **3 paráfrasis siguen siendo hueco declarado y fijado** (`L-D11`, y `NV-6j`: el recall no está medido **ni es medible**).
+
+**M7:** los tres guardas contra carreras, qué los implementa y **lo que no cubren**, con un test que cuenta **lanzamientos** (1→1→1→2) y una mutación que quita el guarda en vuelo. Con su límite declarado (`NV-6k`): las sesiones corren **en secuencia**, no concurrentes de verdad.
+
+**B6:** `prepublishOnly` deja de ser `manifest && gate`, así que el manifiesto **se comprueba antes de que nada lo regenere** — el defecto era vacuidad por composición. Y `gg26` **expande la cadena desde `package.json`** y la ejecuta sobre un catálogo truncado, en vez de afirmar sobre el texto del script.
+
+### Los dos regalos del revisor, reproducidos y convertidos en tests
+El `! grep` de `ci.yml` **sale de no verificado**: `gg27` **extrae el bloque de shell del propio `ci.yml`** y lo ejecuta en tres estados — limpio → 0, residuo → 1, y `chmod 000` → grep exit 2 → **1**, con el mensaje «a check that cannot run is not a pass» —, con mutación que lo pone rojo y con el `PATH` fijado porque el `grep` de esta máquina es ugrep. Y la **identidad, versión e integridad del artefacto**, que §10 pide literalmente: `npm pack` (1 792 archivos, shasum registrado) → `npm install --offline` → `added 7 packages`, `rscg` y `rscg-install` enlazados, **`rscg --version` → `rscg 3.7.4`**. **NV-6d queda reducida a su mitad de registro.**
+
+### Lo que corrigió de la revisión, y de mí
+El **142 es correcto** como total del token desnudo (11 rutas, medidas), pero **su desglose publicado listaba 7 de 11 y sumaba 137** — así que mi observación de que no cuadraba era buena y la causa es un desglose truncado, no un error de medición. Mi propio desglose omitía además `site/diagram.svg`, de ahí el 50 contra 51. Y el dato nuevo que importa para la Etapa 7: de las 89 URLs, **dos por página en el JSON-LD son `https://github.com/ericrisco`, el perfil del autor**, que es **atribución MIT** y no se toca. El marco que yo corregí sí era el problema: mezclar especificadores con URLs y pasar un mapa sobre la palabra desnuda habría hecho 404s **y borrado atribución**.
+
+Y **B2 era peor de lo que decía la revisión**: el archivo tenía 15 tests **ya en `0b74176`**, así que la corrida publicada estaba caducada **el día de la entrega**, no derivó después. La re-ejecutó: 15/15.
+
+### Lo que NO corrigió, y está bien
+El contenido de `README.md`, `site/`, `SECURITY.md` y `site/assets/rsc.js` es de la **Etapa 7**; hizo sólo la declaración y el barrido que lo fija por ruta y por clase, con la lista que la Etapa 7 vaciará. Y **qué URLs pasan a ser del fork**: es una decisión, no un renombrado, y queda enumerada para tomarla una por una.
+
+### Cifras
+`governance-{recovery,gate,doctor}` → **54/54, 0 fallos, EXIT 0** (8 tests nuevos, `gr11` reescrito) · `governance-identity` → **15/15** sin tocarlo · red de la etapa **69 tests, 0 fallos** · vecinos de lo tocado (`backups`, `apply`, `governance-customization`, `governance-upstream-change`, `rsc-cli`, `public-surface`) → **127/127, 0 fallos**.

@@ -57,7 +57,9 @@ El barrido de `gi11` encontró un defecto real de §10 que **esta etapa no debe 
 
 `PLAN.md` §3 ya asignó la respuesta: *«El renombrado de identidad forma parte de la misma transformación … un paso mecánico y auditable del mismo transformador, no con ediciones a mano.»* Pero esa transformación tiene dos propiedades declaradas que esta etapa no rompe desde el costado:
 
-- **Reversibilidad.** `scripts/lib/governance.js` declara *«IDEMPOTENT BY SUBTRACTION, NOT BY DETECTION»*, y `tests/md-block-fidelity.test.js` afirma que estampar el bloque y quitarlo deja el archivo byte-idéntico. Reescribir identidad dentro de `transformSkillMd` **rompe** `stripGovernance(transform(x)) === x`.
+- **Reversibilidad.** `scripts/lib/governance.js` declara *«IDEMPOTENT BY SUBTRACTION, NOT BY DETECTION»*, y la invariante `stripGovernance(transform(x)) === x` la afirma **`tests/governance-base.test.js`**, en el test *«the transformation is deterministic and idempotent over all 274 skills»*. Reescribir identidad dentro de `transformSkillMd` **rompe** esa igualdad tal como estaba escrita.
+
+  **CORRECCIÓN.** La primera versión de esta viñeta decía que la afirmaba `tests/md-block-fidelity.test.js`. **Es falso, y lo comprobé abriendo el archivo:** `grep -c stripGovernance tests/md-block-fidelity.test.js` → **0**; ese archivo prueba `wireHook`/`unwireHook` de `targets/_md-block.js` contra el marcador `rsc-suggest:start` — otro bloque, otro módulo. El error se propagó al encargo de D16 porque nadie abrió el archivo, así que el fallo de verificación es compartido; lo señaló el coordinador al cerrar D16. Y el destino de la invariante tampoco es el que esta viñeta suponía: D16 **no cambió `md-block-fidelity`**, reformuló la igualdad en su sitio real a `stripGovernance(transform(x)) === applyIdentity(x)` (propiedad (a)) más una segunda propiedad que fija el mapa de identidad como exactamente enumerable (propiedad (b)), y las dos componen un inverso completo. La lección es la de siempre en esta sesión: **una cita a un test es una afirmación comprobable, y hay que comprobarla.**
 - **Identidad byte-a-byte del always-on.** `writeAlwaysOn` envía `skills/suggest/SKILL.md` sin tocar a propósito, para que *«the governance cost of that surface is exactly zero bytes»* sea una afirmación exacta y comprobable; `tests/governance-always-on.test.js` y el instrumento del criterio 4 la afirman. Reescribir identidad sólo ahí **rompe** esa afirmación.
 
 Cualquiera de las dos es una decisión sobre la invariante de otra etapa, tomada en una ronda paralela. El briefing de esta etapa es explícito: *«Si el renombrado rompe algo que §2 obliga a preservar, párate y repórtalo en vez de romperlo.»* Aquí es el caso simétrico — **no** renombrar rompe §10 — y la respuesta correcta es la misma: medirlo, fijarlo con un test, y reportarlo.
@@ -172,10 +174,35 @@ Todas las razones que el instrumento imprime son `n/ids.length`, así que un `sk
 
 | Reglas | Estado | Nota |
 |---|---|---|
-| 1–12, 15 | **instrumentadas** | Decidibles desde el archivo. Cada hallazgo nombra el archivo, el registro, la posición y la regla |
+| 1–11, 15 | **instrumentadas** | Decidibles desde el archivo. Cada hallazgo nombra el archivo, el registro, la posición y la regla |
+| 12 (y la regla 8 del primer root) | **instrumentada como HEURÍSTICA LÉXICA, con recall sin medir** | La fila que la revisión de la Etapa 6 obligó a separar: estaba listada entre «lo instrumentado» como si fuera determinista, y no lo es. Ver el bloque siguiente |
 | 13 (puerta greenfield) | **instrumentada, con el hecho inyectado** | Decidirla exige recorrer el árbol del proyecto (`scanProject`), que `install`/`sync` no tienen por qué pagar. Lo calculan `rscg brownfield --validate` y `npm run gate`; en `install`/`sync` la regla se reporta como **NOT RUN** |
 | 16 (suelo de recall) | **instrumentada** | Única regla que comprueba *recall*. Umbral `0.45`, el del llamador real; colisiones + aristas `recommends:` + nombrados en cláusula `NOT`. Cero ejecuciones de agente |
 | 14 | **NO instrumentada**, declarada | «Una posición `FIXTURE` nunca se cuenta como evidencia de proyecto por ningún paso posterior» es una propiedad de un paso **posterior**, no de un archivo. No hay nada aquí que comprobar, y se declara en vez de contarse como cubierta |
+
+### La regla 12 es una heurística léxica, y declararlo es la mitad de la corrección (M5)
+
+El predicado era `DISABLING_VERB.test(text) && GUARDED_NOUN.test(text)`: **dos sondas de palabras clave independientes, sin ningún tratamiento de la negación**. Medido, y reproducido antes de tocar nada:
+
+| Frase | Antes | Ahora |
+|---|---|---|
+| *«this project does not disable any guard, ever»* | **DISPARA** (falso positivo) | silencio |
+| *«no position here asks to bypass a permission»* | **DISPARA** (falso positivo) | silencio |
+| *«we never bypass a permission in this repo»* | DISPARA | silencio |
+| *«the team doesn't disable the danger-guard hook»* | DISPARA | silencio |
+| *«the lane gate is unnecessary noise here and should stop running»* | silencio | silencio (**hueco declarado**) |
+| *«we removed the pre-commit check from this repository on purpose»* | silencio | silencio (**hueco declarado**) |
+| *«the gitmoji rule is not enforced in this project and must not be»* | silencio | silencio (**hueco declarado**) |
+| *«the danger-guard hook must be disabled for this repo»* | dispara | dispara |
+| *«this hook should not run, so disable the branch-guard here»* | dispara | dispara |
+
+**Por qué los falsos positivos eran el defecto grave y no una molestia:** la severidad es `error`, `errorsOf` la cuenta, y `npm run gate` sale con **`exit 1`**. Es decir: **un informe brownfield correcto que mencionara guardas en una cláusula negada tumbaba la puerta.** Y la regla 8 del primer root usaba el **mismo par de regex**, así que heredaba el mismo defecto un documento más allá.
+
+**La salida elegida, de las dos que el encargo ofrecía: tratar la negación y declarar el recall.** No bajar a `advisory`. El motivo es que el nivel 1 de precedencia del contrato *no es negociable desde un artefacto de proyecto*, así que un intento **declarado** de desactivar una guarda tiene que seguir parando la puerta; lo que sobraba eran los falsos positivos, y ésos son los que se han ido. Bajar la severidad habría comprado silencio para los dos problemas a la vez.
+
+**Cómo:** `assertsDisabling(text)` — **una** definición, exportada, compartida por la regla 8 (dos sitios) y la regla 12, porque son la misma pregunta hecha a dos formatos de archivo y una segunda copia es el defecto que esta sesión ya cometió una vez con `contract-v1.md`. Cada aparición del verbo se escanea **hacia atrás hasta el corte de cláusula más cercano** (coma incluida) y se suprime si hay una marca de negación en ese tramo. El escaneo se detiene en el corte y no recorre la frase entera: eso es lo que conserva *«this hook should not run, so disable the branch-guard here»* como hallazgo, porque la coma cierra la cláusula negada y *«so disable it»* es una afirmación propia. Suprimir ante cualquier negación en cualquier parte de la frase habría sido el defecto opuesto, y `gg13b` lo afirma.
+
+**Lo que se declara, y es lo que esta fila existe para decir:** el **recall no está medido y no es medible**, porque el conjunto de paráfrasis del inglés que piden apagar una guarda no es enumerable. Las tres frases del cuadro de arriba lo piden en inglés llano y no nombran ningún verbo de la lista. Es el mismo trato que la regla 14: **declarado, no contado como cobertura** (L-D11). `gg13c` fija las dos mitades — las tres paráfrasis silenciosas y los cuatro intentos que sí tienen que disparar — de modo que si alguien amplía el recall más adelante, el test se pone rojo y el límite se vuelve a declarar en vez de ensancharse en silencio.
 
 **La severidad `not-run` existe por esto.** Un validador con dos modos —error y silencio— obliga a elegir entre «falla una regla que no pude comprobar» y «callo como si hubiera pasado». Las dos son mentiras. `not-run` se imprime con su etiqueta, no cuenta como error, y `errorsOf` la excluye del código de salida. `gg18` afirma las tres cosas a la vez.
 
@@ -216,13 +243,21 @@ La tentación era elegir las comprobaciones por criterio propio. No hacía falta
 Dos propiedades valen tanto como las comprobaciones:
 
 - **Imprime lo que no cubre, con su motivo.** Ocho exclusiones, cada una con la frase que la explica. Una puerta que esconde su propia cobertura es peor que una que comprueba menos — y «7/7 passed» sin esa lista se lee como «todo está bien».
-- **Lo que no puede correr imprime `SKIP`, nunca `PASS`.** `skills-invariant` necesita un ref `origin/main`; en un clon sin él lo dice y dice qué lo haría ejecutable. `gg03` lo prueba sobre un `git init` vacío.
+- **Lo que no puede correr imprime `SKIP`, nunca `PASS` — y el código de salida lo dice también.** `skills-invariant` necesita un ref `origin/main`; en un clon sin él lo dice y dice qué lo haría ejecutable. `gg03` lo prueba sobre un `git init` vacío.
+
+  **Esta viñeta estaba incompleta, y es la corrección M1 de la revisión.** Decía la verdad sobre la **etiqueta** y era falsa sobre el **contrato**, que es el código de salida: con `SKIP` impreso el gate salía **0**, incluido el `SKIP` de la comprobación que *es* la invariante de la Estrategia B, y `prepublishOnly` lee el código de salida — así que una publicación desde un clon shallow o desde un árbol sacado del tarball se saltaba el espejo y publicaba. Peor: un validador **ausente** devolvía `skip`, de modo que borrar una comprobación compraba un pase. Corregido por el coordinador y verificado con el experimento del propio revisor: la copia sin `.git` que daba 0 ahora da **1**, este árbol sigue en **0** porque aquí nada se salta, y un validador ausente es ahora `fail`. `--allow-skip` acepta el hueco deliberadamente, y nunca para publicar.
 
 La cifra de «130 s» de `ARCHITECTURE.md` era una suma manual de seis scripts. La puerta mide **entre 1,6 s y 36,7 s** sobre trabajo idéntico, según lo que más esté corriendo en la máquina; lo afirmable es **segundos, no minutos**. Ésa es la fila que se corrigió en `CUSTOMIZATION-SCHEMA.md` §3 — la única fila de ese archivo que esta etapa tenía permiso para tocar.
 
 ---
 
 ## 9. Lo que esta etapa deja abierto
+
+### 9a. Lo que la revisión independiente añadió a esta lista
+
+- **`L-D10` — la superficie de producto fuera de `skills/`.** El barrido de esta etapa estaba acotado por construcción al árbol ejecutable (`scripts/ targets/ tests/ schema/ .github/ package.json`) y `gi03` recorre esas mismas raíces, así que `README.md`, `site/`, `SECURITY.md` y `package-lock.json` **no los miraba nada** — y no los congela nada: la invariante de la Estrategia B es `skills/` y sólo `skills/`. El trabajo es de la **Etapa 7** (`PLAN.md` se lo asigna); la **declaración** era de esta etapa desde el primer día, y decir que `L-D5` era *«the one open item that bears directly on §10»* era **falso**. Y son **dos decisiones**, no una: el **especificador** `@ericrisco/rsc` (49 en producto) se reescribe con el mapa de identidad; las **URLs** (89) no — el host de Pages y el repositorio de upstream se volverían 404 y el perfil del autor en el JSON-LD es **atribución** que MIT exige conservar. El barrido nuevo (`gg25`) cubre **toda** ruta rastreada fuera de `skills/` con una lista de excepciones fechada, dos conteos por ruta y una aserción que obliga a **vaciarla**: una entrada que llega a cero hay que borrarla, o el test se pone rojo.
+- **`L-D11` — el recall de la regla 12 / regla 8.** Heurística léxica, declarada en §6 en vez de contada como cobertura.
+- **`NV-6k` — lo que `gr15` no cubre** de «evita carreras»: el guarda es por directorio de proyecto y las sesiones se ejecutan en secuencia, no concurrentes de verdad.
 
 ### 9b. Un dato que la Etapa 5 necesita y que esta etapa cambió por seis
 
@@ -256,7 +291,7 @@ Dos consecuencias, ninguna de las cuales es un defecto de la Etapa 5:
 
 | # | Qué | Dueño propuesto |
 |---|---|---|
-| 1 | **El renombrado de identidad dentro de la transformación** (L-D5): 81 referencias al padre en el catálogo congelado, 10 en el cuerpo always-on, una de ellas ejecutable. `PLAN.md` §3 ya lo asigna a «la misma transformación»; choca con la reversibilidad de `transformSkillMd` y con la identidad byte-a-byte de `writeAlwaysOn` | Coordinador: decidir entre reescribir en la transformación (y cambiar `md-block-fidelity`) o sólo en `writeAlwaysOn` (y cambiar la afirmación de identidad byte-a-byte). **No es una decisión de una etapa en paralelo** |
+| 1 | **El renombrado de identidad dentro de la transformación** (L-D5): 81 referencias al padre en el catálogo congelado — **las 81 son `npx @ericrisco/rsc`, es decir comandos ejecutables, no prosa** — 10 en el cuerpo always-on. `PLAN.md` §3 ya lo asigna a «la misma transformación»; choca con la reversibilidad de `transformSkillMd` y con la identidad byte-a-byte de `writeAlwaysOn` | Coordinador: decidir entre reescribir en la transformación (y reformular la invariante de `tests/governance-base.test.js`, **no** `md-block-fidelity`: ver la corrección de §2) o sólo en `writeAlwaysOn` (y cambiar la afirmación de identidad byte-a-byte). **No es una decisión de una etapa en paralelo.** **RESUELTO: D16**, reformulando las dos propiedades en su sitio real |
 | 2 | **Encender Actions**, y con ello provenance y Trusted Publishing de golpe | Dueño del repositorio. Nada en el código lo bloquea |
 | 3 | **Confirmar 2FA** en la cuenta de npm (L-D3) | Dueño del repositorio; no es verificable desde aquí por diseño |
 | 4 | **Rama de Windows del audit de entregas** (L-D7): `treeDifferences` está escrito y nunca se ha ejecutado | Sin entorno. Límite residual |

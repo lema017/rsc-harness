@@ -72,6 +72,57 @@ const SKILL_SIDE = /\bn\/a\s*(?:—|--|-)\s*skill side\b/i;
 const DISABLING_VERB = /\b(disabl\w*|deactivat\w*|turn(?:s|ed)?\s+off|switch(?:es|ed)?\s+off|bypass\w*|circumvent\w*|suppress\w*|opt(?:s|ed)?[-\s]out(?:\s+of)?|waive\w*|override(?:s|d)?|skip(?:s|ped|ping)?|exempt\w*)\b/i;
 const GUARDED_NOUN = /\b(guard|guards|guardrail\w*|safety\s+\w+|safeguard\w*|permission|permissions|hook|hooks|pre-?tool-?use|sandbox|danger-guard|ship-guard|branch-guard|gitmoji-guard|copy-guard)\b/i;
 
+/**
+ * Words that turn the sentence around. `n['’]t` has no leading `\b` on purpose: in "doesn't" the
+ * `n` is preceded by a word character, so a boundary there never matches.
+ */
+const NEGATION_CUE = /(\bnot\b|n['’]t\b|\b(never|neither|nor|no|none|nothing|nobody|without|cannot|refus\w*|forbid\w*|forbidden|prohibit\w*|disallow\w*|avoid\w*)\b)/i;
+/** Where a clause ends, for the backwards scan below. Deliberately includes the comma. */
+const CLAUSE_BREAK = /[,;:.!?()[\]\n\r—–]/;
+
+/**
+ * Does this text ASSERT that a permission, guard or safety rule may be disabled?
+ *
+ * ONE definition, shared by rule 8 of the customization schema and rule 12 of the conflict-record
+ * format, because they are the same question asked of two file formats and a second copy is the
+ * defect this session has already committed once.
+ *
+ * WHAT IT IS, stated so it is not read as more than it is: a LEXICAL HEURISTIC. A disabling verb
+ * plus a guarded noun, minus the negations. Its recall is NOT MEASURED and cannot be, because the
+ * set of English paraphrases that ask to turn a guard off is not enumerable. Stage 6's review
+ * measured three plain paraphrases it stays silent on — "the lane gate is unnecessary noise here
+ * and should stop running", "we removed the pre-commit check from this repository on purpose", "the
+ * gitmoji rule is not enforced in this project and must not be" — and none of them names a verb in
+ * the list. That gap is declared, like rule 14 is declared, instead of being counted as coverage.
+ *
+ * WHAT CHANGED: the predicate used to be `DISABLING_VERB.test(text) && GUARDED_NOUN.test(text)` —
+ * two independent keyword probes with no treatment of negation, so it fired on sentences that
+ * NEGATE the thing it looks for. Measured: it fired on "this project does not disable any guard,
+ * ever" and on "no position here asks to bypass a permission". At severity `error` that is an
+ * `exit 1` from `npm run gate`, so a CORRECT report that mentioned guards in a negated clause took
+ * the gate down. The severity stays `error` — precedence level 1 is not negotiable from a project
+ * artifact, and a stated attempt must still stop the gate — and the false positives go instead.
+ *
+ * HOW: each occurrence of the verb is scanned BACKWARDS to the nearest clause break, and suppressed
+ * if a negation cue sits in that span. The scan stops at the break rather than running over the
+ * whole sentence, which is what keeps "this hook should not run, so disable it" firing: the comma
+ * ends the negated clause, and "so disable it" is an assertion of its own.
+ */
+export function assertsDisabling(text) {
+  const src = String(text || '');
+  if (!GUARDED_NOUN.test(src)) return false;
+  const verb = new RegExp(DISABLING_VERB.source, 'gi');
+  let hit;
+  while ((hit = verb.exec(src)) !== null) {
+    let start = 0;
+    for (let i = hit.index - 1; i >= 0; i -= 1) {
+      if (CLAUSE_BREAK.test(src[i])) { start = i + 1; break; }
+    }
+    if (!NEGATION_CUE.test(src.slice(start, hit.index))) return true;
+  }
+  return false;
+}
+
 /** A bare date is exactly what rule 4c rejects: the schema asks for a condition. */
 const BARE_DATE = /^(?:\d{4}-\d{2}-\d{2}|\d{4}\/\d{2}\/\d{2}|\d{2}[-/]\d{2}[-/]\d{4}|\d{4}-\d{2}|\d{4})$/;
 
@@ -265,7 +316,7 @@ export function validateCustomizationSource({ file, src, dirName, catalog = null
     if (category === 'migration') findings.push(...migrationFindings(file, entry, label));
 
     // Rule 8 — precedence level 1 is not negotiable from this file, and an attempt is the finding.
-    if (DISABLING_VERB.test(entry) && GUARDED_NOUN.test(entry)) {
+    if (assertsDisabling(entry)) {
       findings.push(finding(file, 'rule 8 — no decision may disable a permission, a guard or a safety rule', 'R8',
         `decision "${label}" reads as an attempt to disable or bypass a permission, guard or safety rule; `
         + 'precedence level 1 of the contract cannot be narrowed from a customization, and the attempt is itself the finding'));
@@ -274,7 +325,7 @@ export function validateCustomizationSource({ file, src, dirName, catalog = null
 
   for (const entry of migrationSection) {
     findings.push(...migrationFindings(file, entry, firstLine(entry) || '(unnamed migration)'));
-    if (DISABLING_VERB.test(entry) && GUARDED_NOUN.test(entry)) {
+    if (assertsDisabling(entry)) {
       findings.push(finding(file, 'rule 8 — no decision may disable a permission, a guard or a safety rule', 'R8',
         `migration "${firstLine(entry)}" reads as an attempt to disable or bypass a permission, guard or safety rule`));
     }
@@ -747,8 +798,7 @@ export function validateConflictRecord({ file, record, cwd, greenfield = null })
   // Rule 12 — no position asserts a permission, guard or safety rule may be disabled. The attempt
   // IS the finding: precedence level 1 of the contract cannot be narrowed from a project artifact.
   for (const p of positions) {
-    const text = `${p.claim} ${p.evidence}`;
-    if (DISABLING_VERB.test(text) && GUARDED_NOUN.test(text)) {
+    if (assertsDisabling(`${p.claim} ${p.evidence}`)) {
       findings.push(finding(file, 'rule 12 — no position asserts a guard may be disabled', 'B12',
         `${where} ${p.ref} reads as an assertion that a permission, guard or safety rule may be `
         + 'disabled or bypassed; the record is itself the finding'));

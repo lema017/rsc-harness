@@ -27,8 +27,9 @@ import { wireUpdate, unwireUpdate, updateManagedPaths, updateArtifactsPresent } 
 import { wireKnowledge, unwireKnowledge, knowledgeManagedPaths, knowledgeArtifactsPresent } from '../targets/knowledge-wiring.js';
 import { wireGitPermissions, unwireGitPermissions, gitPermissionsPath } from '../targets/git-permissions.js';
 import { wireDeepseekBridge } from '../targets/deepseek-bridge.js';
-// Fork governance. `governBase` is the transformation; the other three are the artifacts it needs
-// alongside the catalog. See scripts/lib/governance.js for why the always-on body is pristine.
+// Fork governance. `governBase` is the transformation — both halves of it, the governance block and
+// the identity rewrite (D16) — and the other three are the artifacts it needs alongside the catalog.
+// See scripts/lib/governance.js for why the always-on body carries no block but IS rewritten.
 import { alwaysOnPath, brownfieldProcedurePath, contractPath, governBase, writeAlwaysOn, writeBrownfieldProcedure, writeContract } from './lib/governance.js';
 import { CUSTOMIZATION_ROOT, validateBrownfieldRuns, validateCustomizations } from './lib/customization-validator.js';
 
@@ -403,6 +404,11 @@ export async function applyInstall({ skillIds = [], agentIds = [], target, home,
       // and in Claude Code this body is re-emitted at every SessionStart and after every compaction.
       // `ensureBase` is still called for its own sake — it materializes and governs `.rsc/skills/
       // suggest`, which the per-skill delivery links to — but the hook is pointed elsewhere.
+      //
+      // It is free of the block, NOT free of the identity rewrite (D16). `writeAlwaysOn` applies the
+      // package-specifier map, so the one runnable instruction on this surface — `npx … add <id>` —
+      // names the fork and not the parent. This single call is the only writer of the always-on body
+      // for all five targets, which is why the rewrite reaches every one of them from here.
       ensureBase('suggest', cwd, baseVersions);
       await wireHook(target, paths, writeAlwaysOn({ cwd, catalogRoot: ROOT }), policy);
     }

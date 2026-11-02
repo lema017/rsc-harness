@@ -15,7 +15,7 @@ import { ask, say, select, pickFrom, banner, confirm, isInteractive } from './li
 import { refreshRegistry, registryStatus } from './lib/registry.js';
 import { audit, writeAuditReport, recordAuditBaseline } from './audit.js';
 import { DOMAINS } from './lib/domains.js';
-import { listBackups, restoreBackup, whereKept } from './lib/backups.js';
+import { listBackups, restoreBackup, snapshotSkillBases, whereKept } from './lib/backups.js';
 import { runUpgrade } from './lib/upgrade.js';
 import { diagnose, repair } from './lib/repair.js';
 import { DEFAULT_SKILL_FLOOR, withDefaultSkillFloor } from './lib/default-skill-floor.js';
@@ -1164,21 +1164,41 @@ async function main() {
       // What was missing is that nothing said so, while the 17 symlinking targets read the restored
       // file immediately. There are two writers inside `.rsc/skills/`: `governBase` and
       // `restoreEntry` (`scripts/lib/backups.js`, a raw `cpSync`), and only the first one governs.
-      if (!dry) {
-        const { ungovernedAmong } = await import('./lib/conformance.js');
-        const ungoverned = ungovernedAmong(process.cwd(), result.changed);
-        if (ungoverned.length) {
-          say('');
-          say(`⚠️  ${ungoverned.length} restored skill base(s) carry NO governance contract:`);
-          for (const u of ungoverned.slice(0, 12)) say(`      ${u.id} — ${u.reasons[0]}`);
-          if (ungoverned.length > 12) say(`      … and ${ungoverned.length - 12} more`);
-          say('    That is what the snapshot held, so the restore is correct: it is not re-governed,');
-          say('    because you asked for the earlier state and you got it. But every assistant reads');
-          say('    these files now, and they no longer point at their project customization.');
-          say('    To govern them again: run a sync here. The transformation is idempotent, so it');
-          say('    changes nothing for the bases that are already governed.');
-          say('    To see the whole picture first: rscg conformance');
-        }
+      //
+      // M3 of stage 6's review: this whole block used to sit inside `if (!dry)`, so the dry run —
+      // the tool whose only job is to help you DECIDE whether to restore — withheld the single
+      // consequence the warning exists for. It now runs in both modes, against different bytes:
+      // after a real restore the project IS the answer, so the installed files are audited; in a
+      // dry run nothing has moved, so the bytes the snapshot HOLDS are audited instead.
+      const { ungovernedAmong, auditBase } = await import('./lib/conformance.js');
+      const ungoverned = dry
+        ? snapshotSkillBases({ cwd: process.cwd(), snapshot: result.snapshot })
+          .map(({ id, text, error }) => ({ id, reasons: error ? [error] : auditBase(id, text) }))
+          .filter((u) => u.reasons.length)
+        : ungovernedAmong(process.cwd(), result.changed);
+      if (ungoverned.length) {
+        say('');
+        say(dry
+          ? `⚠️  ${ungoverned.length} skill base(s) in this snapshot carry NO governance contract:`
+          : `⚠️  ${ungoverned.length} restored skill base(s) carry NO governance contract:`);
+        for (const u of ungoverned.slice(0, 12)) say(`      ${u.id} — ${u.reasons[0]}`);
+        if (ungoverned.length > 12) say(`      … and ${ungoverned.length - 12} more`);
+        say(dry
+          ? '    That is what the snapshot held, so restoring it would be correct: it would not be'
+          : '    That is what the snapshot held, so the restore is correct: it is not re-governed,');
+        say(dry
+          ? '    re-governed, because you asked for the earlier state. But every assistant would read'
+          : '    because you asked for the earlier state and you got it. But every assistant reads');
+        say(dry
+          ? '    these files, and they would no longer point at their project customization.'
+          : '    these files now, and they no longer point at their project customization.');
+        say(dry
+          ? '    To govern them again afterwards: run a sync here. The transformation is idempotent,'
+          : '    To govern them again: run a sync here. The transformation is idempotent, so it');
+        say(dry
+          ? '    so it changes nothing for the bases that are already governed.'
+          : '    changes nothing for the bases that are already governed.');
+        say('    To see the whole picture first: rscg conformance');
       }
       return;
     }

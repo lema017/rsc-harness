@@ -91,10 +91,29 @@ targets/session-memory-core.mjs:350:  … '.rscg memory was tracked; …'
 
 ### 3.4 Los tests de identidad
 
+> **LA CORRIDA QUE ESTABA AQUÍ ESTABA CADUCADA, y la tabla de abajo seguía incompleta (B2).**
+> Imprimía `# tests 13` y tabulaba `gi01`–`gi13` mientras el archivo tenía **15** tests. Y no es que
+> `gi14` y `gi15` se añadieran después:
+> `git show 0b74176:tests/governance-identity.test.js | grep -c '^test('` → **15** también, así que
+> **la corrida ya estaba caducada el día de la entrega**; 15 + 14 + 26 + 6 = 61 es la cifra que el
+> ledger registra, de modo que el **61** era correcto y el **13** de aquí no. Al contrario que §8.2,
+> esta sección no lo decía.
+>
+> **Re-ejecutada, no arrastrada.** Era lo preferible y pasó a ser posible: la implementación de
+> **D16** —que es quien estaba cambiando este archivo, y de quien es la excepción de `gi03` para
+> `scripts/lib/governance.js`, el token de origen del mapa— ya está **commiteada** (`09854e5`), así
+> que el archivo está limpio y el número es medible. La corrida de abajo es mía, sobre este árbol.
+
 ```
 $ node --test --test-concurrency=1 --test-timeout=1800000 tests/governance-identity.test.js
-  # tests 13 · # pass 13 · # fail 0 · # cancelled 0      EXIT 0
+  gi01 gi02 gi03 gi04 gi05 gi06 gi07 gi08 gi09 gi10 gi11 gi13 gi12 gi14 gi15   (los 15, en ese orden)
+  # tests 15 · # pass 15 · # fail 0 · # cancelled 0 · # skipped 0
+  # duration_ms 11 105 → 11 s        EXIT 0
 ```
+
+Las dos filas que faltaban en la tabla, ahora medidas: **`gi14`** la maquinaria de mantenimiento
+(`scripts/upstream-*`, `scripts/lib/upstream-*`) **no** se envía y el runtime del consumidor **sí**;
+**`gi15`** toda ruta de licencia y atribución del catálogo llega al tarball (criterio 6).
 
 | Test | Qué midió | Resultado |
 |---|---|---|
@@ -121,7 +140,11 @@ $ node --test --test-concurrency=1 --test-timeout=1800000 tests/governance-ident
 
 ## 4. Las actualizaciones automáticas siguen funcionando (§2)
 
-Mecanismo localizado **en el código**, no en el README: `targets/auto-update.mjs`, copiado a `.rsc/auto-update.mjs` en la instalación. Guarda el nombre del paquete **dos veces** y **ningún test heredado toca ninguna de las dos** — todos cortocircuitan la consulta con `RSC_LATEST`/`RSC_LATEST_JSON` y el instalador con `RSC_AUTO_UPDATE_CMD`.
+Mecanismo localizado **en el código**, no en el README: `targets/auto-update.mjs`, copiado a `.rsc/auto-update.mjs` en la instalación. Guarda el nombre del paquete **cuatro veces** — `git show origin/main:targets/auto-update.mjs | grep -c ericrisco` → **4**, en las líneas 85, 132, 172 y 180 — **dos de ellas de la clase peligrosa, y ningún test heredado toca ninguna de esas dos**: la URL del registro (`:132`) y el `argv` de `npx` (`:85`). Todos los tests heredados cortocircuitan la consulta con `RSC_LATEST`/`RSC_LATEST_JSON` y el instalador con `RSC_AUTO_UPDATE_CMD`, precisamente para quedarse sin red.
+
+Las otras dos (`:172`, `:180`) son el **texto del aviso**, y ésas **sí** están afirmadas: `tests/update-notice-symptoms.test.js:58` exige `/npx @lema017\/rsc-governed@latest/`, que es por lo que el renombrado rompió ese test y por lo que aparece en la lista de aserciones heredadas que esta etapa tuvo que reparar.
+
+**CORRECCIÓN (M6).** La primera versión de este párrafo decía **dos**. Es **falso**: quien hace el grep obtiene 4. La afirmación sustantiva —las dos peligrosas no las toca ningún test heredado— sobrevive intacta y es la que vale.
 
 Verificado por **ejecución** en `gi06`, `gi07`, `gi08` (la conducta) y por aserción **sobre la fuente** en `gi05` y sobre **la copia instalada** en `gi10` (las dos cadenas que ningún test ejercita).
 
@@ -508,12 +531,14 @@ cambié después de medir, y la aserción de `ingest` que supuse en vez de leer.
 | **NV-6a** | **2FA de la cuenta de npm.** | Ajuste de **cuenta**; leerlo exige la sesión del mantenedor. `npm profile get` con el `HOME` del sandbox → `npm error code E401 … GET /-/npm/v1/user`. Ese 401 es el aislamiento funcionando, no un hallazgo sobre la cuenta. Lo tiene que confirmar el dueño del repositorio |
 | **NV-6b** | **npm provenance en una publicación real.** | Exige un proveedor de CI cloud con runner cloud (documentación de npm: *«you must use a supported cloud CI/CD provider and a cloud-hosted runner»*). Las Actions están **desactivadas** (`{"enabled":false}`, 0 workflows registrados). `release.yml` está **listo** y no puede correr |
 | **NV-6c** | **Trusted Publishing.** | Misma precondición: es OIDC desde dentro de un workflow. Proveedores soportados: GitHub Actions, GitLab CI/CD, CircleCI cloud; runners autoalojados **no**. Configurar una confianza OIDC para un workflow que no puede correr sería configuración no verificable |
-| **NV-6d** | **Que el artefacto publicado se instale limpio desde el registro.** | **No se publicó nada**, ni se hizo ningún dry-run autenticado contra el registro. `npm pack --dry-run` probó el **tarball** (`@lema017/rsc-governed@3.7.4`, **1 792** archivos, 5,4 MB empaquetado / 13,8 MB sin empaquetar; `LICENSE`, `manifest.json` y los tres artefactos de `schema/governance/` presentes; `docs/` ausente, como debe ser), que **no es la misma afirmación**. `curl registry.npmjs.org/@lema017%2frsc-governed` → **404**: el nombre está libre |
-| **NV-6e** | **Los tres workflows corriendo.** | Actions desactivadas. Los cambios de permisos y la corrección del `! grep` se verificaron **por lectura del YAML**, no por ejecución. Declarado como tal |
+| **NV-6d** | **Que el artefacto publicado se instale limpio desde el registro.** **Reducida a su mitad de registro** — ver §11.1(b). | La **mitad local** ya **NO** es NV: `npm pack` → `npm install --offline ./lema017-rsc-governed-3.7.4.tgz` → `added 7 packages`, los dos binarios enlazados, `rscg --version` → `rscg 3.7.4`, EXIT 0. Lo que sigue sin verificar es **el registro**: **no se publicó nada** ni se hizo ningún dry-run autenticado, y «se instala desde un tarball local» no es «se instala desde lo que sirve el registro». `curl registry.npmjs.org/@lema017%2frsc-governed` → **404**: el nombre está libre |
+| **NV-6e** | **Los tres workflows corriendo.** **Reducida**: la lógica del paso de limpieza ya no es NV. | Actions desactivadas, así que ningún workflow ha corrido como workflow. Pero la corrección del `! grep` **sí** se verificó por ejecución (§11.1(a), `gg27`): el bloque de shell se extrae de `ci.yml` y se ejecuta en sus tres estados, incluido el exit 2 de grep. Lo que queda declarado como no verificado es **el runner**: permisos, `actions/checkout`, `setup-node`, `npm ci` y la ejecución de los tres jobs en GitHub |
 | **NV-6f** | **La rama Windows del audit de entregas** (`treeDifferences`). | No hay entorno Windows (NV3 del ledger). El código está escrito y **nunca se ha ejecutado** |
 | **NV-6g** | **Regla 14** de `CONFLICT-RECORD.md` §7. | Es una propiedad de un **paso posterior**, no de un archivo. No hay nada en el validador que comprobar. Declarada, no contada como cubierta |
 | **NV-6h** | **Recall project↔skill.** | Sin instrumento posible, como ya declaró la Etapa 3. Una corrida que lee el proyecto y no encuentra nada pasa las 16 reglas, incluido el suelo |
-| **NV-6i** | **La suite completa sobre este árbol.** | L7: condición 4 inalcanzable. La corrida autoritativa (1 588 tests, 6 fallos, 0 cancelados, 1 h 33 m) es la de la Etapa 4 y **no incluye** los 4 archivos nuevos de esta etapa ni los cambios de §3 |
+| **NV-6i** | **La suite completa sobre este árbol.** | L7: condición 4 inalcanzable. La corrida autoritativa (1 588 tests, 6 fallos, 0 cancelados, 1 h 33 m) es la de la Etapa 4 y **no incluye** los 4 archivos nuevos de esta etapa, ni los cambios de §3, ni los 7 tests que añaden las correcciones de §11 |
+| **NV-6j** | **El *recall* de la regla 12 / regla 8** (`assertsDisabling`). | Es una **heurística léxica** y el conjunto de paráfrasis del inglés que piden apagar una guarda no es enumerable, así que el recall no está medido y no es medible. Tres paráfrasis llanas medidas **no** se detectan. Declarado como `L-D11` y fijado por `gg13c`, igual que la regla 14. La precisión sí se midió: los 4 casos negados que antes disparaban ya no lo hacen, y los 4 intentos declarados siguen disparando |
+| **NV-6k** | **Dos cosas que `gr15` NO cubre.** | (a) El guarda es **por directorio de proyecto**: no serializa dos proyectos distintos actualizándose a la vez, y el mecanismo no pretende arbitrar eso. (b) `gr15` ejecuta las sesiones **en secuencia**, que es la unidad de trabajo de la máquina de estados (`startedAt` contra «ahora»); **no** hay ninguna prueba de dos sesiones concurrentes de verdad |
 
 ---
 
@@ -528,3 +553,87 @@ cambié después de medir, y la aserción de `ingest` que supuse en vez de leer.
 | «el coordinador: falta un modo de auditoría sobre un árbol existente, ~15 líneas» | **Ya construido** cuando llegó el aviso: `auditInstalledProject` + `rscg conformance`, con sus 6 tests (`gr07`–`gr10`, `gr13`, `gd01`–`gd06`) |
 | «el coordinador: una línea, `if (ids.length !== 274) …`» | **No se hizo así**: §3 prohíbe fijar el número en el código. El suelo es un **cruce contra `manifest.json`** más un `--expect` opcional, y `gg24` afirma la ausencia del literal |
 | «el criterio 4 está verificado al 274/274» (firmado en `ACCEPTANCE.md`) | Era cierto en sustancia y el instrumento **no podía ver** dos clases de fallo. Ahora las ve, probado por mutación, y el 274/274 se re-ejecutó: `failures: 0` |
+| «el revisor: el paquete padre vivía **dos** veces en `auto-update.mjs`, y eso es falso — vivía cuatro» | **El revisor tiene razón y yo estaba equivocado.** `git show origin/main:targets/auto-update.mjs \| grep -c ericrisco` → **4**. Corregido en §4 y en `DISTRIBUTION.md` §3.2 |
+| «el revisor: **142** referencias al padre en rutas rastreadas y libremente editables» | **El total es correcto; el desglose publicado estaba incompleto.** Los 7 archivos que la revisión listó suman **137**; el conjunto completo son **11** rutas y suma **142** exactos (los 4 que faltaban: `manifest.json` 2, `site/robots.txt` 1, `site/diagram.svg` 1, `site/assets/rsc.js` 1). No es un error de medición, es un desglose truncado — pero una cifra cuyo propio desglose no cuadra invita a que alguien «la corrija» |
+| «el coordinador: como especificadores son **51**, no 142» | **Correcto, y es la distinción que faltaba.** Medido: `@ericrisco/rsc` en superficies de producto = **51** antes de arreglar `package-lock.json` (README 18, `site/index.html` 13, `site/es/index.html` 13, `site/llms.txt` 4, `package-lock.json` 2, `site/diagram.svg` 1) y **49** después. El resto del token desnudo son **URLs**: el host de Pages de upstream, el repositorio de upstream y —dos veces por página, en el JSON-LD— el **perfil del autor**, que es atribución. Son dos decisiones distintas y `L-D10` ya las separa |
+| «el coordinador: `md-block-fidelity` afirma `stripGovernance(transform(x)) === x`» (y mi propio `DESIGN.md` §2 lo decía primero) | **Falso, comprobado abriendo el archivo:** `grep -c stripGovernance tests/md-block-fidelity.test.js` → **0**. Ese archivo prueba `wireHook`/`unwireHook` de `targets/_md-block.js` contra `rsc-suggest:start`. La invariante vive en `tests/governance-base.test.js`, test *«the transformation is deterministic and idempotent over all 274 skills»*. El error era **mío** y se propagó al encargo de D16 por no abrir el archivo |
+
+---
+
+## 11. Las correcciones de la revisión independiente, con su medición
+
+Cada fila: el defecto reproducido **antes** de tocar nada, el arreglo, el test que lo afirma, y la
+**mutación** que comprueba que ese test puede fallar. Esa última columna es la lección que esta
+sesión ha aprendido cuatro veces — el instrumento del criterio 4, la puerta de mantenimiento, su
+veredicto y el suelo del catálogo — y no añadir la quinta era parte del encargo.
+
+| # | Reproducido antes | Arreglo | Test | Mutación → rojo |
+|---|---|---|---|---|
+| **A1** | `gi03` barría `scripts/ targets/ schema/ .github/ package.json`; fuera quedaban **341** rutas rastreadas, 9 de ellas con **138** referencias en producto | Declaración (`L-D10`, criterio 13, «one of two») + barrido nuevo sobre **toda** ruta rastreada fuera de `skills/`, con lista de excepciones fechada y **dos conteos por ruta** (especificador / URL) | `gg25` | 4 mutaciones: referencia plantada en `.github/workflows/pages.yml` → *«in no declared group»*; cota de especificador rebajada → *«SPREAD»*; cota de URL rebajada → *«SPREAD»*; excepción obsoleta añadida → *«now delete these»*; `git ls-files` roto → *«a FAILED check, not a passed one»* |
+| **M3** | dry-run → **0** líneas de aviso; restore real → `⚠️ 1 restored skill base(s) carry NO governance contract: flutter — no governance block` | El bloque sale de `if (!dry)`; en dry-run audita los bytes que **guarda la instantánea** (`snapshotSkillBases()` + el mismo `auditBase`), en condicional | `gr02b` + `gr02c` | auditar el **proyecto** en dry-run (`const ungoverned = false` → las dos ramas usan `ungovernedAmong`) → `gr02b` rojo, porque la base instalada está gobernada |
+| **M4** | `gr11` seguía **verde** con el rollback entero borrado | Dos targets, el primero instalado **de verdad** (32 skills, 138 `governedPaths`), fallo en el **segundo**, y comparación del árbol posterior al rollback contra el anterior a la transacción | `gr11` | `restoreBackup` neutralizado (`if (true) continue;`) → **384 de 384 rutas residuales son estado real** y `gr11` se pone rojo. Sin mutación: residuo **6**, los seis **directorios vacíos** y **nombrados** (`.rsc`, `.rsc/governance`, `.rsc/skills`, `.claude`, `.claude/commands`, `.claude/skills`), 0 cambiados, 0 borrados, sin recibo aceptado |
+| **M5** | dispara con 2 frases que **niegan**, calla con 3 paráfrasis llanas que sí piden desactivar | `assertsDisabling()`, **una** definición compartida por la regla 8 y la regla 12, con escaneo de negación hacia atrás hasta el corte de cláusula. Severidad `error` **conservada**; el recall se **declara** (`L-D11`, `DESIGN.md` §6) | `gg13b` + `gg13c` | negación quitada (`if (true) return true;`) → `gg13b` y `gg13c` rojos |
+| **M6** | `grep -c ericrisco` sobre `origin/main:targets/auto-update.mjs` → **4** | Redacción corregida en `DISTRIBUTION.md` §3.2 y aquí en §4 | — (afirmación documental) | — |
+| **M7** | `grep -in "carrera\|race"` sobre los tres documentos → **0** | `DISTRIBUTION.md` §3.5 con los tres guardas y lo que **no** cubren, más su fila en el criterio 13 | `gr15` | guarda en vuelo quitado (`const since = Infinity`) → la segunda sesión lanza un segundo instalador y `gr15` se pone rojo |
+| **B1** | `package-lock.json` declaraba `"name": "@ericrisco/rsc"` en la raíz y en `packages[""]` | Renombrado a `@lema017/rsc-governed` en los dos sitios | `gg25` (la ruta sale de la lista) | `npm ci --dry-run --offline` → **EXIT 0** antes y después, así que no rompía nada; era identidad sin declarar |
+| **B2** | §3.4 imprimía 13 tests y tabulaba `gi01`–`gi13`; el archivo tiene **15** ya en `0b74176`, así que la corrida estaba caducada el día de la entrega | **Re-ejecutada**, no arrastrada: 15/15, EXIT 0, 11 s, con las dos filas que faltaban (`gi14`, `gi15`). Pasó a ser posible cuando D16 se commiteó (`09854e5`) y el archivo quedó limpio | `tests/governance-identity.test.js` entero | — |
+| **B3** | la tabla de `§6` tenía un párrafo y una tabla anidada entre dos filas: `L-D6`…`L-D9` se renderizaban como texto literal | Tabla partida en dos; el bloque del criterio 13 va **después** de todas las filas | — | `grep -c '^| \*\*L-D' DISTRIBUTION.md` → 11 filas, todas dentro de una tabla |
+| **B5** | L-D5 decía «81 referencias» sin su carácter | **Las 81 son `npx @ericrisco/rsc`**: `grep -ro '@ericrisco/rsc' skills/ \| wc -l` → 81 y `grep -ro 'npx @ericrisco/rsc' skills/ \| wc -l` → **81**. Cero prosa. Heaviest: `init/references/recommend-skills.md` 15, `suggest/SKILL.md` 10, `suggest/evals/cases.yaml` 8 | `gi13` (heredado) | — |
+| **B6** | `node scripts/build-manifest.js && … --check` → **EXIT 0** sobre un catálogo un directorio más corto; `--check` solo → **EXIT 1**, `manifest.json is stale` | `prepublishOnly` pasa a ser `npm run gate` a secas: el manifest se comprueba **antes** de que nada lo regenere | `gg26`, que **expande la cadena** desde `package.json` + `CHECKS` y luego la ejecuta sobre un catálogo truncado | composición antigua restaurada → `gg26` rojo: *«a step that REGENERATES manifest.json runs before the step that checks it»* |
+
+### 11.1 Los dos regalos del revisor, reproducidos aquí
+
+**(a) La corrección del `! grep` de `ci.yml` sale de NO VERIFICADO.** Ya no por lectura del YAML: el
+bloque de shell se **extrae del propio `ci.yml`** (no se reescribe) y se ejecuta en sus tres estados.
+
+```
+1. árbol limpio            → EXIT 0   "clean: no residue"
+2. residuo plantado        → EXIT 1   "::error::retired marketplace-distribution residue found above"
+3. el escaneo falla        → EXIT 1   "::error::the scan itself failed (grep exit 2); a check that
+   (directorio en chmod 000)           cannot run is not a pass"
+```
+
+`gg27`. Mutación: la rama `*)` devuelta a `exit 0` → *«a scan that could not finish must FAIL, and it
+exited 0»*. **Declarado sobre la medición:** el runner es `ubuntu-latest` con GNU grep y el `grep` del
+PATH de esta máquina es **ugrep 7.8.4**, así que el test fija `PATH=/usr/bin:/bin` para que decida el
+grep del sistema (BSD grep, GNU-compatible) y no un shim instalado por el usuario; los tres códigos
+de salida en los que se apoya (0 encontrado, 1 no encontrado, 2 error) son **POSIX**, no una extensión
+de GNU. Lo que sigue sin ejecutarse es el **workflow**, porque las Actions están desactivadas.
+
+**(b) Identidad, versión e integridad del artefacto — §10 literal — reproducida.** Todo local,
+`--offline`, con `HOME` y la caché de npm dentro de la carpeta dedicada; nada autenticado, nada
+publicado.
+
+```
+$ npm pack --pack-destination .fork-tmp/stage6r
+  lema017-rsc-governed-3.7.4.tgz · 5 650 047 B · 1 792 files · unpacked 14.4 MB
+  shasum 37f5ddf04d43f4db844de3119e9163ba3ea3f4ac
+
+$ npm install --offline ../lema017-rsc-governed-3.7.4.tgz      (proyecto desechable)
+  added 7 packages, and audited 8 packages in 3s · found 0 vulnerabilities
+
+$ ls node_modules/.bin/                 → rscg  rscg-install
+$ node_modules/.bin/rscg --version      → rscg 3.7.4                            EXIT 0
+$ <package.json del paquete instalado>  → @lema017/rsc-governed 3.7.4
+                                           {"rscg":"scripts/rsc.js","rscg-install":"scripts/install-apply.js"}
+```
+
+**Pasa.** Y es además cómo `L-D10` deja de ser inferencia: `README.md` está en la raíz del paquete
+instalado —con sus **10** líneas `npx @ericrisco/rsc…` ejecutables, el `npm i -g @ericrisco/rsc` y la
+frase *«`package.json` is named `@ericrisco/rsc`»`*, hoy falsa— y `site/` **no está**, porque `files`
+es `scripts targets schema skills manifest.json`. Eso saca a **NV-6d de «no verificado» en su mitad
+local**; la mitad del registro sigue abierta y es otra afirmación.
+
+### 11.2 La red de gobernanza, re-ejecutada sobre los archivos de esta corrección
+
+```
+$ node --test --test-concurrency=1 --test-timeout=1800000 \
+    tests/governance-recovery.test.js tests/governance-gate.test.js tests/governance-doctor.test.js
+  # tests 54 · # pass 54 · # fail 0 · # cancelled 0 · # skipped 0
+  # duration_ms 71 035 → 1 min 11 s        EXIT 0
+```
+
+17 + 31 + 6. Y `tests/governance-identity.test.js` aparte, re-ejecutada en §3.4 ahora que D16 está
+commiteada: **15/15, EXIT 0**. Total de la red de esta etapa: **69** tests, 0 fallos. La invariante,
+al cerrar: `git diff --numstat origin/main -- skills/` → **0 líneas**. Y `npm run gate` sobre este
+árbol: **7/7 passed (1 VOID) · 1,6 s · EXIT 0**.

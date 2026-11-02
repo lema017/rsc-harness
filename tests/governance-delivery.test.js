@@ -16,7 +16,8 @@ import { join } from 'node:path';
 import { applyInstall } from '../scripts/install-apply.js';
 import { targetPaths } from '../targets/index.js';
 import {
-  BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION, customizationPathFor, digestOf, governanceOf, renderBlock,
+  BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION, PARENT_PACKAGE,
+  customizationPathFor, digestOf, governanceOf, parentReferences, renderBlock,
 } from '../scripts/lib/governance.js';
 
 const SKILLS = ['suggest', 'flutter', 'review'];
@@ -40,6 +41,9 @@ for (const target of ['claude', 'codex', 'antigravity', 'deepseek']) {
       assert.ok(info.digestMatches, `${target}/${id}: and the digest still matches`);
       assert.equal(info.keys['governance-customization'], customizationPathFor(id),
         `${target}/${id}: root-anchored path, never relative to the file citing it`);
+      // D16: the delivered skill may not hand the reader a command that installs the PARENT.
+      assert.deepEqual(parentReferences(readFileSync(md, 'utf8')), [],
+        `${target}/${id}: a delivered instruction still names ${PARENT_PACKAGE}`);
     }
   });
 }
@@ -68,6 +72,9 @@ test('cursor — the .mdc keeps the block, which is the only place it can be los
 
     // The block still has to open the body, the same as everywhere else.
     assert.match(text, /\n---\n<!-- rsc-governance:begin /, `cursor/${id}: the block opens the body`);
+
+    // D16 on the one RE-RENDERED delivery, where `auditBase` cannot speak for the bytes.
+    assert.deepEqual(parentReferences(text), [], `cursor/${id}: the .mdc still names ${PARENT_PACKAGE}`);
   }
 });
 

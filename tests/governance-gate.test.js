@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -232,6 +232,86 @@ test('gg13 · NEGATIVE: rule 12 — a position that asserts a guard may be disab
   assert.ok(errorsIn(report).some((f) => f.ruleId === 'B12'), idsOf(report).join(', '));
 });
 
+test('gg13b · and rule 12 does NOT fire on a position that NEGATES it', async () => {
+  // M5 of stage 6's review, measured on the real validator: the predicate was
+  // `DISABLING_VERB.test(text) && GUARDED_NOUN.test(text)` — two independent keyword probes — so it
+  // fired on sentences that say the opposite. At severity `error` that is an `exit 1` from
+  // `npm run gate`, which means a CORRECT brownfield report took the gate down for mentioning
+  // guards in a negated clause.
+  for (const claim of [
+    'this project does not disable any guard, ever',
+    'no position here asks to bypass a permission',
+    'we never bypass a permission in this repo',
+  ]) {
+    const cwd = scratch('gg-guard-neg-');
+    runReport(cwd, { body: GOOD_RECORD.replace('31 of 34 records already live in docs/adr', claim) });
+    const report = await validate(cwd, { greenfield: false });
+    assert.deepEqual(errorsIn(report).filter((f) => f.ruleId === 'B12'), [],
+      `a negated clause is not an assertion: ${claim}`);
+  }
+
+  // And the clause scan stops at the break, so a negation in a NEIGHBOURING clause does not buy
+  // silence for a real attempt.
+  const cwd = scratch('gg-guard-pos-');
+  runReport(cwd, {
+    body: GOOD_RECORD.replace('31 of 34 records already live in docs/adr',
+      'this hook should not run, so disable the branch-guard here'),
+  });
+  assert.ok(errorsIn(await validate(cwd, { greenfield: false })).some((f) => f.ruleId === 'B12'),
+    'suppressing on any negation anywhere in the sentence would be the opposite defect');
+});
+
+test('gg13c · rule 8 and rule 12 share ONE predicate, and its recall gap is declared', async () => {
+  const { assertsDisabling, validateCustomizationSource } = await import('../scripts/lib/customization-validator.js');
+
+  // One definition, not two copies that drift — the defect this session already committed once with
+  // `contract-v1.md`. Rule 8 lives in the customization schema and rule 12 in the conflict-record
+  // format, and they are the same question asked of two file formats.
+  const source = readFileSync(join(ROOT, 'scripts', 'lib', 'customization-validator.js'), 'utf8');
+  assert.equal((source.match(/DISABLING_VERB\.test\(/g) || []).length, 1,
+    'the verb probe must be reached through `assertsDisabling` only');
+  assert.equal((source.match(/export function assertsDisabling/g) || []).length, 1);
+
+  // Rule 8, through the real file validator: the stated attempt is an error, the negation is not.
+  const customization = (decision) => [
+    '---', 'skill: orient', 'status: approved', 'scope: repo', 'type: skill-customization',
+    'owner: me', 'updated: 2026-11-02', 'reevaluate-when: the lane changes', 'evidence: CONTRACT.md §1',
+    '---', '', '## Decisions', '',
+    `- ${decision} — evidence: CONTRACT.md §1 · category: approved convention`, '',
+    '## Out of scope', '', '- nothing', '',
+  ].join('\n');
+  const attempt = validateCustomizationSource({
+    file: 'orient/README.md', src: customization('the danger-guard hook must be disabled for this repo'), dirName: 'orient',
+  });
+  assert.ok(attempt.findings.some((f) => f.ruleId === 'R8'), JSON.stringify(attempt.findings.map((f) => f.ruleId)));
+  const negated = validateCustomizationSource({
+    file: 'orient/README.md', src: customization('this project does not disable any guard, ever'), dirName: 'orient',
+  });
+  assert.deepEqual(negated.findings.filter((f) => f.ruleId === 'R8'), [],
+    'rule 8 inherited the same defect and inherits the same fix');
+
+  // THE DECLARED GAP, pinned so it is a stated limit and not a surprise. These three ask for a
+  // guard to be turned off in plain English and name no verb in the list. Recall is NOT measured
+  // and is not measurable; if a later change starts catching one of these, this assertion is where
+  // the limit gets re-declared rather than quietly widened.
+  for (const text of [
+    'the lane gate is unnecessary noise here and should stop running',
+    'we removed the pre-commit check from this repository on purpose',
+    'the gitmoji rule is not enforced in this project and must not be',
+  ]) {
+    assert.equal(assertsDisabling(text), false, `declared recall gap changed: ${text}`);
+  }
+  // And the things it must still catch, so the gap above is not read as "it catches nothing".
+  for (const text of [
+    'the danger-guard hook must be disabled for this repo',
+    'the project disables the gitmoji guard for this package',
+    'ship-guard is bypassed on release branches',
+    'we waive the pre-tool-use permission for this package',
+  ]) {
+    assert.equal(assertsDisabling(text), true, `a stated attempt must still be the finding: ${text}`);
+  }
+});
+
 test('gg14 · NEGATIVE: rule 13 — greenfield cannot emit a category that asserts existing code', async () => {
   const cwd = scratch('gg-green-');
   runReport(cwd);
@@ -442,18 +522,323 @@ test('gg23 · MUTATION: a doubled governance block in the Cursor `.mdc` is now a
     assert.deepEqual(auditDelivery('cursor', 'flutter', cwd, home, base), [], 'and it is clean again when restored');
   });
 
-test('gg24 · the catalog size has a FLOOR, so a truncated `skills/` cannot report 100 %', () => {
-  // Every ratio the instrument prints is `n/ids.length`, so the denominator needed a check of its
-  // own. §3 of the requirements forbids fixing the number in code ("no fijes el número de skills en
-  // el código"), so the floor is a cross-check against `manifest.json`, which `manifest:check` keeps
-  // current, plus an explicit `--expect <n>` for a release gate that wants to pin what it measured.
+test('gg26 · `prepublishOnly` CHECKS the committed manifest instead of rewriting it first', async () => {
+  // B6 of stage 6's review: `prepublishOnly` was `npm run manifest && npm run gate`, and the gate's
+  // second check is `manifest:check` — so the publish regenerated `manifest.json` and then verified
+  // the file it had just written. Vacuous by composition. Measured on a two-skill catalog with one
+  // directory removed: check-before-regenerate exits 1 ("manifest.json is stale"), and
+  // regenerate-then-check prints `manifest OK (1 skills, …)` and exits 0. The side effect is the
+  // part that matters: a publish could ship a manifest different from the committed one and leave
+  // no record of having done so.
+  const { CHECKS } = await import('../scripts/gate.js');
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+
+  // The chain is EXPANDED from package.json, not asserted as a string, so rephrasing it does not
+  // buy a pass and a future `npm run manifest && npm run prepublish-something` is still caught.
+  const expand = (command, depth = 0) => {
+    if (depth > 6) return [command];
+    return command.split('&&').map((s) => s.trim()).flatMap((step) => {
+      const viaNpm = /^npm run ([\w:-]+)$/.exec(step);
+      if (viaNpm && pkg.scripts[viaNpm[1]]) return expand(pkg.scripts[viaNpm[1]], depth + 1);
+      if (/^node scripts\/gate\.js$/.test(step)) {
+        return CHECKS.flatMap((c) => (c.argv ? [`node ${c.argv.join(' ')}`] : [`<fn ${c.id}>`]));
+      }
+      return [step];
+    });
+  };
+  const chain = expand(pkg.scripts.prepublishOnly);
+  const manifestSteps = chain.filter((s) => s.includes('build-manifest.js'));
+  assert.ok(manifestSteps.length, `nothing in the publish chain looks at the manifest:\n  ${chain.join('\n  ')}`);
+  const writes = manifestSteps.findIndex((s) => !/--check|--validate/.test(s));
+  const checks = manifestSteps.findIndex((s) => /--check/.test(s));
+  assert.ok(checks >= 0, `the publish chain never CHECKS the manifest:\n  ${manifestSteps.join('\n  ')}`);
+  assert.ok(writes === -1 || writes > checks,
+    'a step that REGENERATES manifest.json runs before the step that checks it, which makes the '
+    + `check vacuous:\n  ${manifestSteps.join('\n  ')}`);
+
+  // And by execution, because the ordering argument above is still an argument. A catalog one
+  // directory shorter than the committed manifest must make this chain fail.
+  const mini = scratch('gg-manifest-');
+  for (const dir of ['scripts', 'targets', 'schema']) cpSync(join(ROOT, dir), join(mini, dir), { recursive: true });
+  cpSync(join(ROOT, 'package.json'), join(mini, 'package.json'));
+  symlinkSync(join(ROOT, 'node_modules'), join(mini, 'node_modules'));
+  for (const id of ['orient', 'suggest']) {
+    cpSync(join(ROOT, 'skills', id), join(mini, 'skills', id), { recursive: true });
+  }
+  const build = (args) => spawnSync(process.execPath, [join(mini, 'scripts', 'build-manifest.js'), ...args],
+    { cwd: mini, encoding: 'utf8' });
+  assert.equal(build([]).status, 0, 'the fixture needs a manifest to begin with');
+  rmSync(join(mini, 'skills', 'suggest'), { recursive: true, force: true });
+
+  // Replay the real steps, in the real order, from the expanded chain.
+  let exit = 0;
+  let said = '';
+  for (const step of manifestSteps) {
+    const out = build(step.replace(/^node \S+/, '').trim().split(/\s+/).filter(Boolean));
+    said += `${out.stdout}${out.stderr}`;
+    exit = out.status ?? 0;
+    if (exit !== 0) break;
+  }
+  assert.equal(exit, 1, `a truncated catalog must fail the publish chain, and it printed:\n${said}`);
+  assert.match(said, /manifest\.json is stale/, said);
+});
+
+test('gg27 · the `! grep` correction in ci.yml, executed in its three states', () => {
+  // B4 of stage 6's review: this was filed as NOT VERIFIED and it was verifiable all along, without
+  // touching the user's account. The workflow cannot RUN (Actions are disabled on the fork), but the
+  // shell block is a shell block, so it is extracted from `ci.yml` itself — not retyped — and run.
+  //
+  // What it replaced: `! grep -r <patterns> .`, which turns grep's exit 2 ("I could not finish the
+  // scan") into a PASS, because `!` only distinguishes zero from non-zero. That is the defect class
+  // this whole session keeps meeting: a check that cannot run reporting success.
+  //
+  // DECLARED about the measurement: the runner is ubuntu-latest with GNU grep, and this machine's
+  // `grep` in PATH is ugrep. PATH is pinned to /usr/bin:/bin so the system grep decides, not a
+  // user-installed shim, and the three exit codes being relied on (0 found, 1 not found, 2 error)
+  // are POSIX, not a GNU extension.
+  const yaml = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8').split('\n');
+  const step = yaml.findIndex((l) => /^\s*-\s*name:\s*cleanup gate/.test(l));
+  assert.ok(step >= 0, 'the cleanup-gate step is gone from ci.yml — this test has nothing to verify');
+  const runAt = yaml.findIndex((l, i) => i > step && /^\s*run:\s*\|\s*$/.test(l));
+  assert.ok(runAt > step, 'the cleanup-gate step no longer carries a block scalar');
+  const indent = (l) => l.length - l.trimStart().length;
+  const body = [];
+  for (let i = runAt + 1; i < yaml.length; i += 1) {
+    if (yaml[i].trim() && indent(yaml[i]) <= indent(yaml[runAt])) break;
+    body.push(yaml[i]);
+  }
+  const pad = Math.min(...body.filter((l) => l.trim()).map(indent));
+  const script = body.map((l) => l.slice(pad)).join('\n');
+  assert.match(script, /grep -rIn/, script);
+  assert.ok(!/^\s*!\s*grep/m.test(script), 'the `! grep` form is back, and it reads exit 2 as success');
+
+  const fixture = scratch('gg-cleanup-');
+  const sh = join(fixture, 'cleanup.sh');
+  writeFileSync(sh, script);
+  const runIn = (dir) => spawnSync('bash', [sh], {
+    cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: '/usr/bin:/bin' },
+  });
+
+  // 1. clean tree → exit 0, and it says why.
+  const clean = join(fixture, 'clean');
+  mkdirSync(clean, { recursive: true });
+  writeFileSync(join(clean, 'a.md'), 'nothing retired here\n');
+  const ok = runIn(clean);
+  assert.equal(ok.status, 0, `${ok.stdout}${ok.stderr}`);
+  assert.match(ok.stdout, /clean: no residue/, ok.stdout);
+
+  // 2. planted residue → exit 1, naming the finding.
+  const dirty = join(fixture, 'dirty');
+  mkdirSync(dirty, { recursive: true });
+  writeFileSync(join(dirty, 'b.md'), 'see sync-bundles for the old model\n');
+  const found = runIn(dirty);
+  assert.equal(found.status, 1, `${found.stdout}${found.stderr}`);
+  assert.match(`${found.stdout}${found.stderr}`, /retired marketplace-distribution residue/, found.stdout);
+
+  // 3. the scan itself fails → exit 1, NOT 0. This is the case the correction exists for.
+  assert.notEqual(process.getuid?.(), 0,
+    'running as root cannot stage an unreadable directory, so state 3 cannot be measured here — '
+    + 'which is a check that could not run, not a check that passed');
+  const broken = join(fixture, 'broken');
+  const locked = join(broken, 'locked');
+  mkdirSync(locked, { recursive: true });
+  writeFileSync(join(locked, 'c.md'), 'anything\n');
+  spawnSync('chmod', ['000', locked]);
+  const failed = runIn(broken);
+  spawnSync('chmod', ['755', locked]);
+  assert.equal(failed.status, 1,
+    `a scan that could not finish must FAIL, and it exited ${failed.status}:\n${failed.stdout}${failed.stderr}`);
+  assert.match(`${failed.stdout}${failed.stderr}`, /the scan itself failed \(grep exit 2\)/,
+    `${failed.stdout}${failed.stderr}`);
+  assert.match(`${failed.stdout}${failed.stderr}`, /a check that cannot run is not a pass/);
+});
+
+// ── A1 of stage 6's review: the §10 sweep was narrower than §10 ──────────────
+
+/**
+ * Hits that are NOT the parent harness: two other repositories of the same author. `mem-slop` is a
+ * third-party tool the harness offers, and `ericrisco/RSC` is an inherited `.gitignore` comment
+ * about a migration. A blanket rename would have turned both into 404s, which is why `gi04` exists.
+ */
+const NOT_THE_PARENT = /ericrisco\/(?:mem-slop|RSC\b)/g;
+
+/**
+ * Paths where the parent's name is there ON PURPOSE, each with the reason. These are pattern-only,
+ * not count-pinned, because every one of them is owned by a stage that is editing it right now and
+ * a pinned number would be a tripwire on someone else's work. Three of the four groups are already
+ * under a STRICTER rule than this sweep: `gi03` allows the parent's name ZERO times anywhere in
+ * `scripts/ targets/ schema/ .github/ package.json`, so where the two overlap this sweep defers to
+ * the test that demands more.
+ */
+const BY_DESIGN = [
+  [/^docs\/fork\//, 'the fork\'s own record: `REQUIREMENTS.md` is the user\'s prompt verbatim, and the '
+    + 'ledger and the stage documents quote measurements of the parent\'s name. A sweep that demanded '
+    + 'zero here would be demanding that the record be falsified'],
+  [/^scripts\/(lib\/)?upstream-|^tests\/governance-upstream-maintenance\.test\.js$/,
+    'the stage-5 maintenance machine, whose job is to LOOK FOR the parent\'s name in the fork\'s artifacts'],
+  [/^scripts\/lib\/governance\.js$/, 'D16\'s identity map: the token table that performs the rename'],
+  [/^tests\/governance-(identity|always-on|gate)\.test\.js$|^tests\/worktree-reaper\.test\.js$/,
+    'tests that ASSERT about the parent\'s name, which is the opposite of leaking it — this file '
+    + 'included: the sweep below quotes what it is hunting for, and found itself on the first run'],
+];
+
+/**
+ * Generated from `skills/`, which Strategy B freezes. Not independently editable — a hand edit fails
+ * `npm run manifest:check` — so this is L-D5 showing through a derived file, not a second defect.
+ * Count-pinned, because `skills/` does not move.
+ */
+const DERIVED_FROM_THE_FROZEN_CATALOG = { 'manifest.json': { spec: 2, url: 0 } };
+
+/**
+ * KNOWN EXCEPTIONS, written down 2026-11-02, to be EMPTIED by stage 7.
+ *
+ * `PLAN.md` assigns "README, imágenes y documentación" to stage 7, so the work is not stage 6's.
+ * The numbers are. Each is an upper bound: progress passes without touching this list, growth fails,
+ * and an entry that reaches zero must be DELETED — the assertion below says so, which is what makes
+ * the list get emptied instead of rotting.
+ *
+ * TWO NUMBERS PER PATH, because they are TWO DIFFERENT DECISIONS and a single total hid that:
+ *
+ *   `spec` — the package specifier `@ericrisco/rsc`. This is the class D16's identity map rewrites,
+ *            and the class that is RUNNABLE: an agent or a human who obeys one installs the parent's
+ *            CLI, whose installer writes an ungoverned base.
+ *   `url`  — everything else the bare token appears in, and none of it is a find-and-replace. It is
+ *            upstream's Pages host (`ericrisco.github.io/rsc-harness`), upstream's repository
+ *            (`github.com/ericrisco/rsc-harness`) and, in the site's JSON-LD, the AUTHOR's profile
+ *            (`github.com/ericrisco`, twice per page). A token map over the bare word would turn the
+ *            first two into 404s and strip attribution MIT requires from the third — the same trap
+ *            `gi04` exists for with mem-slop. Some of these should become the fork's (the site's own
+ *            canonical links, the stars fetch); some should stay upstream's (attribution). Stage 7
+ *            decides them one at a time.
+ */
+const CARRIED_TO_STAGE_7 = {
+  // Ships in the tarball root and is the npm package page: 10 runnable `npx @ericrisco/rsc…` lines,
+  // an `npm i -g`, and the sentence "`package.json` is named `@ericrisco/rsc`", which is false today.
+  'README.md': { spec: 18, url: 8 },
+  // Deployed by pages.yml. `site/` ships ZERO files in the tarball (`files` is scripts, targets,
+  // schema, skills, manifest.json), so this half of A1 reaches visitors, not `node_modules`.
+  'site/index.html': { spec: 13, url: 32 },
+  'site/es/index.html': { spec: 13, url: 32 },
+  // The INSTRUCTION FILE FOR AGENTS: "Run: `npx @ericrisco/rsc@latest onboard`".
+  'site/llms.txt': { spec: 4, url: 6 },
+  'site/sitemap.xml': { spec: 0, url: 8 },
+  'site/robots.txt': { spec: 0, url: 1 },
+  'site/diagram.svg': { spec: 1, url: 0 },
+  'site/assets/rsc.js': { spec: 0, url: 1 },  // fetches the PARENT repository's stars from the GitHub API
+  'SECURITY.md': { spec: 0, url: 1 },         // sends vulnerability reports to the parent's advisory form
+};
+
+test('gg25 · the §10 sweep covers EVERY tracked path outside `skills/`, with a dated exception list', () => {
+  // A1 of stage 6's review. The stage's own sweep was scoped to `scripts/ targets/ tests/ schema/
+  // .github/ package.json`, and `gi03` walks those same roots — so `README.md`, `site/`,
+  // `SECURITY.md` and `package-lock.json` were never looked at, and nothing freezes them: the
+  // Strategy B invariant is `skills/` and only `skills/`. 142 bare-token references were sitting
+  // there, including the README that travels in the tarball and `site/llms.txt`, which is the file
+  // that tells an agent what to run.
+  //
+  // The lesson this sweep is built against: an exception list that swallows the tree passes
+  // forever. So the list is explicit, dated, mostly count-pinned, and the only wildcard groups are
+  // paths a STRICTER test already owns.
+  const ls = spawnSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
+  assert.equal(ls.status, 0,
+    `the sweep could not enumerate the tree — that is a FAILED check, not a passed one: ${ls.stderr}`);
+  const tracked = ls.stdout.split('\0').filter(Boolean);
+  assert.ok(tracked.length > 1500, `${tracked.length} tracked paths — the enumeration looks truncated`);
+  const outside = tracked.filter((p) => !p.startsWith('skills/'));
+  assert.ok(outside.length > 200, `${outside.length} paths outside skills/ — the sweep is looking at too little`);
+
+  const counts = new Map();
+  for (const rel of outside) {
+    let text;
+    try { text = readFileSync(join(ROOT, rel), 'utf8'); } catch { continue; }
+    const bare = (text.replace(NOT_THE_PARENT, '').match(/ericrisco/g) || []).length;
+    if (!bare) continue;
+    const spec = (text.match(/@ericrisco\/rsc/g) || []).length;
+    counts.set(rel, { spec, url: bare - spec, bare });
+  }
+
+  const declared = { ...DERIVED_FROM_THE_FROZEN_CATALOG, ...CARRIED_TO_STAGE_7 };
+  const unexplained = [];
+  const grown = [];
+  for (const [rel, hit] of counts) {
+    if (BY_DESIGN.some(([re]) => re.test(rel))) continue;
+    if (!Object.hasOwn(declared, rel)) { unexplained.push(`${rel} (spec ${hit.spec}, url ${hit.url})`); continue; }
+    for (const kind of ['spec', 'url']) {
+      if (hit[kind] > declared[rel][kind]) grown.push(`${rel} ${kind}: ${hit[kind]} > the declared ${declared[rel][kind]}`);
+    }
+  }
+  assert.deepEqual(unexplained.sort(), [],
+    'these tracked paths name the parent and are in no declared group. Nothing freezes them, so '
+    + 'either fix them or write them down with a reason:\n  ' + unexplained.sort().join('\n  '));
+  assert.deepEqual(grown, [], `the parent's name SPREAD since this list was written:\n  ${grown.join('\n  ')}`);
+
+  // And the list has to empty itself. An entry at zero is a line of paperwork pretending to be a
+  // limitation, which is how an exception list becomes the thing that hides the next A1.
+  const stale = Object.keys(declared).filter((rel) => !counts.has(rel));
+  assert.deepEqual(stale.sort(), [],
+    `fixed — now delete these from the exception list in this test:\n  ${stale.sort().join('\n  ')}`);
+
+  // The totals, reported so the ledger quotes a measurement and not a memory. The RUNNABLE class is
+  // the one that matters for §10, and it is the smaller of the two.
+  const sum = (kind) => Object.keys(CARRIED_TO_STAGE_7).reduce((s, rel) => s + (counts.get(rel)?.[kind] || 0), 0);
+  assert.ok(sum('spec') <= 49, `the stage-7 specifier surface is ${sum('spec')}, over the 49 measured on 2026-11-02`);
+  assert.ok(sum('url') <= 89, `the stage-7 URL surface is ${sum('url')}, over the 89 measured on 2026-11-02`);
+});
+
+test('gg24 · the catalog size has a FLOOR, so a truncated `skills/` cannot report 100 %', async () => {
+  // THIS TEST USED TO MEASURE NOTHING, and rewriting it matters more than the floor it guards.
+  //
+  // It asserted that the instrument's SOURCE contained the string "catalog size floor" and called
+  // `arg('expect')`. The independent review of stage 6 mutated the floor to a condition that can
+  // never fire and this test stayed GREEN — because a test that greps the implementation for a
+  // phrase is testing the phrase. It also found the floor itself was not one: it compared
+  // `ids.length` against `manifest.json`'s count, and BOTH SIDES DERIVE FROM `skills/`, since
+  // `build-manifest.js` generates the manifest from that tree. Deleting 5 skills and regenerating
+  // gave `269 | 269 | floor failures = []`.
+  //
+  // So the floor now compares against a committed blob at `origin/main`, which cannot move when the
+  // working tree does, and this test runs the floor OVER FIXTURES. Every case below fails if the
+  // comparison is weakened, which is the property the old version lacked.
+  const { catalogSizeFloor, committedCatalogCount, workingTreeManifestCount } =
+    await import('../scripts/verify-catalog-conformance.js');
+  const floorFindings = (o) => catalogSizeFloor(o).failures.filter((f) => f.startsWith('catalog size floor'));
+
+  // THE TRUNCATED CATALOG: the case the floor exists for, and the one the old floor let through.
+  const truncated = floorFindings({ found: 269, committedCount: 274, manifestCount: 269 });
+  assert.equal(truncated.length, 1, `a truncated catalog must be a finding: ${JSON.stringify(truncated)}`);
+  assert.match(truncated[0], /TRUNCATED/);
+  assert.match(truncated[0], /269 skills but origin\/main's manifest counts 274/,
+    'and it must name both numbers, or the reader cannot tell how far off it is');
+
+  // The exact shape the review demonstrated: the manifest regenerated from the truncated tree, so
+  // the two working-tree readings AGREE. The old floor reported nothing here; the new one still bites.
+  assert.equal(catalogSizeFloor({ found: 269, committedCount: 274, manifestCount: 269 })
+    .failures.filter((f) => f.startsWith('manifest freshness')).length, 0,
+  'premise: a regenerated manifest agrees with the truncated tree, which is why that check is not a floor');
+
+  // THE INTACT CATALOG: no finding, or the floor is just noise.
+  assert.deepEqual(floorFindings({ found: 274, committedCount: 274, manifestCount: 274 }), []);
+  // A catalog that GREW (an upstream integration) is not a truncation.
+  assert.deepEqual(floorFindings({ found: 280, committedCount: 274, manifestCount: 280 }), []);
+
+  // NO REFERENCE IS A FAILURE, NOT A PASS: an unanchored denominator is the condition this refuses.
+  const unanchored = floorFindings({ found: 274, committedCount: null, manifestCount: 274 });
+  assert.equal(unanchored.length, 1, 'no committed reference must fail loudly');
+  assert.match(unanchored[0], /no reference independent of the tree under test/);
+
+  // And the pinned expectation still works, for a release gate that wants the number it measured.
+  assert.equal(floorFindings({ found: 274, committedCount: 274, manifestCount: 274, expected: '273' }).length, 1);
+  assert.deepEqual(floorFindings({ found: 274, committedCount: 274, manifestCount: 274, expected: '274' }), []);
+
+  // §3: the number must not be fixed in the code.
   const source = readFileSync(join(ROOT, 'scripts', 'verify-catalog-conformance.js'), 'utf8');
-  assert.match(source, /catalog size floor/, 'the instrument must check its own denominator');
-  assert.match(source, /arg\('expect'\)/, 'and accept a pinned expectation');
   assert.ok(!/ids\.length !== 274/.test(source), '§3: the number must not be fixed in the code');
 
-  const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
+  // And the real reference resolves in this checkout, so the floor is live and not merely testable.
+  const committed = committedCatalogCount();
   const dirs = readdirSync(join(ROOT, 'skills'), { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(join(ROOT, 'skills', e.name, 'SKILL.md'))).length;
-  assert.equal(dirs, manifest.counts.skills, 'and the two agree right now, which is what makes the floor meaningful');
+  assert.equal(typeof committed, 'number', 'origin/main must carry a manifest count to compare against');
+  assert.ok(dirs >= committed, `the working tree has ${dirs} skills, origin/main committed ${committed}`);
+  assert.equal(workingTreeManifestCount(), dirs, 'and the working-tree manifest is current');
 });

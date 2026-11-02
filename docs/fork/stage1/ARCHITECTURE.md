@@ -123,7 +123,7 @@ Luego en Claude Code el bloque se inyectaría **en cada SessionStart y tras cada
 
 Ni lo que yo escribí ni exactamente lo que propone la re-revisión. El mecanismo **ya existe en el código**: `claude.js:139-148` materializa `.rsc/suggest-always-on.md` y reapunta `suggestRel` cuando `codeHooks === false && !laneGate`. Se generaliza:
 
-1. El transformador emite `.rsc/governance/always-on.md` = el cuerpo de `suggest` **sin el bloque**. Determinista e idempotente, como el resto.
+1. El transformador emite `.rsc/governance/always-on.md` = el cuerpo de `suggest` **sin el bloque** y **con el mapa de identidad aplicado** (D16: `writeAlwaysOn` es el único escritor de esa superficie para los cinco destinos, así que la reescritura los alcanza a todos desde un solo sitio). Determinista e idempotente, como el resto.
 2. `scripts/install-apply.js:294` pasa **esa** ruta a `wireHook` en vez de `join(ensureBase('suggest', …), 'SKILL.md')`.
 3. `claude.js` reapunta `suggestRel` a ese archivo **en todos los casos**, no sólo en la rama `codeHooks === false && !laneGate`.
 
@@ -171,7 +171,7 @@ La decisión del usuario se cumple en su letra: el validador determinista del cr
 Los tres techos de upstream se quedan midiendo lo que siempre midieron y **no se tocan**. Hacen falta **tres** tests propios, no dos:
 
 1. **Base distribuida:** las 274 de `.rsc/skills/<id>/SKILL.md` portan el bloque y las tres claves, con el digest correcto. Instrumento del criterio 4.
-2. **Entrega always-on, los 18 destinos:** el archivo que el hook de cada destino acaba leyendo **no** contiene el bloque, y su tamaño es el de upstream. **Para `claude` el test debe seguir la ruta que guarda `settings.json`**, no lo que devuelve `wireHook`, porque ahí `wireHook` no devuelve ningún cuerpo — era el defecto del test que esta sección definía antes, vacuo justamente en el único destino con imposición.
+2. **Entrega always-on, los 18 destinos:** el archivo que el hook de cada destino acaba leyendo **no** contiene el bloque, y es el de upstream **tras aplicar el mapa de identidad** (D16), con el delta de bytes medido: 10 sustituciones, **+70 B**, 7 280 B → 7 350 B. La igualdad se afirma contra ese fuente reescrito, no contra un techo, así que sigue siendo tan fuerte como la identidad byte-a-byte que sustituye: la **única** diferencia permitida respecto a upstream es la sustitución de token enumerada. El coste de **gobernanza** sigue siendo cero bytes. **Para `claude` el test debe seguir la ruta que guarda `settings.json`**, no lo que devuelve `wireHook`, porque ahí `wireHook` no devuelve ningún cuerpo — era el defecto del test que esta sección definía antes, vacuo justamente en el único destino con imposición.
 3. **Entrega por skill:** el `SKILL.md` entregado conserva el bloque en los 18, y el `.mdc` de Cursor también — que es la única entrega **transformada** (`cursor.js:7`) y por tanto la única donde un fallo de renderizado no lo vería ni el validador de la base ni el digest.
 
 ### Cuándo se aplica

@@ -38,3 +38,10 @@ coverage/
 
 # Worktrees created for isolated feature work — the directory is scratch, never content.
 .worktrees/
+
+# Upstream maintenance scratch (§9): the disposable worktrees `--worktree` creates and the
+# disposable project/home the gate installs into. REQUIREMENTS §1 keeps those writes inside the
+# dedicated folder, which means inside the repository, which means they have to be ignored or every
+# maintenance run dirties `git status`. The journal and the report are NOT here: they live under
+# `docs/fork/stage5/runs/`, because the evidence of what was incorporated is committed.
+.rsc-upstream/

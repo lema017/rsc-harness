@@ -24,9 +24,13 @@
 //      the state and each phase declares the minimum scope it needs. A phase above the ceiling is
 //      `skipped` with a reason, not quietly omitted, so the report says what was not done.
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
+import {
+  basename, dirname, isAbsolute, join, relative, resolve,
+} from 'node:path';
 
 /** State file schema version. Bumped when the shape changes incompatibly. */
 export const STATE_SCHEMA = 1;
@@ -97,6 +101,51 @@ export function reportPath(stateRoot, runId) {
 }
 
 /**
+ * Every path this journal and its report print, expressed relative to the repository root.
+ *
+ * The run directory lives under `docs/fork/` BECAUSE it is committed: it is the evidence of what
+ * was incorporated, and it belongs beside the merge that incorporated it. That is exactly why it
+ * must not carry `/Users/<name>/...`. The journal recorded `"repo": "/Users/home/…"`, the report
+ * printed absolute paths for the worktree, the integration tree, the disposable project, the
+ * evidence files and the journal itself, and `evidence/impacted-tests.json` carried the VALUE of
+ * `GIT_CEILING_DIRECTORIES` — all of it on its way to a repository meant to be published.
+ *
+ * A path outside the repository still relativizes (`../../elsewhere/x`), which says where it is in
+ * relation to the tree without saying whose machine it is on. `state.repo` keeps only the
+ * repository directory's name, which is the anchor these paths are read against and is already
+ * public in `package.json`.
+ */
+export function repoRelative(repo, path) {
+  if (!path) return path ?? null;
+  const p = String(path);
+  if (!repo || !isAbsolute(p)) return p;
+  const rel = relative(resolve(repo), p);
+  return rel === '' ? '.' : rel;
+}
+
+/** The anchor stored in the journal: the repository's directory name, never its absolute path. */
+export function repoLabel(repo) {
+  return repo ? basename(resolve(repo)) : null;
+}
+
+/**
+ * The acknowledgements the GATE reads, taken from the journal rather than from argv.
+ *
+ * `runGate`'s own documentation promised the acknowledgements came "from the run journal, never
+ * from a flag typed at the moment of being blocked", while the only sources were
+ * `acknowledgementsFromArgv()` and `options.acknowledgements` and nothing read `state.decisions` at
+ * all. This is the function that makes the sentence true: the flag records a decision, and the gate
+ * reads the decisions.
+ */
+export function acknowledgementsFrom(state) {
+  const out = {};
+  for (const d of state?.decisions || []) {
+    if (d.kind === 'acknowledgement' && d.answer) out[d.id] = d.answer;
+  }
+  return out;
+}
+
+/**
  * A run id that sorts chronologically and cannot collide within a second: the UTC timestamp plus
  * six hex characters derived from the inputs that make this run what it is. Deterministic given
  * the same inputs, which is what lets a test assert on it.
@@ -130,7 +179,9 @@ export function newRun({
   return {
     schema: STATE_SCHEMA,
     runId: runId || makeRunId({ now, base, head, repo }),
-    repo: repo || null,
+    // The NAME of the repository directory, not its path: the journal is committed, and every other
+    // path in it is relative to this anchor. See `repoRelative`.
+    repo: repoLabel(repo),
     startedAt,
     updatedAt: startedAt,
     // The scope granted when THIS run started. Re-granting means starting a new run or resuming
@@ -148,17 +199,31 @@ export function newRun({
   };
 }
 
-/** Atomic: write beside the target and rename, so an interrupted write cannot truncate the state. */
+/**
+ * Atomic: write beside the target and rename, so an interrupted write cannot truncate the state.
+ *
+ * BOTH files get the same treatment. The pointer used to be written in place, which is the one way
+ * `--resume` with no id could read a half-written run id — the smaller sibling of the truncation the
+ * state file is already protected against. And a crash between the write and the rename used to
+ * leave `state.json.tmp` behind in a directory that is COMMITTED, so the temporary is removed on
+ * the next save as well as on the way in.
+ */
 export function saveRun(state, { stateRoot }) {
   const dest = statePath(stateRoot, state.runId);
   mkdirSync(dirname(dest), { recursive: true });
   state.updatedAt = new Date().toISOString();
   const tmp = `${dest}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  renameSync(tmp, dest);
+  const writeAtomically = (target, body) => {
+    const scratch = `${target}.tmp`;
+    try { rmSync(scratch, { force: true }); } catch { /* a leftover we are about to overwrite */ }
+    writeFileSync(scratch, body);
+    renameSync(scratch, target);
+  };
+  writeAtomically(dest, `${JSON.stringify(state, null, 2)}\n`);
   // The pointer is what `--resume` with no id follows. Written after the state, so it never names
   // a run whose state file is not yet complete.
-  writeFileSync(join(stateRoot, 'latest'), `${state.runId}\n`);
+  writeAtomically(join(stateRoot, 'latest'), `${state.runId}\n`);
+  try { rmSync(tmp, { force: true }); } catch { /* best effort: the journal is already correct */ }
   return dest;
 }
 
@@ -205,6 +270,11 @@ export function loadRun({ stateRoot, runId }) {
 /**
  * Prepare a loaded run for another pass: every phase left `running` or `failed` goes back to
  * `pending` so it executes again. `done` and `skipped` are left alone.
+ *
+ * A reset phase KEEPS its `data`, on purpose: it is the resume input. `prepare` finds its own branch
+ * and worktree there rather than creating a second one, and `integrate` finds the tree it left a
+ * conflicted merge in. The phase then overwrites that record outright when it finishes (see
+ * `endPhase`), so nothing carries a stale measurement forward under a fresh summary.
  *
  * Returns the names that were reset, which is what the report calls "resumed at".
  */
@@ -259,22 +329,31 @@ export function beginPhase(state, name) {
   return phase;
 }
 
-export function completePhase(state, name, { summary = null, data = null } = {}) {
+/**
+ * The result of a phase REPLACES its previous result, including when the new one is null.
+ *
+ * `if (data !== null) phase.data = data` left the previous pass's measurements in place whenever a
+ * re-run produced none, and `resumeRun` deliberately preserves `data` so a reset phase can see its
+ * own earlier output (`prepare` reuses its branch and worktree that way). Those two together mean a
+ * phase could report one thing while the journal carried another phase's older numbers under it.
+ * Each phase therefore owns its record outright, and `resumeRun` documents the preservation as the
+ * resume INPUT it is.
+ */
+function endPhase(state, name, status, { summary = null, data = null } = {}) {
   const phase = state.phases[name];
-  phase.status = 'done';
+  phase.status = status;
   phase.endedAt = new Date().toISOString();
   phase.summary = summary;
-  if (data !== null) phase.data = data;
+  phase.data = data ?? null;
   return phase;
 }
 
-export function failPhase(state, name, { summary = null, data = null } = {}) {
-  const phase = state.phases[name];
-  phase.status = 'failed';
-  phase.endedAt = new Date().toISOString();
-  phase.summary = summary;
-  if (data !== null) phase.data = data;
-  return phase;
+export function completePhase(state, name, out = {}) {
+  return endPhase(state, name, 'done', out);
+}
+
+export function failPhase(state, name, out = {}) {
+  return endPhase(state, name, 'failed', out);
 }
 
 /**
@@ -283,13 +362,8 @@ export function failPhase(state, name, { summary = null, data = null } = {}) {
  * recorded. §9 asks an ambiguity beyond the authorized scope to block the affected promotion and
  * keep the stable version, which is this.
  */
-export function blockPhase(state, name, { summary = null, data = null } = {}) {
-  const phase = state.phases[name];
-  phase.status = 'blocked';
-  phase.endedAt = new Date().toISOString();
-  phase.summary = summary;
-  if (data !== null) phase.data = data;
-  return phase;
+export function blockPhase(state, name, out = {}) {
+  return endPhase(state, name, 'blocked', out);
 }
 
 export function skipPhase(state, name, reason) {

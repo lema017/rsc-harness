@@ -74,6 +74,42 @@ export function restoreBackup({ cwd = process.cwd(), id, dryRun = false }) {
   return { snapshot, changed };
 }
 
+/**
+ * The `SKILL.md` bytes this snapshot WOULD hand back, per base id — read out of the snapshot's own
+ * `files/` tree, not off the project.
+ *
+ * Why it exists: stage 6's review (M3). D13's whole point is that a snapshot taken over a base that
+ * had come from upstream holds that base UNGOVERNED, and that `restore` says so. But the warning
+ * lived inside `if (!dry)`, so `restore --dry-run` — the one tool a consumer uses to DECIDE whether
+ * to restore — printed nothing. Measured on the same snapshot: 0 warning lines in the dry run, and
+ * `⚠️  1 restored skill base(s) carry NO governance contract: flutter` in the real one.
+ *
+ * Auditing the project's current bytes would answer the wrong question in a dry run (it reports what
+ * is installed NOW, which is exactly what the restore is about to replace). So this reads the stored
+ * copy. A base whose entry says `existed: false` is one the restore DELETES, so it stores no content
+ * and is correctly absent here: a path that will not come back cannot come back ungoverned.
+ *
+ * @returns {{id: string, text?: string, error?: string}[]} sorted by id
+ */
+export function snapshotSkillBases({ cwd = process.cwd(), snapshot }) {
+  const held = join(backupsDir(cwd), snapshot.id, 'files', '.rsc', 'skills');
+  let ids;
+  try { ids = readdirSync(held, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name); }
+  catch { return []; }
+  const out = [];
+  for (const id of ids.sort()) {
+    const md = join(held, id, 'SKILL.md');
+    try { out.push({ id, text: readFileSync(md, 'utf8') }); }
+    catch (err) {
+      // A base directory held with no readable `SKILL.md` is not evidence of governance either way,
+      // and silence would read as "fine". It is reported with its reason, like every other case.
+      if (err.code === 'ENOENT') out.push({ id, error: 'the snapshot holds no SKILL.md for this base' });
+      else out.push({ id, error: `could not be read: ${err.code || err.message}` });
+    }
+  }
+  return out;
+}
+
 function snapshotEntry({ cwd, root, absPath }) {
   const rel = safeRelative(cwd, absPath);
   if (!existsSync(absPath)) return { path: rel, existed: false, kind: 'missing' };

@@ -14,8 +14,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInstall } from '../scripts/install-apply.js';
 import {
-  BLOCK_BEGIN, BLOCK_END, GOVERNANCE_VERSION, customizationPathFor, digestOf, governanceOf,
-  renderBlock, renderPreamble, stripGovernance, transformSkillMd,
+  BLOCK_BEGIN, BLOCK_END, FORK_PACKAGE, GOVERNANCE_VERSION, PARENT_PACKAGE,
+  applyIdentity, countIdentityTokens, customizationPathFor, digestOf, governanceOf,
+  identityInvertible, invertIdentity, renderBlock, renderPreamble, rewriteIdentity,
+  stripGovernance, transformSkillMd,
 } from '../scripts/lib/governance.js';
 import { fenceBalance } from '../scripts/lib/skill-lint.js';
 import { governanceArtifactStatus } from '../scripts/governance-sync.js';
@@ -69,16 +71,107 @@ test('the transformation is deterministic and idempotent over all 274 skills', (
     // appended, so this can only fail if someone starts inserting instead.
     const originAt = Buffer.from(once, 'utf8').indexOf(Buffer.from('\norigin:'));
     if (originAt >= 0 && originAt > 2048 - 64) movedOrigin.push([id, originAt]);
-    // Nothing of the original body may be dropped: stripping governance must give the source back,
-    // up to the one normalized blank line between the frontmatter and the first heading.
-    if (stripGovernance(once).replace(/\n+/g, '\n') !== src.replace(/\n+/g, '\n')) lostContent.push(id);
+    // PROPERTY (a): THE GOVERNANCE BLOCK IS PURELY ADDITIVE AND REVERSIBLE.
+    //
+    // Reformulated by D16, and deliberately not weakened. The old form was
+    // `stripGovernance(transform(x)) === x`, which could only hold while the transformation did
+    // exactly one thing. There are now two, so this half asserts what it always meant to: stripping
+    // governance gives back the source AS THE IDENTITY MAP LEAVES IT — nothing of the body is
+    // dropped, and the block carries no content of its own — up to the one normalized blank line
+    // between the frontmatter and the first heading. Property (b), in the test below, is what pins
+    // the other half, and the two compose into a full inverse.
+    if (stripGovernance(once).replace(/\n+/g, '\n') !== applyIdentity(src).replace(/\n+/g, '\n')) lostContent.push(id);
   }
   assert.deepEqual(notIdempotent, [], 'a second pass must be byte-identical (criterion 5)');
   assert.deepEqual(notComplete, [], 'every skill carries the block and all three flat keys');
   assert.deepEqual(badDigest, [], 'every digest matches its own block');
   assert.deepEqual(unbalanced, [], 'code delimiters stay balanced (scripts/lib/skill-lint.js)');
   assert.deepEqual(movedOrigin, [], 'origin: stays inside doctor.js\'s 2048-byte window');
-  assert.deepEqual(lostContent, [], 'the transformation adds; it never removes');
+  assert.deepEqual(lostContent, [], 'the governance block adds; it never removes (property a)');
+});
+
+test('the identity rewrite is idempotent and EXACTLY ENUMERABLE over all 274 skills', () => {
+  // PROPERTY (b) of D16, and the reason it is stated separately from (a): it is a different kind of
+  // change. The governance block is additive — it can be removed and the file is upstream's again.
+  // The identity rewrite is SUBSTITUTIVE: it replaces bytes in upstream's own text, so "additive and
+  // reversible" cannot describe it and pretending otherwise is how the old invariant would have been
+  // quietly broken instead of reformulated.
+  //
+  // What replaces it is stronger, not weaker. Inverting the map must recover upstream CHARACTER FOR
+  // CHARACTER on all 274 files. That is the proof the rewrite is token-scoped: if it had touched
+  // `rsc` as a word in prose, `.rsc/`, `.rsc.json`, `RSC_*` or an `rsc-governance:` marker, the
+  // inversion could not put those back and this test would name the file. And the substitution count
+  // per file makes the blast radius a measured number rather than a promise.
+  //
+  // THE PRECONDITION, checked rather than assumed: the inversion is only well-defined because the
+  // FORK's specifier does not already occur upstream. If upstream ever ships the string
+  // `@lema017/rsc-governed`, inverting would corrupt it, and `identityInvertible` is what says so
+  // before anything relies on the property.
+  assert.equal(catalogIds.length, 274, 'the catalog the fork distributes');
+
+  // Over the whole catalog TREE, not just the 274 `SKILL.md` files: `ensureBase` copies the skill
+  // directory, so `references/` and `evals/` are delivered too and the rewrite has to reach them.
+  const catalogFiles = (() => {
+    const out = [];
+    const walk = (dir) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) { walk(p); continue; }
+        let text;
+        try { text = readFileSync(p, 'utf8'); } catch { continue; }
+        out.push([p.slice(join(ROOT, 'skills').length + 1), text]);
+      }
+    };
+    walk(join(ROOT, 'skills'));
+    return out;
+  })();
+
+  const notInvertible = [];
+  const notIdempotent = [];
+  const notRecovered = [];
+  const counts = {};
+  let total = 0;
+  for (const [rel, src] of catalogFiles) {
+    if (!identityInvertible(src)) notInvertible.push(rel);
+    const { text: once, total: n } = rewriteIdentity(src);
+    if (n) { counts[rel] = n; total += n; }
+    // Idempotent: the replacement contains none of the token, so a second pass is a no-op.
+    if (applyIdentity(once) !== once) notIdempotent.push(rel);
+    // Exactly enumerable: the inverse map recovers upstream's bytes, character for character.
+    if (invertIdentity(once) !== src) notRecovered.push(rel);
+  }
+  assert.deepEqual(notInvertible, [], `upstream already contains ${FORK_PACKAGE} in these files, so the map is no longer invertible`);
+  assert.deepEqual(notIdempotent, [], 'applying the identity map twice must be byte-identical (criterion 5)');
+  assert.deepEqual(notRecovered, [], 'inverting the map must recover upstream byte for byte — these did not');
+
+  // THE COUNT, pinned, WITH THE PER-FILE BREAKDOWN. `gi13` used to pin 81 as a DECLARED LIMIT the
+  // fork had not closed; the same 81 is now the number of substitutions the transformation makes,
+  // which is the same fact read from the other side. If upstream changes, this says so.
+  assert.equal(total, 81, `the map substitutes ${total} specifiers across the catalog, not the 81 measured`);
+  assert.equal(Object.keys(counts).length, 26, `spread over ${Object.keys(counts).length} files, not the 26 measured`);
+  assert.equal(counts['suggest/SKILL.md'], 10, 'the always-on body is the worst single file, and its share is 10');
+  assert.equal(counts['init/references/recommend-skills.md'], 15,
+    'the largest single file, and the reason the rewrite covers `references/` and not only SKILL.md');
+  assert.equal(counts['suggest/evals/cases.yaml'], 8, 'and `evals/`, which ships in the base too');
+  // The three shapes the map has to handle, so "version pinning survives" is measured and not hoped.
+  const suggest = readCatalog('suggest');
+  assert.match(applyIdentity(suggest), /npx @lema017\/rsc-governed add <id>/, 'the bare specifier');
+  assert.match(applyIdentity(suggest), /npx @lema017\/rsc-governed@latest reassess/, '`@latest` survives');
+  assert.match(applyIdentity(suggest), /npx @lema017\/rsc-governed@<catalogVersion in \.rsc\.json> sync/,
+    'and so does the exact-version pin, which is the one that must NEVER become @latest');
+
+  // And the map is of SPECIFIERS, not of words: the things §2 obliges the fork to preserve are
+  // untouched BY CONSTRUCTION, because none of them contains the token.
+  const everything = catalogFiles.map(([, text]) => text).join('\n');
+  const rewritten = applyIdentity(everything);
+  for (const keep of ['.rsc/', '.rsc.json', '.rsc-state.json', 'RSC_', 'rsc-governance:', 'ericrisco/mem-slop']) {
+    assert.equal(
+      rewritten.split(keep).length - 1, everything.split(keep).length - 1,
+      `the rewrite changed the number of \`${keep}\` occurrences — it must not: that is a consumer's on-disk contract or another project`,
+    );
+  }
+  assert.ok(!rewritten.includes(PARENT_PACKAGE), 'and no occurrence of the parent specifier survives');
+  assert.equal(countIdentityTokens(rewritten)[PARENT_PACKAGE], 0, 'counted, not asserted by eye');
 });
 
 test('a second transformation never leaves two blocks behind', () => {

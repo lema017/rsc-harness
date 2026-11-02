@@ -15,13 +15,18 @@
 //      offered".
 //
 //   2. THE DIVERGENCE SURFACE IS MEASURED, NOT LISTED. `docs/fork/stage1/ARCHITECTURE.md` §4 names
-//      "3 archivos y 4 puntos"; measuring it against the incorporated base returns EIGHT files that
-//      upstream owns and the fork has modified. A hand-written list goes stale the first time
-//      somebody fixes a bug, and this fork already proves it. So the list of files comes from git,
-//      every time, and the hand-written half is only the INTENT of each divergence — see
-//      `DIVERGENCE_PROBES`, which a test holds exhaustive over the measured surface.
+//      "3 archivos y 4 puntos"; its CORRECCIÓN 5 measured EIGHT; stages 2, 5 and 6 and D16 have
+//      since taken it to FIFTY-THREE files that upstream owns and the fork has modified. Every one
+//      of those three numbers was true when it was written, which is the whole argument: a
+//      hand-written list goes stale the first time somebody fixes a bug, and this fork has now
+//      proved it twice. So the list of files comes from git, every time, and the hand-written half
+//      is only the INTENT of each divergence — see `DIVERGENCE_PROBES`, which a test holds
+//      exhaustive over the measured surface.
 
 import { spawnSync } from 'node:child_process';
+// The identity tokens come from D16's own map, not retyped here: a probe that spelled the parent
+// specifier a second time could drift from the transformation it is supposed to be watching.
+import { PARENT_PACKAGE } from './governance.js';
 
 /** Paths whose change can never be a catalog change. Everything under `skills/` is the catalog. */
 const CATALOG_PREFIX = 'skills/';
@@ -180,9 +185,19 @@ export function changedFiles({ cwd, base, head, pathspec = null }) {
   return { ok: true, error: null, files };
 }
 
-/** `{ status, path, from? }` per changed file, with rename detection at `threshold` percent. */
-export function nameStatus({ cwd, base, head, pathspec = null, renames = false, threshold = 50 }) {
-  const args = ['diff', '--name-status', renames ? `--find-renames=${threshold}%` : '--no-renames', `${base}..${head}`];
+/**
+ * `{ status, path, from? }` per changed file, with rename detection at `threshold` percent.
+ *
+ * `worktree: true` diffs `base` against the WORKING TREE (`git diff base`, no `..`) instead of
+ * against a commit. The difference is not cosmetic: a range cannot see an uncommitted edit, and the
+ * one moment this fork most needs to re-measure its divergence surface is right after a human
+ * resolved a merge conflict by hand and has not committed it yet.
+ */
+export function nameStatus({
+  cwd, base, head, pathspec = null, renames = false, threshold = 50, worktree = false,
+}) {
+  const range = worktree ? base : `${base}..${head}`;
+  const args = ['diff', '--name-status', renames ? `--find-renames=${threshold}%` : '--no-renames', range];
   if (renames) args.splice(args.indexOf('--name-status') + 1, 0, '-M');
   if (pathspec) args.push('--', pathspec);
   const res = git(args, { cwd });
@@ -283,6 +298,46 @@ export function classifyCatalogChanges({ cwd, base, head, threshold = 50 }) {
 // ---------------------------------------------------------------- divergence surface
 
 /**
+ * THE IDENTITY RENAME (D16), as a probe pair — one sentence, written once, applied to the ~40 files
+ * whose whole divergence is that rename.
+ *
+ * `stage6/DESIGN.md` §1 settles the rule sitewise: *"se renombra lo que el fork ES y lo que un
+ * lector puede EJECUTAR; no se renombra lo que el fork lee de un consumidor ni lo que otra cosa lee
+ * del fork"*. So the probe is two-sided, and both sides can fail:
+ *
+ *   present   the renamed token is still there. A merge that reverts it leaves a message, a help
+ *             string, a hook assertion or a comment telling the reader to run the PARENT.
+ *   absent    `@ericrisco/rsc` has not come BACK. Measured at zero occurrences across all 53
+ *             divergent files, so this is a probe and not a wish. A `present` probe alone cannot
+ *             see an upstream merge that ADDS a new line naming the parent beside the renamed one,
+ *             and that is the §10 accident stage 6 measured: *"un fork que renombrase su paquete y
+ *             dejase esas dos cadenas intactas habría pasado la suite completa y habría enviado a
+ *             cada consumidor a instalar el padre encima del fork"*.
+ *
+ * The fragments are SHORT on purpose — the renamed token plus just enough of its context to be
+ * unique in the file. A long line breaks when upstream reflows a comment, which is a reformat and
+ * not a revert; the token does not.
+ *
+ * `where` says which surface inside the file the token lives on, so a failure names what it was
+ * protecting instead of just reporting a mismatch.
+ */
+const identity = (fragment, where) => [
+  {
+    kind: 'present',
+    fragment,
+    why: `§10/D16: ${where} must name the fork. Reverting it tells the reader to run the parent's `
+      + 'package or binary — a lie the whole suite passes in silence (stage6/DESIGN.md §2)',
+  },
+  {
+    kind: 'absent',
+    fragment: PARENT_PACKAGE,
+    why: `§10/D16: no reference to ${PARENT_PACKAGE} may come back into this file. A merge that `
+      + 'adds one — a new help string, a new install command — sends the consumer to install the '
+      + 'parent over the fork, in the background, on a timer',
+  },
+];
+
+/**
  * What each divergence is FOR, as a probe that survives a reformat but not a revert.
  *
  * Hand-written, and the only hand-written list in this module: the files come from git (below), but
@@ -292,6 +347,16 @@ export function classifyCatalogChanges({ cwd, base, head, threshold = 50 }) {
  *
  * `tests/governance-upstream-maintenance.test.js` holds this table exhaustive over the measured
  * surface, so a new divergence with no probe fails a test instead of being silently unwatched.
+ *
+ * ONLY THE MODIFIED HALF OF THE SURFACE IS PROBED, and that is a decision with an argument. The
+ * fork has ADDED 25 files (`schema/governance/`, `scripts/lib/governance.js`, the eleven
+ * `governance-*.test.js`, …). An upstream merge cannot revert them: upstream has no version of them
+ * to merge, so there is no text for it to win. The one thing it CAN do is create the same path, and
+ * that case is already instrumented elsewhere — `collisions()` returns them as `onForkAdded` with
+ * severity `medium` — while what those files MEAN is held by their own tests, which G8 runs. A
+ * probe table entry for them would check that a file the fork wrote still says what the fork wrote,
+ * every run, forever: a check that cannot fail. `tests/governance-upstream-maintenance.test.js`
+ * asserts this reasoning rather than leaving it as a comment.
  */
 export const DIVERGENCE_PROBES = Object.freeze({
   'targets/claude.js': [{
@@ -300,56 +365,290 @@ export const DIVERGENCE_PROBES = Object.freeze({
     why: 'the always-on body the session pays for is the governance-free copy; reverting this makes '
       + '`claude` pay the preamble at every SessionStart and after every compaction',
   }],
-  'scripts/doctor.js': [{
-    kind: 'present',
-    fragment: "'.rsc', 'governance', 'always-on.md'",
-    why: 'doctor measures the per-session cost from the governance-free body; reverting this makes '
-      + 'the diagnostic over-report the budget by exactly the preamble',
-  }],
-  'scripts/install-apply.js': [{
-    kind: 'present',
-    fragment: 'governBase(id, dest);',
-    why: 'the single point of transformation. Reverting it delivers all 274 without the contract',
-  }],
-  'targets/knowledge-sync.mjs': [{
-    kind: 'present',
-    fragment: 'export const isGoverned = (path) => GOVERNED.some',
-    why: "B-R1: a teammate's deletion of a customization is reported, never applied",
-  }],
-  'tests/apply.test.js': [{
-    kind: 'present',
-    fragment: '.rsc/governance/always-on.md',
-    why: 'the two assertions that pin the always-on body the hook is handed',
-  }],
+  'scripts/doctor.js': [
+    {
+      kind: 'present',
+      fragment: "'.rsc', 'governance', 'always-on.md'",
+      why: 'doctor measures the per-session cost from the governance-free body; reverting this makes '
+        + 'the diagnostic over-report the budget by exactly the preamble',
+    },
+    ...identity('npx @lema017/rsc-governed sync', "the action strings doctor hands the user"),
+  ],
+  'scripts/install-apply.js': [
+    {
+      kind: 'present',
+      fragment: 'governBase(id, dest);',
+      why: 'the single point of transformation. Reverting it delivers all 274 without the contract',
+    },
+    ...identity('rscg restore', 'the commands the installer names in its own account of what it wrote'),
+  ],
+  'targets/knowledge-sync.mjs': [
+    {
+      kind: 'present',
+      fragment: 'export const isGoverned = (path) => GOVERNED.some',
+      why: "B-R1: a teammate's deletion of a customization is reported, never applied",
+    },
+    ...identity('rscg memory off', 'the opt-out this target tells the user about'),
+  ],
+  'tests/apply.test.js': [
+    {
+      kind: 'present',
+      fragment: '.rsc/governance/always-on.md',
+      why: 'the two assertions that pin the always-on body the hook is handed',
+    },
+    ...identity('npx @lema017/rsc-governed@latest', 'the update command this test pins'),
+  ],
   '.github/workflows/release.yml': [
     { kind: 'absent', fragment: 'branches: [main]', why: 'R6: merging must never publish by itself' },
     { kind: 'absent', fragment: 'erisco@icloud.com', why: "R6: the parent's identity must not sign the fork's releases" },
     { kind: 'absent', fragment: '@ericrisco/rsc version', why: '§10: the release must compare against the fork package, not the parent' },
+    ...identity('npm view @lema017/rsc-governed version', 'the registry the release gate compares against'),
   ],
-  '.gitignore': [{
+  '.gitignore': [
+    {
+      kind: 'present',
+      fragment: '!docs/fork/',
+      why: "B1: the fork's own documentation must stay committable",
+    },
+    {
+      kind: 'present',
+      fragment: '.rsc-upstream/',
+      why: '§9 + REQUIREMENTS §1: the maintenance scratch (the disposable worktrees and the '
+        + 'disposable project/home the gate installs into) is written INSIDE the dedicated folder, '
+        + 'so it has to be ignored or every maintenance run dirties `git status` and the next run '
+        + 'cannot tell its own scratch from a human\'s unfinished work',
+    },
+  ],
+  'package.json': [
+    {
+      kind: 'present',
+      fragment: '"governance:check"',
+      why: 'the governance artifacts are checked by a script; losing it loses the check',
+    },
+    {
+      kind: 'present',
+      fragment: '"gate": "node scripts/gate.js"',
+      why: 'the one deterministic gate CI and the desk both run. Losing it does not fail anything: '
+        + 'it quietly returns the fork to running three of the checks and none of the others',
+    },
+    {
+      kind: 'present',
+      fragment: '"rscg": "scripts/rsc.js"',
+      why: '§10 at its sharpest (stage6/DESIGN.md §1): if the bin stayed `rsc`, a global install of '
+        + "the parent and one of the fork overwrite each other and the losing project is driven by "
+        + "the other's CLI, in silence",
+    },
+    ...identity('"name": "@lema017/rsc-governed"', "the package's own name, which is what §10 asks for"),
+  ],
+  'package-lock.json': identity(
+    '"name": "@lema017/rsc-governed"',
+    'the locked package name (regenerated, never hand-edited: a lock that still says the parent '
+      + 'means the rename was done to `package.json` alone)',
+  ),
+
+  // ── Divergences with an intent of their own ────────────────────────────────────────────────────
+  '.github/workflows/ci.yml': [
+    {
+      kind: 'present',
+      fragment: 'permissions:\n  contents: read',
+      why: 'least privilege, explicitly. With no `permissions:` block the workflow inherits the '
+        + 'repository default, which can be read-write — `ARCHITECTURE.md` §"Dónde pueden correr" '
+        + 'flagged exactly that. Reverting it hands a tree-reading job a token that can push to main',
+    },
+    {
+      kind: 'absent',
+      fragment: '! grep -rIn -E "sync-bundles',
+      why: "the gate that lied. `! grep` turns grep's exit 2 — \"I could not finish the scan\" — "
+        + 'into a PASS, which is what `skills/verify/SKILL.md` forbids outright. If this form comes '
+        + 'back, the residue check reports success precisely when it could not run',
+    },
+    {
+      kind: 'present',
+      fragment: 'a check that cannot run is not a pass',
+      why: 'the three-state replacement for the `! grep` above: found / clean / the scan itself '
+        + 'failed, with a different verdict for each',
+    },
+    {
+      kind: 'present',
+      fragment: 'fetch-depth: 0',
+      why: "the gate's `skills-invariant` check diffs against `origin/main`, so a shallow checkout "
+        + 'makes it unable to measure — and an unmeasurable invariant is the one that gets reported '
+        + 'as satisfied',
+    },
+    {
+      kind: 'present',
+      fragment: 'run: npm run gate',
+      why: 'CI runs the SAME command a human runs locally, so the desk and CI cannot disagree. '
+        + 'Reverting to the three separate steps drops governance:check, both artifact roots, the '
+        + '`skills/` invariant, drift and originality from CI without failing anything',
+    },
+  ],
+  'scripts/lib/backups.js': [{
     kind: 'present',
-    fragment: '!docs/fork/',
-    why: "B1: the fork's own documentation must stay committable",
+    fragment: 'export function snapshotSkillBases(',
+    why: "M3 of stage 6's review: the D13 warning used to live inside `if (!dry)`, so `restore "
+      + '--dry-run` — the one tool a consumer uses to DECIDE whether to restore — withheld the '
+      + 'single consequence the warning exists for. This reads the bytes the SNAPSHOT holds, which '
+      + "is the only thing that answers the dry run's question",
   }],
-  'package.json': [{
+  'scripts/lib/onboarding-apply.js': [
+    {
+      kind: 'present',
+      fragment: 'ungovernedAmong(cwd, rolled.changed)',
+      why: 'D13 on the rollback path: `RSC_ONBOARDING_INCOMPLETE` names the skill bases the '
+        + 'rollback left without a contract. The rollback is the same `restoreBackup`, so it has '
+        + 'the same property, and a failed verification that conserves a working install owes an '
+        + 'explanation of the blockage (REQUIREMENTS §10)',
+    },
+    ...identity('npx @lema017/rsc-governed@latest onboard', 'the recovery command the failure prints'),
+  ],
+  'scripts/rsc.js': [
+    {
+      kind: 'present',
+      fragment: "case 'conformance': {",
+      why: "acceptance criterion 4 asked on the CONSUMER's machine. Stage 4's own report named the "
+        + 'gap: no command of the product answered "are my 274 governed?". Reverting it leaves the '
+        + "question answerable only inside the fork's checkout",
+    },
+    {
+      kind: 'present',
+      fragment: "case 'brownfield': {",
+      why: "stage 3's procedure has an invocation point, and B1's candidate competitor set is "
+        + 'COMPUTED from the catalog here rather than guessed by a model',
+    },
+    {
+      kind: 'present',
+      fragment: 'snapshotSkillBases({ cwd: process.cwd(), snapshot: result.snapshot })',
+      why: 'the dry-run half of the D13 warning (M3). Auditing the project instead would answer the '
+        + 'wrong question in a dry run: it reports what is installed NOW, which is exactly what the '
+        + 'restore is about to replace',
+    },
+    ...identity('Use: npx @lema017/rsc-governed onboard', "the CLI's own usage line"),
+  ],
+  'targets/auto-update.mjs': [
+    {
+      kind: 'present',
+      fragment: 'registry.npmjs.org/@lema017%2frsc-governed/latest',
+      why: 'the registry this watches. PERCENT-ENCODED, so the plain `@ericrisco/rsc` probe cannot '
+        + "see a revert here — stage6/DESIGN.md §2 calls this one of the two strings no inherited "
+        + 'test touches, because the suite short-circuits the query with `RSC_LATEST`',
+    },
+    {
+      kind: 'absent',
+      fragment: '@ericrisco%2frsc',
+      why: 'the same string in the other direction: the percent-encoded parent must not come back. '
+        + 'Reverted, the fork watches the PARENT for releases and reports being behind forever',
+    },
+    {
+      kind: 'present',
+      fragment: "['npx', '-y', `@lema017/rsc-governed@${version}`]",
+      why: 'the argv of the background installer. The other untested string: reverted, every '
+        + 'consumer is sent to install the parent over the fork, in the background, on a timer',
+    },
+    ...identity('npx @lema017/rsc-governed@latest', 'the update command the notice prints'),
+  ],
+  'tests/hooks-path.test.js': [
+    {
+      kind: 'present',
+      fragment: '!/\\brepair\\b/.test(report.worktreeCleanup.action',
+      why: 'an assertion that could no longer fail. It read `!/rsc repair/`, and after the rename '
+        + 'the binary is `rscg`, so the negation went VACUOUSLY true: the recommendation could go '
+        + 'back to being circular and this test would still pass. Naming the subcommand alone makes '
+        + 'it independent of the binary name, which is the only form that keeps biting',
+    },
+    {
+      kind: 'absent',
+      fragment: '/rsc repair/',
+      why: 'the vacuous form must stay deleted; re-introducing it restores a green test that '
+        + 'measures nothing',
+    },
+  ],
+  'tests/worktree-reaper.test.js': [{
     kind: 'present',
-    fragment: '"governance:check"',
-    why: 'the governance artifacts are checked by a script; losing it loses the check',
+    fragment: '@(ericrisco\\/rsc|lema017\\/rsc-governed) worktrees reap',
+    why: 'the same class as `tests/hooks-path.test.js`: a `doesNotMatch` naming only the parent '
+      + 'passes for free once the fork is renamed. Widened to BOTH names so it still asserts '
+      + 'something. This file is the one divergence with no `absent` probe on the parent specifier, '
+      + 'deliberately: it names the parent on purpose, inside this regex',
   }],
+
+  // ── The identity rename and nothing else (stage6/DESIGN.md §1) ─────────────────────────────────
+  'scripts/audit.js': identity('rscg audit', 'the on-demand command the module documents'),
+  'scripts/knowledge-doctor.js': identity('rscg doctor', 'the command this one is deliberately NOT part of'),
+  'scripts/lib/capabilities.js': identity('rscg catalog --available', 'the command that serves the catalog'),
+  'scripts/lib/constitution-draft.js': identity('Draft written by rscg onboard', 'the provenance line stamped into the draft'),
+  'scripts/lib/ingest-move.js': identity('rscg ingest <file>', 'the command this module implements'),
+  'scripts/lib/onboarding.js': identity('rscg add', 'the command the field note describes'),
+  'scripts/lib/repetition.js': identity('rscg capabilities gap-log', 'the command that writes the gap log'),
+  'scripts/lib/upgrade.js': identity("'install', '-g', '@lema017/rsc-governed@latest'", 'the argv of the global upgrade it SPAWNS'),
+  'targets/agents-md-shadow.js': identity('rscg restore', 'the command named as the way back'),
+  'targets/agents.js': identity('rscg review consolidate', 'the command the generated agent body names'),
+  'targets/branch-guard.mjs': identity('rscg main unlock', 'the opt-out the guard offers when it blocks'),
+  'targets/clone-bootstrap.mjs': identity('npx @lema017/rsc-governed sync', 'the command IN the offer, not only in the prose above it'),
+  'targets/commands.js': identity('npx @lema017/rsc-governed memory resume', 'the command inside a generated slash-command body'),
+  'targets/copy-rules.mjs': identity('rscg copy check', 'the command that enforces the rule'),
+  'targets/git-permissions.js': identity('rscg git-permissions off', 'the opt-out written into the managed rules file'),
+  'targets/hook-once.mjs': identity('rscg doctor', 'the command that measures what this hook emits'),
+  'targets/knowledge-wiring.js': identity('rscg knowledge-sync off', 'the opt-out the wiring notice names'),
+  'targets/memory.js': identity('npx @lema017/rsc-governed sync', 'the repair action for a degraded memory wiring'),
+  'targets/opt-outs.js': identity('rscg main lock', 'the command that writes this opt-out'),
+  'targets/sello.mjs': identity('npx @lema017/rsc-governed sello freeze', 'the recovery command the failure prints'),
+  'targets/session-start.mjs': identity('npx @lema017/rsc-governed ingest <file>', 'the command the session hook puts in front of the model'),
+  'targets/team-safe-start.mjs': identity('rscg knowledge-sync off', 'the opt-out in the Spanish start notice'),
+  'targets/trunk-policy.mjs': identity('rscg main lock', 'the command that closes the trunk'),
+  'targets/worktree-reaper.mjs': identity('rscg worktrees', 'the command that reaches this module'),
+  'tests/agent-overrides.test.js': identity('/rscg agents reset developer/', 'the command this test pins'),
+  'tests/audit.test.js': identity('/rsc-governed audit/', 'the command the generated report must name'),
+  'tests/bare-command-updates.test.js': identity('npx @lema017/rsc-governed@latest', 'the bare update command this test reasons about'),
+  'tests/cli-usage.test.js': identity('Use: npx @lema017\\/rsc-governed', "the CLI's usage line, asserted on stdout"),
+  'tests/clone-bootstrap.test.js': identity('@lema017\\/rsc-governed@1\\.3\\.6 sync', 'the pinned-version convergence command'),
+  'tests/doctor-onboarding-readiness.test.js': identity('@lema017\\/rsc-governed(@latest)? onboard', "the onboarding action doctor reports"),
+  'tests/fresh-install-coherence.test.js': identity('npx @lema017/rsc-governed@${VERSION} onboard', 'the version-pinned onboarding command'),
+  'tests/ingest-move.test.js': identity('/rsc-governed ingest/', 'the command the moved-document note must name'),
+  'tests/knowledge-sync.test.js': identity('/rscg knowledge-sync off/', 'the opt-out asserted on the system message'),
+  'tests/manifest-divergence.test.js': identity('npx @lema017\\/rsc-governed@2\\.0\\.5 sync', 'the pinned sync command'),
+  'tests/rsc-cli.test.js': identity('npm install -g @lema017/rsc-governed@latest', 'the global upgrade command on stdout'),
+  'tests/team-safe-default.test.js': identity('rsc-governed main unlock', 'the unlock command in the reason text'),
+  'tests/update-notice-symptoms.test.js': identity('npx @lema017\\/rsc-governed@latest', 'the catch-up command the notice must print'),
 });
 
 /**
  * Files upstream owns that this fork has modified — measured against the incorporated base. These
  * are the merge surface; everything the fork ADDED can only collide if upstream creates the same
  * path.
+ *
+ * Measured against the WORKING TREE by default (`git diff <base>`, no `..`), not against a commit
+ * range. A range answers "what has the fork committed on top of upstream", which is the wrong
+ * question at the two moments that matter: a conflict a human has just resolved and not committed
+ * yet, and a bounded fix the run itself has just written. Pass `worktree: false` for the committed
+ * answer, and know which one you asked for.
+ *
+ * `ignore` names the fork's OWN documentation tree, not all of `docs/`: upstream owns files under
+ * `docs/` too, and ignoring the whole prefix would leave a future fork edit to one of them
+ * unwatched. The two sets coincide today — measured — and will stop coinciding silently.
+ *
+ * `ok: false` means the measurement FAILED. Every caller must branch on it: an empty `modified`
+ * from a failed measurement is indistinguishable, by value, from a fork with no divergences, and
+ * `[]` is truthy, so no `||` fallback can tell them apart. G7 and `phaseClassify` both read `.ok`.
  */
-export function divergenceSurface({ cwd, base, headRef = 'HEAD', ignore = ['docs/'] }) {
-  const ns = nameStatus({ cwd, base, head: headRef });
-  if (!ns.ok) return { ok: false, error: ns.error, modified: [], added: [], deleted: [] };
+export function divergenceSurface({
+  cwd, base, headRef = 'HEAD', ignore = ['docs/fork/'], worktree = true,
+}) {
+  const ns = nameStatus({ cwd, base, head: headRef, worktree });
+  if (!ns.ok) {
+    return {
+      ok: false, error: ns.error, modified: [], added: [], deleted: [], measuredAgainst: null,
+    };
+  }
   const keep = (p) => !ignore.some((prefix) => p.startsWith(prefix));
   const pick = (status) => ns.entries.filter((e) => e.status === status && keep(e.path)).map((e) => e.path).sort();
   return {
-    ok: true, error: null, modified: pick('M'), added: pick('A'), deleted: pick('D'),
+    ok: true,
+    error: null,
+    modified: pick('M'),
+    added: pick('A'),
+    deleted: pick('D'),
+    measuredAgainst: worktree ? 'working tree' : `${base}..${headRef}`,
   };
 }
 
@@ -387,13 +686,49 @@ export function checkProbes(file, text) {
 
 // ---------------------------------------------------------------- attribution
 
-const ATTRIBUTION_RE = /(^|\/)(LICENSE[^/]*|.*LICENSE.*\.txt|THIRD_PARTY\.md|UPSTREAM\.json)$/i;
+/**
+ * What counts as a notice file.
+ *
+ * `LICENSE*` alone is not the obligation. Apache-2.0 §4(d) requires a derivative work to PROPAGATE
+ * the `NOTICE` file of the work it derives from, and this fork already carries Apache-2.0 material
+ * (`skills/design/engine`, measured), so a `NOTICE` upstream adds is a legal duty this fork acquires
+ * the moment the merge lands. `COPYING`, `LICENCE` (the British spelling GPL-family projects use),
+ * `AUTHORS`, `COPYRIGHT` and `PATENTS` are the same class of document. None exists in the tree
+ * today — which is exactly why the blind spot was invisible, and why it is closed before it matters
+ * rather than after.
+ *
+ * Matched on the BASENAME and anchored, so a source file that merely contains one of these words
+ * (`authors.js`, `license-check.mjs`) is not dragged into the obligation inventory.
+ *
+ * It deliberately OVER-detects in the other direction, and the asymmetry is the point: today it
+ * also matches `skills/open-weights/references/licenses.md` (which the previous matcher already
+ * caught) and `skills/terms-conditions/references/notices-and-aup.md`, neither of which is a notice
+ * this fork owes. A false positive costs exactly one `--ack` on a run where that file changed. A
+ * false negative costs a licence violation that ships. Those are not comparable, so this matcher is
+ * not narrowed to make G6 quieter.
+ */
+const NOTICE_BASENAME = /^(LICEN[CS]E|NOTICE|COPYING|COPYRIGHT|AUTHORS|PATENTS)([-._][^/]*)?$/i;
+const NOTICE_TEXT = /(LICEN[CS]E|NOTICE|COPYING|PATENTS)[^/]*\.(txt|md|rst)$/i;
+const NOTICE_DECLARATION = /^(THIRD_PARTY\.md|UPSTREAM\.json)$/i;
+/** Source files never carry the obligation, however they are named (`authors.js`, `LICENSE.sh`). */
+const CODE_EXTENSION = /\.(m?[jt]s|cjs|py|rb|go|rs|sh|ya?ml|json|lock)$/i;
+
+/** Is this path an attribution-bearing file? Exported so a test can assert the coverage. */
+export function isAttributionPath(path) {
+  const base = String(path || '').split('/').pop();
+  if (!base) return false;
+  // `UPSTREAM.json` is a declaration and is matched by name, so the code-extension exclusion below
+  // must not reach it.
+  if (NOTICE_DECLARATION.test(base)) return true;
+  if (CODE_EXTENSION.test(base)) return false;
+  return NOTICE_BASENAME.test(base) || NOTICE_TEXT.test(base);
+}
 
 /** Every attribution-bearing file under a revision's `skills/`, plus the repository root notices. */
 export function attributionFilesAt(cwd, rev) {
   const res = git(['ls-tree', '-r', '--name-only', rev], { cwd });
   if (!res.ok) return [];
-  return res.stdout.split('\n').filter((p) => p && ATTRIBUTION_RE.test(p)).sort();
+  return res.stdout.split('\n').filter((p) => p && isAttributionPath(p)).sort();
 }
 
 /**
@@ -411,7 +746,7 @@ export function attributionDelta({ cwd, base, head }) {
   const added = after.filter((p) => !before.has(p));
   const removed = [...before].filter((p) => !after.includes(p)).sort();
   const changed = changedFiles({ cwd, base, head }).files
-    .map((f) => f.path).filter((p) => ATTRIBUTION_RE.test(p) && before.has(p) && after.includes(p)).sort();
+    .map((f) => f.path).filter((p) => isAttributionPath(p) && before.has(p) && after.includes(p)).sort();
 
   // A new vendored subtree is a directory that gains an `UPSTREAM.json`: that file is how this
   // catalog declares "copied from somewhere else, at this commit, under this licence".

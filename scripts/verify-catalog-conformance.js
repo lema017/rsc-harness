@@ -24,12 +24,13 @@
 //
 // Usage: node scripts/verify-catalog-conformance.js --cwd <dir> --home <dir> [--json <file>]
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyInstall } from './install-apply.js';
 import { TARGET_IDS } from '../targets/index.js';
-import { BLOCK_BEGIN, BLOCK_END } from './lib/governance.js';
+import { BLOCK_BEGIN, BLOCK_END, applyIdentity } from './lib/governance.js';
 // The audit itself lives in `scripts/lib/conformance.js`, so `rscg conformance` can run the SAME
 // checks on a consumer's machine without importing the installer (stage 6, D13). This script keeps
 // what is its own: installing the whole catalog for every target, three times, and comparing passes.
@@ -56,6 +57,64 @@ export function catalogIds(root = ROOT) {
     .map((e) => e.name).sort();
 }
 
+/**
+ * The catalog count committed at `origin/main`, read out of the git OBJECT STORE.
+ *
+ * This is the whole of the floor's independence: a blob, not a working-tree file, so truncating
+ * `skills/` and re-running `build-manifest.js` cannot move it. Returns null when there is no git to
+ * ask, which the floor treats as a FAILURE and not as a pass.
+ */
+export function committedCatalogCount(root = ROOT, ref = 'origin/main') {
+  try {
+    const blob = execFileSync('git', ['show', `${ref}:manifest.json`],
+      { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
+    return JSON.parse(blob).counts?.skills ?? null;
+  } catch { return null; }
+}
+
+/** The count the working tree's own `manifest.json` claims. Derives from `skills/`, so it is not a floor. */
+export function workingTreeManifestCount(root = ROOT) {
+  try { return JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')).counts?.skills ?? null; }
+  catch { return null; }
+}
+
+/**
+ * The floor, as a PURE FUNCTION of its inputs — which is the point, and the fix to the second half
+ * of the defect. `gg24` used to assert that the instrument's SOURCE contained the string "catalog
+ * size floor"; with the floor mutated to `found < 0` that assertion stayed green, so the test could
+ * not fail and measured nothing. A pure function can be run over a truncated fixture instead, so the
+ * test asserts CONDUCT and a mutation kills it.
+ *
+ * Three findings, in decreasing strength:
+ *   1. THE FLOOR: fewer skills than `origin/main` committed means the tree under test is truncated.
+ *   2. NO REFERENCE: no committed count to compare against is itself a failure, never a pass.
+ *   3. MANIFEST FRESHNESS: the working-tree manifest disagreeing with the working tree. Weak by
+ *      construction — both sides derive from `skills/` — and kept only to catch a stale manifest.
+ */
+export function catalogSizeFloor({ found, committedCount, manifestCount, expected = null }) {
+  const failures = [];
+  if (committedCount === null) {
+    failures.push('catalog size floor: could not read manifest.json from origin/main, so the '
+      + 'denominator has no reference independent of the tree under test — every ratio is unanchored');
+  } else if (found < committedCount) {
+    failures.push(`catalog size floor: skills/ has ${found} skills but origin/main's manifest counts `
+      + `${committedCount} — the catalog under test is TRUNCATED, so every ratio is computed over a `
+      + 'denominator that is too small');
+  }
+  if (manifestCount === null) failures.push('manifest.json could not be read');
+  else if (manifestCount !== found) {
+    failures.push(`manifest freshness: skills/ has ${found} skills, manifest.json counts ${manifestCount}`);
+  }
+  const measured = { catalog: found, committedCatalogCount: committedCount, manifestCount };
+  if (expected !== null) {
+    measured.expected = Number(expected);
+    if (Number(expected) !== found) {
+      failures.push(`catalog size floor: --expect ${expected} but skills/ has ${found}`);
+    }
+  }
+  return { failures, measured };
+}
+
 async function main() {
   const cwd = arg('cwd');
   const home = arg('home');
@@ -72,25 +131,31 @@ async function main() {
   // A FLOOR ON THE DENOMINATOR, which the instrument did not have: every ratio below is `n/ids.length`,
   // so a truncated `skills/` would report "273/273, failures: 0" and look perfect. §3 of the
   // requirements forbids fixing the count in code ("no fijes el número de skills en el código"), so
-  // the floor is a CROSS-CHECK against `manifest.json`, which `npm run manifest:check` keeps current,
-  // plus an explicit `--expect <n>` for a release gate that wants to pin the number it measured.
-  // Found by the independent review of stage 4.
-  let manifestCount = null;
-  try { manifestCount = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8')).counts?.skills ?? null; }
-  catch { manifestCount = null; }
-  report.manifestCount = manifestCount;
-  if (manifestCount === null) {
-    report.failures.push('manifest.json could not be read, so the catalog size has no floor: a truncated skills/ would report 100%');
-  } else if (manifestCount !== ids.length) {
-    report.failures.push(`catalog size floor: skills/ has ${ids.length} skills, manifest.json counts ${manifestCount}`);
-  }
-  const expected = arg('expect');
-  if (expected !== null) {
-    report.expected = Number(expected);
-    if (Number(expected) !== ids.length) {
-      report.failures.push(`catalog size floor: --expect ${expected} but skills/ has ${ids.length}`);
-    }
-  }
+  // the floor has to be a cross-check against something else. Found by the independent review of
+  // stage 4; CORRECTED after the independent review of stage 6, which showed the first version was
+  // not a floor at all.
+  //
+  // WHY THE FIRST VERSION MEASURED NOTHING. It compared `ids.length` against `manifest.json`'s count
+  // — and BOTH SIDES DERIVE FROM THE SAME `skills/`, because `scripts/build-manifest.js` generates
+  // the manifest from that tree and is the first thing `prepublishOnly` runs. Demonstrated: delete 5
+  // skills from a copy, re-run `build-manifest.js`, and the instrument reports
+  // `ids.length = 269 | manifestCount = 269 | floor failures = []`. A cross-check between two
+  // readings of the same source is a consistency check, never a floor. It is the fourth time this
+  // session that this shape of defect has turned up, and the first time inside a correction.
+  //
+  // WHAT A FLOOR NEEDS: a reference that does NOT derive from the tree under test. `origin/main`'s
+  // `manifest.json` is read out of the git OBJECT STORE — a committed blob, not a working-tree file —
+  // so truncating `skills/` and regenerating the manifest cannot move it. And when there is no git to
+  // ask, the floor DEGRADES LOUDLY: "no reference" is itself a failure, because a denominator nobody
+  // can anchor is exactly the condition this check exists to refuse.
+  const floor = catalogSizeFloor({
+    found: ids.length,
+    committedCount: committedCatalogCount(),
+    manifestCount: workingTreeManifestCount(),
+    expected: arg('expect'),
+  });
+  Object.assign(report, floor.measured);
+  report.failures.push(...floor.failures);
 
   const basePathOf = (id) => join(cwd, '.rsc', 'skills', id);
   let firstPass = null;
@@ -149,14 +214,18 @@ async function main() {
       for (const id of driftedMdc) report.failures.push(`idempotence ${label} ${id}.mdc: differs from pass 1`);
     }
 
-    // The always-on surface must stay governance-free and byte-identical to upstream's `suggest`
-    // (CONTRACT.md §1 / stage 2 §3). Checked here too because this sweep is the one that runs
-    // after a 274-skill install, where an accidental re-pointing would be easiest to miss.
+    // The always-on surface must stay governance-free and equal to upstream's `suggest` AFTER the
+    // identity map (CONTRACT.md §1 / stage 2 §3, as reformulated by D16). Checked here too because
+    // this sweep is the one that runs after a 274-skill install, where an accidental re-pointing
+    // would be easiest to miss. Equality against the REWRITTEN source — not a `includes` or a size
+    // ceiling — is what keeps this check as strong as the byte-identity it replaces: the only
+    // permitted difference from upstream is the enumerated token substitution, and any other edit to
+    // that file still fails here.
     const alwaysOn = join(cwd, '.rsc', 'governance', 'always-on.md');
-    const pristine = readFileSync(join(ROOT, 'skills', 'suggest', 'SKILL.md'), 'utf8');
+    const expectedAlwaysOn = applyIdentity(readFileSync(join(ROOT, 'skills', 'suggest', 'SKILL.md'), 'utf8'));
     if (!existsSync(alwaysOn)) report.failures.push(`pass ${pass}: no .rsc/governance/always-on.md`);
-    else if (readFileSync(alwaysOn, 'utf8') !== pristine) {
-      report.failures.push(`pass ${pass}: always-on.md is not byte-identical to upstream's suggest/SKILL.md`);
+    else if (readFileSync(alwaysOn, 'utf8') !== expectedAlwaysOn) {
+      report.failures.push(`pass ${pass}: always-on.md is not upstream's suggest/SKILL.md with the identity map applied`);
     }
     // And nothing outside the catalog may have been materialized as a base.
     const installedBases = readdirSync(join(cwd, '.rsc', 'skills'), { withFileTypes: true })
