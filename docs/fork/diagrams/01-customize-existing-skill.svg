@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="850" viewBox="0 0 1240 850" role="img" aria-labelledby="t d">
 <title id="t">Customizing an existing skill</title>
-<desc id="d">Four lanes. First, the fork package is installed and writes a governed SKILL.md carrying a governance preamble, which is linked into five assistants. Second, the project owner writes a customization at 02-DOCS/wiki/skills/&lt;name&gt;/README.md and commits it; its absence is valid. Third, before the skill acts it checks that standard path: present and valid means read and apply within the documented scope, absent means use the original skill unchanged, and unreadable or contradictory means surface it and ask rather than treat it as absent. Fourth, the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code.</desc>
+<desc id="d">Four lanes. First, the fork package is installed and writes a governed SKILL.md carrying a governance preamble, which is linked into five assistants. Second, the project owner writes a customization at 02-DOCS/wiki/skills/&lt;name&gt;/README.md and commits it; its absence is valid. Third, before the skill acts it checks that standard path: present and valid means read and apply within the documented scope, absent means use the original skill unchanged, and unreadable or contradictory means surface it and ask rather than treat it as absent. Fourth, the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code, where the guard can still be removed by a committed setting.</desc>
 <style>
 text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 .h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
@@ -24,17 +24,17 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="70" y="203">generated, never hand-edited</text>
 <rect x="301" y="140" width="175" height="78" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="315" y="164">Install</text>
-<text class="code" x="315" y="184">rscg install</text>
+<text class="code" x="315" y="184">rscg onboard</text>
 <text class="d" x="315" y="203">transformer output</text>
 <rect x="506" y="140" width="300" height="78" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="code" x="520" y="162">.rsc/skills/&lt;id&gt;/SKILL.md</text>
 <text class="d" x="520" y="181">governance preamble, paid on load, not per turn</text>
-<text class="d" x="520" y="196">own frontmatter key (schema is open)</text>
+<text class="d" x="520" y="196">three own frontmatter keys (schema is open)</text>
 <text class="d" x="520" y="211">pointer to the full contract under .rsc/</text>
 <rect x="836" y="140" width="348" height="78" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
 <text class="t" x="850" y="164">5 assistants</text>
 <text class="d" x="850" y="183">claude · codex · cursor · deepseek · antigravity</text>
-<text class="d" x="850" y="198">relative symlink, real copy on Windows</text>
+<text class="d" x="850" y="198">4 by relative symlink; real copy on Windows</text>
 <text class="d" x="850" y="213">cursor receives SKILL.md only — no references/</text>
 <path d="M271,179 L297,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M476,179 L502,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
@@ -97,8 +97,8 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="70" y="793">knowledge-sync's write path, with a negative test that fails if the exclusion disappears.</text>
 <rect x="646" y="736" width="538" height="72" rx="8" fill="#fef3c7" stroke="#d97706"/>
 <text class="t" x="660" y="759">Enforcement — stated honestly, not promised</text>
-<text class="d" x="660" y="778">Code-enforced today on Claude Code only. The fork will try to wire codex, cursor</text>
-<text class="d" x="660" y="793">and deepseek; antigravity has no provider hook and stays instruction-only.</text>
+<text class="d" x="660" y="778">Only Claude Code wires guards that deny; codex, cursor and antigravity generate</text>
+<text class="d" x="660" y="793">no PreToolUse at all, and deepseek&#39;s bridge can block but nothing wires it.</text>
 
-<text class="foot" x="40" y="838">docs/fork/diagrams/01-customize-existing-skill.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+<text class="foot" x="40" y="838">docs/fork/diagrams/01-customize-existing-skill.svg · upstream base 481b1ec9 (3.7.4) · strategy B · plan approved 2026-11-01</text>
 </svg>

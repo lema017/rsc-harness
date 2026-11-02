@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="t d">
 <title id="t">Updating the fork with upstream changes</title>
-<desc id="d">Three lanes describing manual maintenance. The user starts it by hand, monthly or when needed: the entry point queries upstream and stops if there is nothing new, prepares a branch or worktree, analyses impact, and merges into the pristine snapshot, which merges cleanly because governance does not live there. Then the transformer is re-run, deterministic validators check the full catalogue, semantic evaluations cover new and modified skills plus a seeded stratified sample, and evidence is produced. Finally, publication happens only with the authorization given for that run, consumers update themselves within the same major, and each project's customizations are never rewritten.</desc>
+<desc id="d">Three lanes describing manual maintenance. The user starts it by hand, monthly or when needed: an npm script that never ships to consumers queries upstream and stops if there is nothing new, prepares a branch or worktree, analyses impact, and merges into the pristine snapshot, which merges cleanly because governance does not live there. Then the transformer is re-run, deterministic validators check the full catalogue, semantic evaluations over new and modified skills plus a seeded stratified sample are specified but not instrumented and not yet run, and evidence is produced. Finally, publication happens only with the authorization given for that run — nothing is published yet and GitHub Actions are disabled, so npm provenance and trusted publishing are unavailable — consumers update themselves within the same major, and each project's customizations are never rewritten.</desc>
 <style>
 text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 .h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
@@ -21,12 +21,12 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="band" x="56" y="118">1 · INTEGRATE — THE SNAPSHOT STAYS A MIRROR OF UPSTREAM</text>
 <rect x="56" y="138" width="252" height="150" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="70" y="162">You start it</text>
-<text class="code" x="70" y="183">rscg upstream</text>
+<text class="code" x="70" y="183">npm run upstream:check</text>
 <text class="d" x="70" y="204">One documented, reusable entry</text>
 <text class="d" x="70" y="219">point. It queries upstream and, if</text>
 <text class="d" x="70" y="234">there is nothing new, says so and</text>
 <text class="d" x="70" y="249">stops. Nothing runs on a timer.</text>
-<text class="d" x="70" y="270">Subcommand names fixed in stage 5.</text>
+<text class="d" x="70" y="270">Then: npm run upstream:maintain</text>
 <rect x="348" y="138" width="252" height="150" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="362" y="162">Isolate the work</text>
 <text class="d" x="362" y="183">A branch or worktree of its own,</text>
@@ -80,12 +80,12 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <rect x="640" y="380" width="252" height="150" rx="8" fill="#dcfce7" stroke="#16a34a"/>
 <text class="t" x="654" y="404">Evaluate semantically</text>
 <text class="d" x="654" y="425">New and modified skills, plus a</text>
-<text class="d" x="654" y="440">stratified sample chosen from a</text>
-<text class="d" x="654" y="455">recorded seed so the selection is</text>
-<text class="d" x="654" y="470">reproducible.</text>
-<text class="d" x="654" y="491">Full suite takes 2 h 17 m, so CI</text>
-<text class="d" x="654" y="506">and maintenance use subsets by</text>
-<text class="d" x="654" y="521">impact; the full run gates release.</text>
+<text class="d" x="654" y="440">stratified sample from a recorded</text>
+<text class="d" x="654" y="455">seed — specified, NOT instrumented</text>
+<text class="d" x="654" y="470">and not yet executed (G11).</text>
+<text class="d" x="654" y="491">Full suite measured: 1 588 tests,</text>
+<text class="d" x="654" y="506">~94 min, 6 attributed failures.</text>
+<text class="d" x="654" y="521">Durations are not authoritative.</text>
 <rect x="932" y="380" width="252" height="150" rx="8" fill="#fef3c7" stroke="#d97706"/>
 <text class="t" x="946" y="404">Report and fix, bounded</text>
 <text class="d" x="946" y="425">Fixes only within the limits set</text>
@@ -108,16 +108,16 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="70" y="682">was authorized to do. A run may</text>
 <text class="d" x="70" y="697">integrate and validate without</text>
 <text class="d" x="70" y="712">publishing anything.</text>
-<text class="d" x="70" y="733">No skill reaches a stable release</text>
-<text class="d" x="70" y="748">without conformance.</text>
+<text class="d" x="70" y="733">No added or modified skill is</text>
+<text class="d" x="70" y="748">promoted without conformance (G3).</text>
 <rect x="348" y="622" width="252" height="130" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="362" y="646">One channel</text>
 <text class="code" x="362" y="668">@lema017/rsc-governed</text>
-<text class="d" x="362" y="689">npm provenance, minimum</text>
-<text class="d" x="362" y="704">permissions, 2FA for human</text>
-<text class="d" x="362" y="719">access, trusted publishing where</text>
-<text class="d" x="362" y="734">compatible. Every limitation of</text>
-<text class="d" x="362" y="749">this setup is written down.</text>
+<text class="d" x="362" y="689">Nothing is published yet, and</text>
+<text class="d" x="362" y="704">GitHub Actions are disabled, so</text>
+<text class="d" x="362" y="719">npm provenance and trusted</text>
+<text class="d" x="362" y="734">publishing are unavailable today.</text>
+<text class="d" x="362" y="749">Least privilege done; 2FA unproven.</text>
 <rect x="640" y="622" width="252" height="130" rx="8" fill="#e0f2fe" stroke="#0284c7"/>
 <text class="t" x="654" y="646">Projects pick it up</text>
 <text class="d" x="654" y="667">Same major: automatic, activated</text>
@@ -137,5 +137,5 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <path d="M600,687 L636,687" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M892,687 L928,687" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 
-<text class="foot" x="40" y="806">docs/fork/diagrams/03-upstream-maintenance.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+<text class="foot" x="40" y="806">docs/fork/diagrams/03-upstream-maintenance.svg · upstream base 481b1ec9 (3.7.4) · strategy B · plan approved 2026-11-01</text>
 </svg>

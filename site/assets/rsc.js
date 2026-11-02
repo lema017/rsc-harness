@@ -27,7 +27,7 @@
   /* ================= live star count ================= */
   (() => {
     const el = document.getElementById('starN'); if (!el) return;
-    fetch('https://api.github.com/repos/ericrisco/rsc-harness').then((r) => (r.ok ? r.json() : null)).then((j) => {
+    fetch('https://api.github.com/repos/lema017/rsc-harness').then((r) => (r.ok ? r.json() : null)).then((j) => {
       if (j && typeof j.stargazers_count === 'number') { el.textContent = j.stargazers_count.toLocaleString(tr('en-US', 'es-ES')); el.hidden = false; }
     }).catch(() => {});
   })();

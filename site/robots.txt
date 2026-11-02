@@ -19,4 +19,4 @@ Allow: /
 User-agent: ClaudeBot
 Allow: /
 
-Sitemap: https://ericrisco.github.io/rsc-harness/sitemap.xml
+Sitemap: https://lema017.github.io/rsc-harness/sitemap.xml

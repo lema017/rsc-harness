@@ -27,7 +27,7 @@
   <!-- cta -->
   <rect x="1114" y="41" width="406" height="52" rx="12" fill="#171c22" stroke="#2a323c"/>
   <text x="1138" y="75" class="mono" font-size="21" fill="#63d68a">$</text>
-  <text x="1158" y="75" class="mono" font-size="21" fill="#e8ebee">npx @ericrisco/rsc@latest</text>
+  <text x="1158" y="75" class="mono" font-size="21" fill="#e8ebee">npx @lema017/rsc-governed@latest</text>
 
   <!-- spine: only in the gaps, so it never collides with a graphic -->
   <circle cx="900" cy="108" r="3.5" fill="#63d68a" fill-opacity=".7"/>

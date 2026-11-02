@@ -1,672 +1,412 @@
-<div align="center">
+# `rsc-governed`
 
-<img src="https://raw.githubusercontent.com/ericrisco/rsc-harness/main/site/og.png" alt="rsc-harness: you build the product, rsc-harness builds your agent's harness, following strict best practices instead of improvising one." width="960">
+**A governed fork of [`rsc-harness`](https://github.com/ericrisco/rsc-harness).**
+Same catalog of 274 skills. One thing added: every skill now carries a written contract telling the
+assistant to read your project's own decisions before it applies that skill — and to use the original
+skill, unchanged, when your project has not decided anything.
 
-# `rsc-harness`
+![skills](https://img.shields.io/badge/skills-274-63d68a?labelColor=12161c)
+![targets](https://img.shields.io/badge/assistant%20targets-18-63d68a?labelColor=12161c)
+![contract](https://img.shields.io/badge/governance%20contract-v1-63d68a?labelColor=12161c)
+![license](https://img.shields.io/badge/license-MIT-63d68a?labelColor=12161c)
+![npm](https://img.shields.io/badge/npm-not%20published%20yet-9ca3af?labelColor=12161c)
 
-**You build the product. rsc-harness builds its harness.**
+> **Status, in one line.** The fork is built and measured; **nothing is published to npm yet**, and
+> GitHub Actions are disabled on this repository. [Guarantees and limits](#guarantees-and-limits)
+> says exactly what that means, with numbers.
 
-[![npm](https://img.shields.io/npm/v/@ericrisco/rsc?color=63d68a&labelColor=12161c&label=npm)](https://www.npmjs.com/package/@ericrisco/rsc)
-[![downloads](https://img.shields.io/npm/dm/@ericrisco/rsc?color=63d68a&labelColor=12161c&label=downloads)](https://www.npmjs.com/package/@ericrisco/rsc)
-[![skills](https://img.shields.io/badge/skills-274-63d68a?labelColor=12161c)](#the-catalog)
-[![license](https://img.shields.io/badge/license-MIT-63d68a?labelColor=12161c)](LICENSE)
-[![stars](https://img.shields.io/github/stars/ericrisco/rsc-harness?color=63d68a&labelColor=12161c)](https://github.com/ericrisco/rsc-harness/stargazers)
+---
 
-Keep your project knowledge, skills and working rules together across the assistants you already use.
-Start with your goal. Review what rsc proposes to install. Accept the plan before it changes your project.
+## What this is, for someone who has not met `rsc` before
 
-**MIT licensed · project-local setup · 18 assistant targets**
+An AI coding assistant is only as good as what it reads before it starts. `rsc-harness` gives your
+project that reading material: a place for project knowledge (`02-DOCS/`), tested tool connections
+(`01-TOOLS/`), a handful of skills chosen from a catalog of 274, and hooks that check the work before
+the assistant claims it is done. It is a local command-line tool — no server, no account, no API key.
 
-Give this URL to your agent and paste the request in the chat:
+**What this fork adds.** In the original, a skill is generic advice: a Flutter skill recommends what
+the Flutter community recommends. In a real codebase that is often wrong — your team already chose a
+different state library two years ago, and wrote that down. This fork makes every skill start by
+asking your project:
 
-```text
-Read https://ericrisco.github.io/rsc-harness/ and set up rsc for this project.
-Ask me the onboarding questions, show me the exact plan, and wait for my acceptance before writing.
-```
+> *Is there a decision about this skill at `02-DOCS/wiki/skills/<skill>/README.md`?
+> If yes, read it first and stay inside the scope it declares. If no, use the original skill
+> unchanged. If it is there but unreadable or self-contradictory, say so and ask — never pretend it
+> was absent.*
 
-Or start from the terminal:
+That paragraph is not a suggestion we hope assistants follow. It is a preamble — a 787-byte template,
+with the skill's own name substituted into it — **compiled into all 274 skills by a deterministic
+transformer**, plus a validator that fails if any skill is missing it. Whether the model then
+*obeys* it is a different question, and this README answers it honestly in
+[Guarantees and limits](#guarantees-and-limits).
+
+---
+
+## How a skill reaches your project, and what it does before it acts
+
+![Customizing an existing skill: the fork package installs a governed SKILL.md carrying a governance preamble and links it into five assistants; the project owner writes an optional customization at 02-DOCS/wiki/skills/<name>/README.md and commits it; before the skill acts it checks that path — present and valid means read and apply within the documented scope, absent means use the original skill unchanged, unreadable or contradictory means surface it and ask; the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code.](docs/fork/diagrams/01-customize-existing-skill.svg)
+
+*Editable source: [`docs/fork/diagrams/01-customize-existing-skill.svg`](docs/fork/diagrams/01-customize-existing-skill.svg) — hand-written SVG, no binary export.*
+
+---
+
+## Relation to the parent, and credit where it is due
+
+This repository is a **GitHub fork of [`ericrisco/rsc-harness`](https://github.com/ericrisco/rsc-harness)**,
+created and maintained by [Eric Risco](https://github.com/ericrisco). It is not affiliated with or
+endorsed by him.
+
+- **Copyright © 2026 Eric Risco** for all inherited work. That notice stays in [`LICENSE`](LICENSE)
+  and is never replaced. The fork's own copyright is **additional**, never a substitute.
+- Everything under [`skills/`](skills) is **byte-identical to upstream**. The governance is applied
+  at install time, not by editing the catalog, so no upstream file is hand-edited and no
+  Apache-2.0 §4(b) modification notice is owed on the derived `design` material.
+- **No trademark rights are claimed or granted** (Apache-2.0 §6). The package and the command are
+  renamed precisely so nothing here can be mistaken for the parent's release.
+- Upstream changes arrive only through the manual maintenance run described below. **This fork never
+  sends anything upstream automatically**, and its `upstream` push remote is disabled.
+
+| | Parent | This fork |
+|---|---|---|
+| npm package | [`@ericrisco/rsc`](https://www.npmjs.com/package/@ericrisco/rsc) | `@lema017/rsc-governed` *(not published yet)* |
+| CLI command | `rsc` | `rscg` |
+| Install entry point | `rsc-install` | `rscg-install` |
+| Repository | [`ericrisco/rsc-harness`](https://github.com/ericrisco/rsc-harness) | [`lema017/rsc-harness`](https://github.com/lema017/rsc-harness) |
+| Licence | MIT | MIT, upstream copyright intact |
+
+**Why a different command and not just a different scope.** A shared `rsc` binary means whichever
+package was installed globally last wins, silently, and the losing project is driven by the other
+one's CLI. `rscg` cannot collide.
+
+**What is deliberately *not* renamed.** `.rsc/`, `.rsc.json`, `.rsc-state.json`, `.rsc/skills/`, the
+`RSC_*` environment variables and the documented error codes keep their names. They are a contract
+with every project already installed and with committed assistant hook configurations; renaming them
+would break existing installations for no gain. The fork's own settings live in a separate file,
+`.rsc.fork.json`, so the parent's CLI cannot silently drop them.
+
+---
+
+## What the fork changes
+
+| | Change | Why |
+|---|---|---|
+| **Governed catalog** | All **274** skills carry the v1 governance contract when installed — measured 274/274 across **18** assistant targets, over **3** installation passes | The requirement is *every* skill, not a sample |
+| **Per-project customizations** | A fixed, validated path: `02-DOCS/wiki/skills/<skill>/README.md` | One entry point the skill can always find; the documentation root was audited and is **not** configurable |
+| **Absence is a valid answer** | No customization → the original skill, unchanged. No empty files are created and no question is asked just for the absence | A harness that nags about missing paperwork gets uninstalled |
+| **Broken is not absent** | An unreadable, invalid or contradictory customization is surfaced, never treated as missing | Otherwise the original skill runs while the project believes its own decision is in force |
+| **Brownfield analysis** | `rscg brownfield` analyses the selected skills against the project's real code, config, tests and docs, and separates *approved convention* from *observed pattern*, *technical debt*, *exception*, *migration in progress* and *insufficient evidence* | A skill recommending a library you abandoned is the normal failure in an existing codebase |
+| **A conformance command** | `rscg conformance` answers "does every installed skill carry the contract?" **in your project**, read-only | Before this, that question could only be answered inside this repository |
+| **Own identity** | `@lema017/rsc-governed` / `rscg`; every suggested command, hook, bootstrap and updater names the fork | So nothing can reinstall the parent over the fork by accident |
+| **A maintenance machine** | A resumable, gated run that pulls upstream, re-applies governance and refuses to promote an integration it could not prove | See [Keeping up with upstream](#keeping-up-with-upstream) |
+
+The reasoning behind each decision, including the ones that were rejected, is in the project ledger:
+[`docs/fork/LEDGER.md`](docs/fork/LEDGER.md) §4 and §2n/§2p/§2r/§2t (decisions D1–D16).
+
+---
+
+## Install and first steps
+
+### Today
+
+`@lema017/rsc-governed` **is not on npm yet** — the registry returns `404`, measured. Until it is
+published, run it from a clone:
 
 ```bash
-npx @ericrisco/rsc@latest onboard
+git clone https://github.com/lema017/rsc-harness.git
+cd /path/to/your/project
+node /path/to/rsc-harness/scripts/rsc.js onboard
 ```
 
-</div>
+The CLI works on whatever directory you run it from, so the clone can live anywhere.
+`node …/scripts/rsc.js --version` prints `rscg 3.7.4`.
 
----
-
-## Your project has a way of working. Give it to your agent.
-
-A new chat should not make you reconstruct the stack, explain yesterday's decision and remember which
-files must stay untouched. Putting every instruction into one giant prompt creates a different problem:
-the important details compete with rules that have nothing to do with today's task.
-
-Hand-built setups can become a **Frankenstein harness**: duplicated instructions, unrelated skills,
-premature hooks and unnecessary MCP connections. Open standards cover individual pieces
-([Agent Skills](https://agentskills.io/specification), [MCP](https://modelcontextprotocol.io/),
-[AGENTS.md](https://agents.md/)). Your project still needs someone to choose and maintain the right pieces.
-
-rsc-harness makes that choice explicit. It reads evidence within your project root, asks about your goal
-and assistants, and prepares a plan you can inspect before applying it.
-
-## See the plan before you install
-
-<img src="https://raw.githubusercontent.com/ericrisco/rsc-harness/main/site/meta-harness.png" alt="A project goal becomes an installation plan: components selected, deferred or excluded with reasons." width="960">
-
-Every component has a disposition:
-
-| In your plan | What it means |
-| --- | --- |
-| **Selected** | There is a reason to install it for this project now. |
-| **Deferred** | It may become useful; the plan records what evidence would justify adding it. |
-| **Excluded** | It does not belong in the proposed setup. |
-
-You accept the exact plan. If project evidence changes before acceptance, rsc asks you to review a
-fresh plan. Later, `rsc reassess` reports new needs without silently installing them.
-
-### Why documentation comes first
-
-The decisions your agent needs should have a place to live outside the chat.
-
-| Part of the harness | What you get |
-| --- | --- |
-| **Knowledge** | A local `02-DOCS/` wiki for project context, decisions and evidence. |
-| **Tools** | A `01-TOOLS/` convention for documenting real connections and their checks. |
-| **Skills** | A selection from 274 available skills, loaded progressively when relevant. |
-| **Controls** | Working rules and provider-specific hooks, with explicit support limits. |
-
-The mechanism is practical: keep the decision, make it discoverable, and have the next task consult it.
-That gives the agent a maintained source to work from. It does not make an outdated note correct or
-remove the need to check the result.
-
-## A day with rsc
-
-<img src="https://raw.githubusercontent.com/ericrisco/rsc-harness/main/site/lanes.svg" alt="The agent chooses a read-only answer, a focused change with evidence, or a specification-led workflow for coupled decisions." width="960">
-
-1. **Describe the project.** Choose the assistants you use and how technical the conversation should be.
-2. **Review the setup.** See each proposed component and its reason, then accept the plan you want applied.
-3. **Ask for the work.** The agent names the appropriate lane: an answer, a focused change (FTD), or the
-   specification-led chain (SDD) for decisions that affect each other.
-4. **Keep the result and its evidence.** Project knowledge goes into `02-DOCS/`; implementation stays in
-   your code. Future sessions can consult both.
-
-## Is this for your project?
-
-Use rsc when you already work with an assistant and want a coherent project setup you can inspect,
-share and maintain. It can equip software projects and business workflows; the catalog includes both.
-
-You keep your editor, model and existing project. rsc supplies the harness around them. Provider
-features differ: check [supported assistants](#supported-assistants) before relying on a particular
-hook or memory feature. Model and external-service costs remain with their providers.
-
-For a one-off question, a maintained project harness may be unnecessary. You can also install an
-individual skill into an existing rsc project rather than adopt a whole workflow.
-
-## Install in one minute
+### Once it is published
 
 ```bash
-npx @ericrisco/rsc@latest onboard
+npx @lema017/rsc-governed@latest onboard
 ```
 
-The first run asks **one** question about conversation (technical, or with analogies), then what the
-project is for, its goal and the assistants to target. Then it presents the complete plan. A small
-website can defer SDD, agents and code guards; an operations harness does not receive them merely
-because it lives in a repository. Deferred components record the evidence that would make rsc
-recommend them later, and `rsc reassess` reports it without installing anything.
+Or, for a short command: `npm install -g @lema017/rsc-governed`, then `rscg onboard`.
 
-Everything stays **in the project**. The real skill files are written once to `.rsc/skills/<id>/`, and
-each assistant gets a symlink back to that shared base, so picking several duplicates nothing. Skills
-load progressively: only their description is paid for until a task needs them.
+### What `onboard` does
 
-Prefer a short `rsc` command? `npm install -g @ericrisco/rsc`.
+It asks a few questions, reads only your project root, and then **prints the exact plan** — what it
+will install, what it will defer and what it will exclude, each with its reason. **Nothing is written
+before you accept that plan.** Add `--target claude,codex,…` to choose assistants; without it, it
+uses the one already installed here and asks rather than guessing if there are two.
 
-> **Run it inside the project you are equipping, not inside a clone of this repo.** The catalog's own
-> `package.json` is named `@ericrisco/rsc`, so `npx @ericrisco/rsc` from within a clone resolves to
-> the local bin and fails with `sh: rsc: command not found`. Working on the catalog itself? Use
-> `node scripts/rsc.js …` or `npm link`.
+Afterwards:
 
-### For agents: "install this harness"
-
-If you are an AI coding agent and your user asked you to **install rsc, this harness or these
-skills**, run this in the root of the project they are equipping:
-
-```bash
-npx @ericrisco/rsc@latest onboard
-```
-
-It asks the user how technical to talk, the project kind and the goal **before it writes anything**,
-and shows every selected or deferred skill, agent and hook with its reason. Relay those questions;
-never invent or default the answers. The first pass writes nothing and prints a SHA-256 plan id. Rerun
-with `--accept-plan <id>` only after the user accepts that exact plan. If the project already has a
-skill of its own with a catalog name, the plan lists it under **Your own skills this plan replaces**:
-tell the user before accepting.
-
-Non-interactive, with the answers collected first:
-
-```bash
-npx @ericrisco/rsc@latest onboard --technical-level technical \
-  --project-kind software --goal "small compound-interest website" \
-  --software-scope small --target codex
-# After the user accepts the printed plan:
-npx @ericrisco/rsc@latest onboard --technical-level technical \
-  --project-kind software --goal "small compound-interest website" \
-  --software-scope small --target codex --accept-plan PRINTED_SHA256_ID
-```
-
-If project evidence changes between preview and acceptance, rsc returns `RSC_PLAN_CHANGED` and writes
-nothing. After applying, it verifies the result and prints `RSC_ONBOARDING_READY`, or
-`RSC_ONBOARDING_INCOMPLETE` with each missing path and the action that creates it.
+| Command | What it does |
+|---|---|
+| `rscg list` · `rscg add <id…>` | see the catalog; add skills later |
+| `rscg brownfield` | analyse the selected skills against this codebase |
+| `rscg conformance` | read-only: does every installed skill carry the contract? |
+| `rscg doctor` · `rscg repair` | diagnose; fix what drifted, showing you first |
+| `rscg backups` · `rscg restore <id\|latest>` | every write takes a snapshot first; `--dry-run` reports and changes nothing |
+| `rscg sync` · `rscg upgrade` | refresh the installed harness |
+| `rscg help` | the full list |
 
 ---
 
-## How it works inside
+## Customizing a skill for your project
 
-### The knowledge model: `02-DOCS/` and `01-TOOLS/`
+Create `02-DOCS/wiki/skills/<official-skill-id>/README.md` and commit it. It belongs to your project,
+not to the harness.
 
-<img src="https://raw.githubusercontent.com/ericrisco/rsc-harness/main/site/company-brain.svg" alt="The rsc company brain as a 3D knowledge graph: loose material drifts in from the inbox and is absorbed into the wiki cluster, whose brightest hubs are its .base views; dim clusters are raw sources and the agent's own worklog; an amber cluster is gaps.md, what the wiki knows it is missing." width="960">
+```markdown
+---
+skill: flutter
+governance: v1
+type: skill-customization
+status: approved
+updated: 2026-11-01
+catalog-version: 3.7.4
+reevaluate-when: the flutter skill changes its state-management recommendation
+scope:
+  - apps/mobile
+evidence: codebase analysis, 2026-11-01, accepted by the user
+---
 
-Anything you drop into `02-DOCS/inbox/` is ingested. The wiki consolidates it as plain markdown that
-every skill reads before acting, so the next session starts where the last one stopped. Raw sources
-and the agent's worklog stay underneath, never deleted. You can open `02-DOCS/` as an Obsidian vault,
-and every `02-DOCS/wiki/` is a valid [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf)
-bundle: markdown with YAML frontmatter, standard links, and the reserved `index.md` and `log.md`.
+## Decisions
+- State management is BLoC in `apps/mobile`. It is the approved convention, not legacy.
 
-`01-TOOLS/` holds one folder per tool: `.env.example`, `CREDENTIALS.md`, a README and a
-`test_connection` that proves it works. When you name a tool ("connect my Holded", "can the agent
-read our Sage?"), the `connect-tool` skill researches the vendor's current docs, picks the least
-dangerous route (official MCP, API, export, a read-only copy of the database), and builds the folder.
-For a read-only connection, the test also proves that writing fails.
-
-### Three lanes, and the agent picks
-
-Every turn takes exactly one lane, and the agent names it in one line, in your language.
-
-1. **Answer.** The request asks for information: explain, compare, investigate, audit, review,
-   propose. It is **read-only**: nothing is written and no artifact is created. When intent is
-   unclear it asks one question and stays here.
-2. **FTD, Fast-Track Development.** The request authorises a change. This is the default for ordinary
-   work. One feature document holds intent, scope, a checklist, the evidence and the next step. Tasks
-   are checked off against observed proof, never against intention.
-3. **SDD, the ten-phase chain.** For the big or complex: several decisions that affect each other.
-   **The agent enters it on its own**, and you still decide *what* gets built: you approve the spec
-   and answer the clarifying questions, then review each phase or let it run on autopilot. Publishing
-   always asks.
-
-Ask for the other lane and it switches.
-
-### Skills, and how they are recommended
-
-The unit of installation is **one skill**: install `fastapi` without ever pulling `go`. Two faces
-share one catalog (`manifest.json`):
-
-- **In the terminal**, `rsc consult` ranks the catalog against your words and what it detects in the
-  repo (`package.json` + `next` → `nextjs`, `go.mod` → `go`, `Dockerfile` → `docker`).
-- **In the chat**, the always-on `suggest` notices when a task needs a skill you do not have, names
-  it, and installs it on a one-word yes.
-
-Skill authoring follows a research → spec → implement → review process. The public
-[rubric](scripts/skill-rubric.md) separates document quality from
-[behavioral evaluation](scripts/skill-behavior-rubric.md). Structural checks validate the catalog;
-behavioral comparisons ask whether loading a skill improves the result. Neither establishes a
-guaranteed business outcome.
-
-### Hooks and guards
-
-In Claude Code, hooks enforce what instructions only ask for: the lane decisor on every turn, a
-refusal before a commit on a closed `main`, a confirmation before destructive commands, and a nudge
-to write the feature document before the first code edit. Every refusal says how to carry on. The
-rules only see what the **agent** runs; a person committing in their own terminal is never touched.
-
-> **Limit, stated plainly.** Those guards run in **Claude Code**. In Codex, Gemini, Cursor and
-> OpenCode the same rules travel in the skills and the session memory. They are followed, but no hook
-> enforces them.
-
-### Working as a team
-
-Day ninety is where harnesses break, especially with several people, assistants and sessions on one
-project. rsc handles four things by default:
-
-| | What happens | Turn it off |
-| --- | --- | --- |
-| **You choose how the project works** | The install asks once: straight on `main`, or branches and pull requests? With branches, a commit on `main` is refused and the agent asks before each change: this branch, a new one, or unlock `main`? It never opens a branch on its own. | «unlock main», or `rsc main unlock` |
-| **One workspace per agent** | If another session works in the same folder, new work goes to `.worktrees/<branch>/` at the root you work in (never inside a project folder) and is never committed. A `post-merge` hook retires it once the branch lands. | `rsc isolation off` |
-| **The agent picks the method** | FTD for simple changes, SDD for complex ones. The agent decides and says why. | Ask for the other lane |
-| **Knowledge reaches everyone** | `01-TOOLS/`, `02-DOCS/wiki/` and `02-DOCS/attachments/` travel through one exchange branch, `rsc/knowledge`, and reach `main` inside your normal pull requests. | `rsc knowledge-sync off` |
-
-**How it knows a project is complex.** A hook counts what anyone can check: a CI setup, a deployment
-file (`Dockerfile`, `vercel.json`, `fly.toml`…) or at least two people in the last 50 commits. The
-answer you gave at install always wins over this detection.
-
-#### Knowledge sync, step by step
-
-```text
-ana    · feat/login     edits 02-DOCS/wiki/api.md ──► rsc/knowledge      (when her turn ends)
-eric   · feat/payments  📥 1 change from Ana        ◄── rsc/knowledge      (before his next message)
-main   · protected      untouched, gets it inside the next merged pull request
-new    · clones main    has it all after the first message
+## Out of scope
+- Anything outside `apps/mobile`.
 ```
 
-- **When a turn ends**, your changes in those folders are committed on your branch as
-  `📝 docs(auto): …` and sent to `rsc/knowledge`. Only the copy on `rsc/knowledge` carries
-  `[skip ci]`, so your own pushes still run CI. On a closed `main`, or with code of yours still
-  uncommitted, nothing is committed on your branch: the snapshot only goes to `rsc/knowledge`.
-- **Before each message**, what teammates sent comes into the branch you are on as a
-  `📥 docs(auto): sync` commit, and you are told in one line. Only knowledge folders are touched.
-- **It never** pushes to `main`, pushes your code, brings in anybody else's code, syncs your personal
-  `user-profile.md`, or overwrites a file you are editing.
+**Nine frontmatter keys are required**, and `## Decisions` and `## Out of scope` are both mandatory —
+a file that only says what it decides implies, by silence, that it decided everything. `scope` has no
+default: an omitted scope is a validation error, not an implicit "everywhere". The full schema,
+including orphans and renames, is in
+[`docs/fork/stage1/CUSTOMIZATION-SCHEMA.md`](docs/fork/stage1/CUSTOMIZATION-SCHEMA.md).
 
-It runs in the turn hooks of Claude Code, Codex, Gemini, Cursor, OpenCode and DeepSeek Harness. It is
-a **project** switch: if one person stopped sending, the rest would stop seeing their work.
+**Your customizations are protected by code, not by convention.** They survive install, `sync`,
+`repair`, update and a fresh clone; the standard path is excluded from the write path of knowledge
+sync, with a negative test that fails if the exclusion ever disappears, and another that proves an
+ordinary knowledge file in the same position *is* removed — so the test cannot pass vacuously.
 
-#### Sharing the harness through git
-
-**Commit these:** `.rsc.json` (which assistants, which skills, which catalog version), `01-TOOLS/`,
-`02-DOCS/`, and skills or agents you wrote by hand. **rsc ignores the rest for you:** `.rsc/` (machine
-state) and the skill entries it manages (symlinks here, copies on Windows).
-
-Three files carry the harness through git: `.rsc.json`, `.claude/settings.json` and
-`.claude/rsc-bootstrap.mjs`, the small file that notices in a clone that the rest is not built yet.
-Commit all three. Because `rsc-bootstrap.mjs` runs on every session, review changes to it the way you
-would review a CI workflow.
-
-Whoever clones runs **one command** and gets the same harness, at the version the project pinned in
-its `.rsc.json` as `catalogVersion`:
-
-```bash
-npx @ericrisco/rsc@<catalogVersion> sync
-```
-
-You do not have to know that. Open the project and the assistant tells you, in the first message,
-what is missing and the exact command, naming the pinned version. It asks; it never installs on its
-own. A teammate who clones in three months gets what you had, not what shipped since. After a
-`git pull`, `rsc doctor` tells you what no longer matches; nothing is written by a pull.
-
-**Own skills.** A skill your team wrote lives in the repo and works for whoever clones. rsc never installs, updates or overwrites
-it: its version is the commit. Installing a catalog skill with the
-same name is refused, and `doctor` lists what is yours by reading the files. Declaring a skill under
-`ownSkills` still works.
-
-#### Git permissions
-
-A harness installed from scratch lets the agent run `git commit`, `git push` and `gh pr create`
-without asking, because those steps close every lane. A force-push still asks, and in Claude Code a
-commit on a closed `main` is still refused. It is saved as `gitPermissions` in `.rsc.json`.
-
-| Assistant | Where it goes |
-| --- | --- |
-| Claude Code | `.claude/settings.json` → `permissions.allow` (force-push under `ask`) |
-| Codex | `.codex/rules/rsc-git.rules` (force-push → `prompt`) |
-| Gemini | `.gemini/settings.json` → `tools.allowed` |
-| OpenCode | `opencode.json`: the `permissions` list on OpenCode 2, `permission.bash` on 1.x. An `opencode.jsonc` is never rewritten; rsc prints the rules to paste. |
-| Cursor, DeepSeek Harness | Not covered: neither has a safe per-command allow list. |
-
-`rsc git-permissions status | on | off` explains, per assistant, what rsc controls and what is left
-to the assistant.
-
-### Memory between sessions
-
-On supported local targets, rsc checkpoints observable repository state (branch, worktree, HEAD,
-changed paths, commits, SDD status) and injects it before the first action of a new session in the
-same checkout.
-
-- **Full:** Claude Code, Codex, Gemini CLI, OpenCode and DeepSeek Harness. Codex asks you to trust the
-  project hook once with `/hooks`.
-- **Assisted:** Cursor desktop, through an always-on rule that reads before acting.
-- **Never cloud:** the memory runtime makes no network request.
-
-The journal never stores prompts, responses, tool output, file contents or secrets. It stays in a
-git-excluded local path, keeps 30 days, and injects at most 4,096 bytes. `rsc memory off` disables it.
-
-### Review that only brings you what is real
-
-In SDD, `review` sends three adversarial reviewers at the diff (correctness, security, tests). They
-often report the same defect in different words, and a reviewer hunting for problems can overstate
-one. So `rsc review consolidate` merges the duplicates, and every serious finding left goes to a
-fresh `finding-verifier` agent whose starting position is that the finding is false. It blocks the
-merge only if the verifier reproduces or traces it. You get "11 reported → 4 unique → 2 confirmed",
-with the refuted ones listed and their reason.
-
-### It talks so you understand
-
-- **Short sentences, one idea each,** in the style of ASD-STE100 (the controlled writing of aircraft
-  manuals), always in your language.
-- **The answer first.** Every answer stands alone, without "that fix" or "as above".
-- **One setting:** technical, or with analogies.
-- **A ladder when you do not follow:** text, then a diagram, then an HTML page, and a video only if
-  you ask.
-
-Every turn closes with a short compass: where you are, and the next step as a question. Text you send
-to other people (emails, posts, READMEs) goes through `unslop`, so it sounds like a person.
+The contract that governs precedence, scope, exceptions, migrations and what to do with stale
+documentation is [`docs/fork/stage1/CONTRACT.md`](docs/fork/stage1/CONTRACT.md).
 
 ---
 
-## Supported assistants
+## Working in an existing codebase (brownfield)
 
-The real files land once in `.rsc/skills/<id>/`; each assistant gets a symlink or a converted file.
-The wizard asks which ones; `--target a,b` does it non-interactively.
+`rscg brownfield` never assumes the skill is right and the project is wrong. For each selected skill
+it inventories competing skills, reads the project's documentation, dependencies, versions, config,
+tests and representative code, and reports conflicts. Every conflict carries seven fields —
+**evidence, scope, impact, confidence, alternatives, recommendation, status** — and every position is
+labelled as one of six things: approved convention · observed pattern · technical debt · exception ·
+migration in progress · insufficient evidence.
 
-| Target | Skill destination (→ `.rsc/skills/<id>/`) | Always-on detector |
-| --- | --- | --- |
-| `claude` | `.claude/skills/<id>/` → symlink (copy on Windows) | SessionStart hook in `.claude/settings.json` |
-| `codex` | `.codex/rsc/<id>/` → symlink | block in `AGENTS.md` |
-| `copilot` | `.github/rsc/<id>/` → symlink | block in `.github/copilot-instructions.md` |
-| `cursor` | `.cursor/rules/<id>.mdc` (converted) | always-apply rule |
-| `gemini` | `.gemini/rsc/<id>/` → symlink | block in `GEMINI.md` |
-| `windsurf` | `.windsurf/rsc/<id>/` → symlink | rule in `.windsurf/rules/rsc-suggest.md` |
-| `cline` | `.clinerules/rsc/<id>/` → symlink | rule in `.clinerules/rsc-suggest.md` |
-| `antigravity` | `.antigravity/rsc/<id>/` → symlink | block in `.antigravity/AGENTS.md` |
-| `zed` | `.zed/rsc/<id>/` → symlink | block in `AGENTS.md` |
-| `continue` | `.continue/rsc/<id>/` → symlink | rule in `.continue/rules/rsc-suggest.md` |
-| `roo` | `.roo/rsc/<id>/` → symlink | rule in `.roo/rules/rsc-suggest.md` |
-| `amp` | `.amp/rsc/<id>/` → symlink | block in `AGENTS.md` |
-| `opencode` | `.opencode/rsc/<id>/` → symlink | block in `AGENTS.md` |
-| `deepseek` | `.dsh/skills/<id>/` → symlink (discovered natively) | block in `AGENTS.md` |
-| `jules` | `.jules/rsc/<id>/` → symlink | block in `AGENTS.md` |
-| `junie` | `.junie/rsc/<id>/` → symlink | block in `.junie/guidelines.md` |
-| `kiro` | `.kiro/rsc/<id>/` → symlink | doc in `.kiro/steering/rsc-suggest.md` |
-| `aider` | `.aider/rsc/<id>/` → symlink | block in `CONVENTIONS.md` |
+It **reports; it does not resolve**. It asks only about material ambiguities, and a pending decision
+blocks the affected action, not all the independent work. Proposed customizations are shown to you
+and written only after you approve them.
 
-> `codex`, `zed`, `amp`, `opencode`, `deepseek` and `jules` share one root `AGENTS.md`; the block is
-> written once.
-
-> **DeepSeek Harness** (`dsh`) has no project-level hooks, so once per machine rsc adds one marked
-> block to `~/.dsh/cordis.patch.yml` that runs the hooks of whichever project the session is in.
-> Restart dsh once after the first install; delete the block to turn it off.
-
-| Targets | Stack agents | Native commands | Session memory |
-| --- | --- | --- | --- |
-| Claude Code | yes | agent + memory entries | full |
-| Codex | yes | no separate surface | full after `/hooks` trust |
-| Cursor desktop | yes | yes | assisted |
-| Gemini CLI, OpenCode | yes | yes | full |
-| DeepSeek Harness | unsupported | unsupported | full (machine bridge) |
-| GitHub Copilot | yes | yes | unsupported |
-| Junie, Kiro | yes | unsupported | unsupported |
-| Windsurf, Cline, Roo | unsupported | yes | unsupported |
-| Antigravity, Zed, Continue, Amp, Jules, Aider | unsupported | unsupported | unsupported |
-
-`manifest.json` is the generated public inventory: 34 agents (5 base + 29 selective specialists) and
-53 command entries (20 fixed + 33 stack aliases). Unsupported means rsc writes nothing for that
-surface. Generated agents carry no `model:` on OpenCode, so they use the session's model; pin one for
-the team with `rsc agent-model <target> <model>`. If you edit a generated agent, `rsc sync` keeps your
-file, and `rsc agents reset <name>` takes rsc's version back after a backup.
+Full procedure: [`docs/fork/stage3/BROWNFIELD.md`](docs/fork/stage3/BROWNFIELD.md).
 
 ---
 
-## CLI
+## Keeping up with upstream
 
-`rsc` below is short for `npx @ericrisco/rsc`. Without a global install (`npm i -g @ericrisco/rsc`),
-the bare `rsc` answers `command not found`: type the `npx` form.
+![Updating the fork with upstream changes: an npm script that never ships to consumers queries upstream and stops if there is nothing new, prepares a branch or worktree, analyses impact and merges into the pristine snapshot, which merges cleanly because governance does not live there; then the transformer is re-run, deterministic validators check the full catalogue, semantic evaluations are specified but not instrumented and not yet run, and evidence is produced; finally publication happens only with the authorization given for that run — nothing is published yet and GitHub Actions are disabled, so npm provenance and trusted publishing are unavailable — consumers update themselves within the same major, and each project's customizations are never rewritten.](docs/fork/diagrams/03-upstream-maintenance.svg)
 
-```bash
-# Setup
-rsc onboard                          # plain-language onboarding; writes nothing until you accept
-rsc reassess                         # check deferred components against new evidence
-rsc add fastapi postgresdb           # install skills by name
-rsc consult "I want to launch a SaaS"  # recommend only
-rsc sync                             # refresh managed skills and hooks
+*Editable source: [`docs/fork/diagrams/03-upstream-maintenance.svg`](docs/fork/diagrams/03-upstream-maintenance.svg) — hand-written SVG, no binary export.*
 
-# Team
-rsc main status | unlock | lock      # whether the agent may work on main
-rsc isolation status | off           # worktrees for parallel sessions
-rsc knowledge-sync status | off      # the shared knowledge exchange
-rsc git-permissions status | on | off
+Maintenance is **started by hand**, monthly or when you want it. Nothing runs on a timer and there is
+no service to keep alive.
 
-# Agents and review
-rsc agent-model opencode inherit     # agents use the session's model
-rsc agents status | reset <name>     # installed agents, and the ones you edited
-rsc review consolidate c.md s.md t.md  # merge reviewer findings; serious ones go to finding-verifier
-
-# Documentation
-rsc ingest notas.md --topic crm      # move a file into 02-DOCS/raw/ (verified copy), then document it
-rsc copy rules | check ad.txt        # the phrases this project forbids, and a check before publishing
-
-# Memory and diagnostics
-rsc memory status | off | resume     # session continuity; «recuerda esto» goes to 02-DOCS/wiki/
-rsc doctor                           # harness health and onboarding readiness
-rsc repair                           # put the harness back to what is declared
-rsc backups | restore latest         # project-local snapshots
-rsc uninstall <id> | purge           # remove one skill, or everything rsc installed
+```sh
+npm run upstream:check                    # what changed upstream? stops if nothing did
+npm run upstream:maintain -- --authorize integrate
 ```
 
-### `rsc doctor`
+It is **not** a `rscg` subcommand and it is **not in the published package**: consumers must never
+integrate upstream directly, so the maintenance machinery is excluded from the tarball on purpose.
 
-`doctor` answers two questions, on separate lines:
+The run is resumable — its state lives on disk and in Git — and it is **gated**. A merge with no
+textual conflicts is explicitly *not* accepted as proof of functional compatibility; the verdict comes
+from twelve named checks (mirror invariant, catalog parity, contract conformance on every added and
+modified skill in a real install, idempotence, vendored subtrees, third-party attribution, each of the
+fork's own edits surviving *in intent*, the impacted test subset, customizations, the retired-skill
+registry, fork identity, semantic evaluations). **A required check that did not run counts as
+failing**, by name — a gate that cannot fail would report the same thing as one that passes.
 
-```text
-Harness health: healthy
-Onboarding readiness: pending
-Pending: 02-DOCS/wiki/sdd/constitution.md (draft)
-```
+This is not theoretical: upstream 3.7.5 brought a third vendored subtree with new attribution
+obligations, and the gate **blocked** the integration rather than letting it ship uncredited.
 
-**Harness health** says whether what is installed works, and it is the only thing the exit code
-follows. **Onboarding readiness** says whether onboarding is finished (`ready`, `pending`,
-`incomplete`, or `not onboarded` for a manual install); it never changes the exit code.
-
-### Something's off? `rsc repair`
-
-If the harness is wired for the wrong assistant, a hook runs several times, or skills appear that you
-never asked for, run `npx @ericrisco/rsc@latest repair`. It shows what it found before touching
-anything, keeps a recoverable copy, and never touches skills or agents you wrote by hand. Add
-`--dry-run` to see the pass without writing.
-
-### Update
-
-**rsc updates itself.** At session start it checks npm. A release in the same major installs in the
-background and takes effect next session; a new major asks first. To turn it off, create
-`.rsc/.no-auto-update`. By hand: `npm install -g @ericrisco/rsc@latest && rsc sync`. Every sync
-snapshots the project first, so `rsc restore latest` undoes a bad update.
+Operator's guide: [`docs/fork/stage5/MAINTENANCE.md`](docs/fork/stage5/MAINTENANCE.md).
 
 ---
 
-## Build a sales page and VSL from the same offer
+## How your projects get updates
 
-The **VSL sales pack**, added in 3.7.0, connects buyer evidence to the offer, the buying journey,
-and a video sales letter (VSL). It is a curated selection of ordinary rsc skills; each remains usable alone.
+Once a validated version is published, projects update themselves from the **fork's** package. They
+never integrate upstream.
 
-| Step | Skill | Deliverable |
-| --- | --- | --- |
-| Understand the buyer | [customer-research](skills/customer-research/) | Sourced needs, objections and buyer language, with gaps and publication permissions. |
-| Define the exchange | [offer-design](skills/offer-design/) | What the buyer gets, why it helps, delivery limits and supported terms. |
-| Plan the route | [sales-funnel](skills/sales-funnel/) | Pages, decisions, exits, recovery paths and measurement handoffs. |
-| Write the video | [vsl-script](skills/vsl-script/) | Spoken script, feasible timing, scene cues and evidence for each claim. |
-| Write the page | [landing-copy](skills/landing-copy/) | Page text aligned with the same offer revision and video. |
+- **Same major:** installed in the background, pinned to the exact version just seen — never
+  `@latest`, so nothing published in between slips in — and active in the next session.
+- **New major:** it asks first.
+- **Opt out:** create `.rsc/.no-auto-update` and every release becomes a question again.
+- **Offline, 404 or a malformed response:** nothing is said and nothing is installed.
+- A failed verification **keeps your installation working** and explains the blockage.
 
-In an existing rsc project, this command adds the core selection:
-
-```bash
-npx @ericrisco/rsc add customer-research offer-design sales-funnel vsl-script landing-copy
-```
-
-Use `design` and your web-stack skill to build the page; use `remotion-video` or your editor to produce
-the video. Add `analytics` and `ab-testing` when you are ready to measure the result. These are separate
-capabilities, not an automatic payment integration or a promise that the page will convert.
-
-Try this request after installing the selection:
-
-```text
-Use the research and product facts we already have to define one offer.
-Plan the shortest buying journey, write its VSL, and prepare the landing copy.
-Keep the price, scope, evidence and next action consistent across all three.
-Separate missing proof from publishable claims. Show what still needs production or implementation.
-```
-
-**Evaluation status:** initial blind comparisons met the quality threshold for all four new skills;
-only `offer-design` met the required improvement over the no-skill baseline. The others ship with
-that limitation recorded in their `evals/README.md`. Repeated-trial validation remains open.
-
-The same workflow works for a free tool: the next action can be trying or installing it. No invented
-price, customer testimonial, deadline or guarantee is needed to explain a useful product.
+What was measured: the registry URL, the `npx` argument list, the hook copy actually installed in a
+project, and a full recursive sweep of a freshly installed project — the fork in every place, the
+parent in none. Detail, including the two lines where a careless rename would have made every
+consumer install the parent over the fork on a timer:
+[`docs/fork/stage6/DISTRIBUTION.md`](docs/fork/stage6/DISTRIBUTION.md) §3.
 
 ---
 
-## The catalog
+## Guarantees and limits
 
-274 skills, grouped by what you are trying to do. Click any skill to read its `SKILL.md`. It fires on
-its own when a task matches.
+This section exists because the easiest way to lie about a harness is to describe what it instructs
+and let the reader assume that is what happens.
 
-### 🧭 Core & control plane
+### Carrying the contract is guaranteed. Obeying it is not.
 
-[init](skills/init/) · [harness](skills/harness/) · [orient](skills/orient/) · [suggest](skills/suggest/) · [unslop](skills/unslop/) · [author-skill](skills/author-skill/) · [sdd-init](skills/sdd-init/)
+**Two different claims, and only one of them is measured as a certainty.**
 
-### 📐 Spec-Driven Development
+- **Conformance — what the artifact *carries*.** Deterministic, byte-comparable, measured:
+  **274 of 274** skills carry the v1 contract, across **18** assistant targets, over **3**
+  installation passes, with zero failures; a second installation of the same scope is byte-identical.
+  Evidence: [`docs/fork/stage4/VERIFICATION.md`](docs/fork/stage4/VERIFICATION.md).
+- **Compliance — whether the model *obeys* it.** Not guaranteed, by anyone, ever. The preamble
+  instructs; nothing forces. The only thing that can force is a guard that denies the action, and
+  **the only assistant where such a guard exists today is Claude Code**. `codex`, `cursor` and
+  `antigravity` generate no pre-tool hook at all; DeepSeek's bridge can block, but nothing wires it.
 
-Two lanes for change: `ftd` for ordinary work, and the ten-phase chain when durable artifacts would
-settle a real ambiguity. `idea-refinement` runs inside `specify`; `decision-challenge` is on demand.
+**Worse: skill application is not an observable event on any assistant.** What code can deny is a
+*tool call*, which is a different thing. So no clause of this contract is enforced at the moment a
+skill is applied, anywhere. Where denial exists it is reinforcement, not the mechanism.
 
-[ftd](skills/ftd/) · [sdd](skills/sdd/) · [constitution](skills/constitution/) · [idea-refinement](skills/idea-refinement/) · [specify](skills/specify/) · [clarify](skills/clarify/) · [plan](skills/plan/) · [tasks](skills/tasks/) · [analyze](skills/analyze/) · [decision-challenge](skills/decision-challenge/) · [implement](skills/implement/) · [source-grounded-development](skills/source-grounded-development/) · [verify](skills/verify/) · [review](skills/review/) · [simplify-code](skills/simplify-code/) · [ship](skills/ship/) · [debug](skills/debug/) · [worktrees](skills/worktrees/) · [parallel](skills/parallel/) · [tidy](skills/tidy/)
+**And the guards are removable by the project they guard.** `.claude/settings.json` and a committed
+`.rsc.json` travel in Git, so a pull request can turn a guard off. That is upstream's design — a
+guard that guesses gets switched off, and a harness that blocks real work gets uninstalled — and it
+is written down rather than hidden.
 
-### 💼 Run a business
+**The behavioural side has been specified and budgeted, and has not been run.** The evaluation design
+— six behaviours × five assistants × stratified skills, 181 cells at N = 3 — is in
+[`docs/fork/stage1/EVALUATION.md`](docs/fork/stage1/EVALUATION.md). **No semantic evaluation has been
+executed**, and the maintenance gate reports that check as *not instrumented* instead of green.
 
-[finance-ops](skills/finance-ops/) · [invoicing](skills/invoicing/) · [bookkeeping](skills/bookkeeping/) · [pricing](skills/pricing/) · [sales-pipeline](skills/sales-pipeline/) · [lead-gen](skills/lead-gen/) · [cold-outreach](skills/cold-outreach/) · [proposals](skills/proposals/) · [contracts](skills/contracts/) · [customer-support](skills/customer-support/) · [client-onboarding](skills/client-onboarding/) · [retention](skills/retention/) · [hiring](skills/hiring/) · [people-ops](skills/people-ops/) · [inventory](skills/inventory/) · [logistics-ops](skills/logistics-ops/) · [procurement](skills/procurement/) · [meeting-notes](skills/meeting-notes/) · [sop-builder](skills/sop-builder/) · [project-ops](skills/project-ops/)
+### Residual limits, as measured
 
-### 💸 Raise & model money
+| | Limit |
+|---|---|
+| **L1** | The full test suite has not been run against the transformed catalog in one pass. The authoritative run measured **1 588 tests, 1 581 passing, 6 failures attributed one by one, 0 cancelled, ~94 minutes**. |
+| **L2** | `eval-lint.sh` is never run: it writes to a literal `/tmp`, outside the project. Recorded as not verified rather than counted as a pass. |
+| **L3** | Whether Claude Code exposes a tool name for *applying a skill* is **not verifiable** without running the real client with your session. It is not attempted. |
+| **L4** | Whether `codex`, `cursor` and `antigravity` would honour a `deny` is untested — it needs their binaries, and no global installs are made. |
+| **L5** | **Windows is not validated by execution.** On Windows the installer copies real files instead of creating symlinks; there is no Windows environment here. |
+| **L6** | **Cursor's automatic skill selection is blind.** Cursor's adapter replaces the real skill description with a stub — measured at roughly **95 % of the description lost**. Governance still reaches Cursor, because it travels in the body; what does not reach it is the text that would let Cursor pick the right skill. Left as a declared limit by decision, not repaired. |
+| **L7** | **"Idle machine" was not achievable** on the machine that took these measurements. What is claimed, and all that is claimed, is that no other work *of this project* ran in parallel. Durations are therefore indicative; byte comparisons are unaffected. |
 
-[pitch-deck](skills/pitch-deck/) · [investor-materials](skills/investor-materials/) · [financial-model](skills/financial-model/) · [fundraising](skills/fundraising/) · [unit-economics](skills/unit-economics/) · [grants](skills/grants/)
+### Publication, as it stands today
 
-### ⚖️ Legal, privacy & compliance
+**GitHub Actions are disabled on this repository** (measured: `{"enabled":false}`, zero registered
+workflows). Everything below follows from that one fact.
 
-[gdpr-privacy](skills/gdpr-privacy/) · [terms-conditions](skills/terms-conditions/) · [compliance](skills/compliance/) · [data-policy](skills/data-policy/) · [ip-trademark](skills/ip-trademark/)
+| | State |
+|---|---|
+| npm provenance | **Not available.** npm requires a supported cloud CI/CD provider and a cloud-hosted runner. `release.yml` is provenance-ready and cannot run. A hand publish carries none. |
+| Trusted Publishing | **Not compatible today**, same precondition. It is the right destination; configuring an OIDC trust for a workflow that cannot run would be unverifiable. |
+| Least-privilege workflow permissions | **Done**, explicitly. |
+| 2FA on the publishing account | **Not verified.** It is an npm account setting and reading it needs the maintainer's session, which these processes are forbidden to hold. The repository owner has to confirm it. |
+| Anything published | **No.** Nothing has been published; `@lema017/rsc-governed` is `404` on the registry. |
 
-### 📣 Market & brand
+Enabling Actions would make provenance work with no code change. Until the repository owner decides
+to, this table is the honest answer, and the requirement that asks for those mechanisms *"when they
+are compatible"* is met by documenting the limitation, not by promising it.
 
-[marketing](skills/marketing/) · [customer-research](skills/customer-research/) · [offer-design](skills/offer-design/) · [sales-funnel](skills/sales-funnel/) · [vsl-script](skills/vsl-script/) · [seo-geo](skills/seo-geo/) · [content-engine](skills/content-engine/) · [social-publisher](skills/social-publisher/) · [brand-voice](skills/brand-voice/) · [brand-identity](skills/brand-identity/) · [newsletter](skills/newsletter/) · [landing-copy](skills/landing-copy/) · [ads](skills/ads/) · [article-writing](skills/article-writing/) · [case-studies](skills/case-studies/) · [video-shorts](skills/video-shorts/) · [podcast](skills/podcast/) · [market-research](skills/market-research/) · [competitor-watch](skills/competitor-watch/) · [press-kit](skills/press-kit/) · [community](skills/community/) · [webinar](skills/webinar/) · [review-management](skills/review-management/)
-
-### 🎬 Grow a channel
-
-Each with a `02-DOCS` feedback loop that learns from your own results.
-
-[youtube-api](skills/youtube-api/) · [youtube-strategy](skills/youtube-strategy/) · [youtube-ideation](skills/youtube-ideation/) · [youtube-thumbnails](skills/youtube-thumbnails/) · [youtube-packaging](skills/youtube-packaging/) · [remotion-video](skills/remotion-video/) · [tiktok-api](skills/tiktok-api/) · [instagram-api](skills/instagram-api/) · [shortform-strategy](skills/shortform-strategy/) · [shortform-ideation](skills/shortform-ideation/) · [shortform-packaging](skills/shortform-packaging/) · [shortform-editing](skills/shortform-editing/) · [viral-score](skills/viral-score/) · [linkedin-api](skills/linkedin-api/) · [linkedin-strategy](skills/linkedin-strategy/) · [linkedin-content](skills/linkedin-content/) · [linkedin-carousels](skills/linkedin-carousels/) · [linkedin-outreach](skills/linkedin-outreach/) · [medium-writing](skills/medium-writing/) · [medium-publishing](skills/medium-publishing/) · [medium-strategy](skills/medium-strategy/)
-
-### 🔌 Connect & automate
-
-[connect-tool](skills/connect-tool/) · [stripe](skills/stripe/) · [email-connector](skills/email-connector/) · [google-workspace](skills/google-workspace/) · [notion-connector](skills/notion-connector/) · [whatsapp-telegram](skills/whatsapp-telegram/) · [automation-flows](skills/automation-flows/) · [api-connector-builder](skills/api-connector-builder/) · [webhooks](skills/webhooks/) · [data-scraper](skills/data-scraper/) · [spreadsheet-ops](skills/spreadsheet-ops/) · [calendar-scheduling](skills/calendar-scheduling/) · [document-processing](skills/document-processing/) · [e-signature](skills/e-signature/)
-
-### ⚙️ Automation
-
-Drive the big automation platforms through their REST API or MCP server. `automation-strategy` decides
-whether, what and which platform.
-
-[automation-strategy](skills/automation-strategy/) · [n8n](skills/n8n/) · [make](skills/make/) · [zapier](skills/zapier/) · [power-automate](skills/power-automate/)
-
-### 📊 Data & analytics
-
-[analytics](skills/analytics/) · [dashboard](skills/dashboard/) · [kpi-framework](skills/kpi-framework/) · [reporting](skills/reporting/) · [ab-testing](skills/ab-testing/) · [forecasting](skills/forecasting/) · [data-cleaning](skills/data-cleaning/) · [business-intelligence](skills/business-intelligence/)
-
-### 🤖 AI: build it in
-
-[building-agents](skills/building-agents/) · [rag](skills/rag/) · [embeddings-search](skills/embeddings-search/) · [prompt-engineering](skills/prompt-engineering/) · [llm-pipeline](skills/llm-pipeline/) · [agent-eval](skills/agent-eval/) · [chatbot](skills/chatbot/) · [ai-media](skills/ai-media/) · [replicate-images](skills/replicate-images/) · [structured-extraction](skills/structured-extraction/) · [agent-safety](skills/agent-safety/) · [cost-tracking](skills/cost-tracking/)
-
-### 🛰️ AI: run it on
-
-[replicate](skills/replicate/) · [runpod](skills/runpod/) · [modal](skills/modal/) · [huggingface](skills/huggingface/) · [ollama](skills/ollama/) · [together-fireworks](skills/together-fireworks/) · [fal](skills/fal/)
-
-### 🎓 AI: train it
-
-[machine-learning](skills/machine-learning/) · [deep-learning](skills/deep-learning/) · [nlp](skills/nlp/) · [finetuning](skills/finetuning/) · [training-data](skills/training-data/) · [unsloth](skills/unsloth/) · [open-weights](skills/open-weights/) · [vllm](skills/vllm/)
-
-### 🗣️ Languages
-
-[typescript](skills/typescript/) · [python](skills/python/) · [java](skills/java/) · [csharp-dotnet](skills/csharp-dotnet/) · [php](skills/php/) · [ruby](skills/ruby/) · [cpp](skills/cpp/) · [elixir](skills/elixir/) · [bash-scripting](skills/bash-scripting/) · [sql](skills/sql/) · [go](skills/go/)
-
-### 🏗️ Frameworks & app stacks
-
-[fastapi](skills/fastapi/) · [nextjs](skills/nextjs/) · [react](skills/react/) · [react-native](skills/react-native/) · [vue-nuxt](skills/vue-nuxt/) · [angular](skills/angular/) · [svelte](skills/svelte/) · [astro](skills/astro/) · [solid-js](skills/solid-js/) · [htmx](skills/htmx/) · [nodejs](skills/nodejs/) · [nestjs](skills/nestjs/) · [django](skills/django/) · [laravel](skills/laravel/) · [rails](skills/rails/) · [spring-boot](skills/spring-boot/) · [phoenix](skills/phoenix/) · [flutter](skills/flutter/) · [swift-ios](skills/swift-ios/) · [kotlin-android](skills/kotlin-android/) · [compose-multiplatform](skills/compose-multiplatform/) · [expo](skills/expo/) · [tauri](skills/tauri/) · [electron](skills/electron/) · [rust](skills/rust/) · [wordpress](skills/wordpress/) · [shopify](skills/shopify/) · [no-code-app](skills/no-code-app/) · [chrome-extension](skills/chrome-extension/) · [api-design](skills/api-design/)
-
-### 🎮 Game development
-
-[godot](skills/godot/) · [unity](skills/unity/) · [unreal](skills/unreal/) · [game-design](skills/game-design/) · [game-storytelling](skills/game-storytelling/) · [level-design](skills/level-design/) · [gamedev-shaders](skills/gamedev-shaders/) · [gamedev-multiplayer](skills/gamedev-multiplayer/) · [gamedev-physics](skills/gamedev-physics/) · [gamedev-pathing](skills/gamedev-pathing/) · [gamedev-shipping](skills/gamedev-shipping/)
-
-### 🗄️ Databases & data layer
-
-[postgresdb](skills/postgresdb/) · [mysql](skills/mysql/) · [mongodb](skills/mongodb/) · [redis](skills/redis/) · [supabase](skills/supabase/) · [neon](skills/neon/) · [planetscale](skills/planetscale/) · [sqlite-turso](skills/sqlite-turso/) · [prisma-orm](skills/prisma-orm/) · [drizzle-orm](skills/drizzle-orm/) · [firebase](skills/firebase/) · [dynamodb](skills/dynamodb/) · [vector-db](skills/vector-db/) · [clickhouse-analytics](skills/clickhouse-analytics/) · [duckdb](skills/duckdb/) · [db-migrations](skills/db-migrations/) · [backups](skills/backups/)
-
-### ☁️ Ship & operate: platforms
-
-[vercel](skills/vercel/) · [netlify](skills/netlify/) · [cloudflare](skills/cloudflare/) · [railway](skills/railway/) · [render](skills/render/) · [fly-io](skills/fly-io/) · [coolify](skills/coolify/) · [hetzner](skills/hetzner/) · [digitalocean](skills/digitalocean/) · [aws-essentials](skills/aws-essentials/) · [gcp-essentials](skills/gcp-essentials/)
-
-### 🛠️ Ship & operate: devops
-
-[docker](skills/docker/) · [github-actions](skills/github-actions/) · [git-workflow](skills/git-workflow/) · [domains-dns](skills/domains-dns/) · [monitoring](skills/monitoring/) · [email-deliverability](skills/email-deliverability/) · [scaling](skills/scaling/) · [deployment](skills/deployment/) · [deprecation](skills/deprecation/)
-
-### 🔒 Ship & operate: quality & security
-
-[code-review](skills/code-review/) · [security-scan](skills/security-scan/) · [secure-coding](skills/secure-coding/) · [testing-py](skills/testing-py/) · [testing-web](skills/testing-web/) · [testing-go](skills/testing-go/) · [e2e-testing](skills/e2e-testing/) · [accessibility](skills/accessibility/) · [performance](skills/performance/) · [error-handling](skills/error-handling/) · [observability](skills/observability/)
-
-### 🌀 Motion & interface craft
-
-[variant-explorer](skills/variant-explorer/) · [scroll-film](skills/scroll-film/)
-
-### 🎨 Design & content craft
-
-[design](skills/design/) · [ux](skills/ux/) · [presentations](skills/presentations/) · [course-storytelling](skills/course-storytelling/) · [course-builder](skills/course-builder/) · [technical-writing](skills/technical-writing/) · [translation-l10n](skills/translation-l10n/)
-
-### 🧠 Knowledge & meta
-
-[knowledge-ops](skills/knowledge-ops/) · [codebase-onboarding](skills/codebase-onboarding/) · [research-ops](skills/research-ops/) · [decision-records](skills/decision-records/) · [continuous-learning](skills/continuous-learning/) · [skill-scout](skills/skill-scout/) · [context-budget](skills/context-budget/) · [roast-me](skills/roast-me/) · [fable-operator](skills/fable-operator/)
+**Three more things this repository does not have**, so nobody hunts for them: issues are disabled on
+the fork, GitHub Pages is not deployed (`lema017.github.io/rsc-harness/` returns `404`), and private
+vulnerability reporting is off. See [`SECURITY.md`](SECURITY.md) for where to send a security report
+in the meantime.
 
 ---
 
-## Why you can trust it
+## Where the detail lives
 
-The harness is built on ten principles. Three of them shape everything else:
+| Topic | Document |
+|---|---|
+| Requirements this fork was built against | [`docs/fork/REQUIREMENTS.md`](docs/fork/REQUIREMENTS.md) |
+| Plan, scope, exclusions, acceptance criteria | [`docs/fork/PLAN.md`](docs/fork/PLAN.md) |
+| Every decision, with the evidence and the retractions | [`docs/fork/LEDGER.md`](docs/fork/LEDGER.md) |
+| Architecture and the residual limits L1–L7 | [`docs/fork/stage1/ARCHITECTURE.md`](docs/fork/stage1/ARCHITECTURE.md) |
+| The governance contract, v1 | [`docs/fork/stage1/CONTRACT.md`](docs/fork/stage1/CONTRACT.md) |
+| Customization schema | [`docs/fork/stage1/CUSTOMIZATION-SCHEMA.md`](docs/fork/stage1/CUSTOMIZATION-SCHEMA.md) |
+| Evaluation design and budget (not yet executed) | [`docs/fork/stage1/EVALUATION.md`](docs/fork/stage1/EVALUATION.md) |
+| Brownfield procedure | [`docs/fork/stage3/BROWNFIELD.md`](docs/fork/stage3/BROWNFIELD.md) |
+| Conformance measurements | [`docs/fork/stage4/VERIFICATION.md`](docs/fork/stage4/VERIFICATION.md) |
+| Upstream maintenance, operator's guide | [`docs/fork/stage5/MAINTENANCE.md`](docs/fork/stage5/MAINTENANCE.md) |
+| Distribution, update, recovery, residual limitations | [`docs/fork/stage6/DISTRIBUTION.md`](docs/fork/stage6/DISTRIBUTION.md) |
+| README, diagrams and their validation | [`docs/fork/stage7/VERIFICATION.md`](docs/fork/stage7/VERIFICATION.md) |
 
-- **Evidence over claims.** A task is done when its check was observed, not when someone believes it
-  works. The same rule applies to this README: every number here comes from `manifest.json` or the
-  code, and tests check that the README and the code agree.
-- **A gate that checks nothing is worse than no gate.** Every rule rsc declares binding ships with the
-  mechanism that enforces it and a test that watches that mechanism fail and pass.
-- **Friction proportional to risk.** Silence for the trivial, ceremony only where failure is
-  expensive. A harness that nags on harmless work gets switched off.
+Both diagrams live in [`docs/fork/diagrams/`](docs/fork/diagrams). A third,
+[`02-add-new-skill.svg`](docs/fork/diagrams/02-add-new-skill.svg), covers what happens when upstream
+adds a skill.
 
-**Known limits, stated openly:** the hard guards run only in Claude Code; OpenCode 2 and Windows have
-had less real-world testing than macOS and Linux; and the session memory is local by design, never
-cloud.
+**The catalog** is 274 skills — core control-plane skills, frameworks, databases, devops, design,
+data, AI and business workflows. `rscg list` prints the current set and
+[`manifest.json`](manifest.json) is the machine-readable source; both are counted, not quoted from
+here. A project installs a handful, not all 274 — that is the whole point of the plan `onboard`
+prints.
 
 ---
 
-## Contributing
+## Credits and third-party work
 
-`skills/<name>/` is the single source of truth. Each skill is a directory whose `SKILL.md` frontmatter
-drives triggering and recommendations:
+**The parent.** `rsc-harness` — [`ericrisco/rsc-harness`](https://github.com/ericrisco/rsc-harness),
+© 2026 Eric Risco, MIT. Everything this fork is useful for, it is useful for because of that work.
 
-```yaml
+Most of the catalog was written there. These parts were not, and keep their authors' credit. The
+**Form** column matters: *mirrored* means the files are shipped byte-for-byte, with the upstream
+commit and a SHA-256 per file recorded, and a test that fails if any of them drifts.
+
+| Component | Source | Licence | Form |
+|---|---|---|---|
+| `design-eng` · `animate` · `animate-expo` · `review-animations` · `improve-animations` · `find-animation-opportunities` · `animation-vocabulary` · `apple-design` · `prototype` · `pick-ui-library` · `write-swift` · `ask-sonner` | [emilkowalski/skills](https://github.com/emilkowalski/skills) by Emil Kowalski, commit `d23d7f8` | MIT | adapted |
+| the engine of `design` (`skills/design/engine/`) | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) v2.1.4, commit `6010f91` | MIT | **mirrored**, unmodified |
+| the four modes, the fresh review and the `DESIGN.md` record in `design` (text rewritten, no code) | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) by Paul Bakaus, `skill-v4.7.0`, commit `8644175` | Apache-2.0 | adapted |
+| `skills/ux/upstream/ux-designer/` — 30 files | [szilu/ux-designer-skill](https://github.com/szilu/ux-designer-skill), commit `c869d32` | MIT, © 2026 Szilárd Hajba | **mirrored**, unmodified |
+| `skills/ux/upstream/ux-usability-foundations/` — 5 files | [hueyexe/frontend-agent-skills](https://github.com/hueyexe/frontend-agent-skills), commit `2841c07` | MIT, © 2026 hueyexe | **mirrored**, unmodified |
+| the answer-first habits in `orient` | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | MIT | adapted |
+| the scroll-scrubbed camera flight, the frame handoff between clips and the phone fixes behind `scroll-film` (prose and engine rewritten) | [oso95/scroll-world](https://github.com/oso95/scroll-world) | MIT | adapted |
+
+The inherited README summarised this table as *"adapted, not mirrored"* for every row. That was
+inaccurate for three of them, and the two UX sources were missing from it altogether; both are fixed
+above. The licence texts travel with the files — `skills/ux/THIRD_PARTY.md`,
+`skills/design/THIRD_PARTY.md`, `skills/design/IMPECCABLE-LICENSE.txt`, and the `LICENSE` and
+`UPSTREAM.json` beside each mirrored subtree — and a test fails if a mirrored file drifts from its
+recorded hash.
+
+### A note on `schema/ecc-originality.u64`
+
+This 746 KB file ships in the package and is **derived data, not source**: 93 337 fingerprints, each
+the **first 64 bits of a SHA-256 of an 8-gram**, sorted and irreversible. Its receipt
+([`schema/ecc-originality.json`](schema/ecc-originality.json)) records the corpus it was generated
+from — `affaan-m/everything-claude-code` at revision `90430ab3` — the normalization, the n-gram size
+and the SHA-256 of the data itself. No file, line or sentence of the source corpus is present or
+recoverable, so this fork's position is that it carries no third-party licence obligation. That is a
+position, stated with its reasoning, **not legal advice**; the receipt records no licence field for
+the revision used, and the source repository is public and MIT-licensed at the time of writing. The
+source is credited here regardless, because crediting costs nothing and silence is what the audit
+flagged.
+
+**Not credited here, deliberately:** the third vendored subtree that arrived in upstream 3.7.5. This
+fork has **not** integrated 3.7.5, so that code is not shipped, and crediting it would claim we ship
+something we do not. When it is integrated, it joins the table in the same maintenance run that
+brings it — the gate refuses to promote it otherwise.
+
 ---
-name: my-skill
-description: Use when [specific triggers]… NOT x (that is sibling).
-tags: [keyword, keyword]        # what the consult advisor searches over
-recommends: [sibling-skill]     # what the system offers to install next
-origin: risco
----
-```
-
-After editing any skill:
-
-```bash
-npm run manifest            # regenerate manifest.json from skills/*/SKILL.md
-npm run validate            # validate frontmatter and recommends integrity
-npm test                    # unit and integration tests
-bash scripts/eval-lint.sh   # validate every skills/*/evals/cases.yaml
-```
-
-`manifest.json` is generated, never edited by hand; CI fails if it is stale. The rubric every skill is
-held to is `scripts/skill-rubric.md`. Bug reports are welcome as GitHub issues. Release notes are in
-[GitHub Releases](https://github.com/ericrisco/rsc-harness/releases).
-
-### Third-party skills
-
-Most of this catalog is written here. These are not, and they keep their author's credit:
-
-| Skills | Source | License |
-| --- | --- | --- |
-| `design-eng` · `animate` · `animate-expo` · `review-animations` · `improve-animations` · `find-animation-opportunities` · `animation-vocabulary` · `apple-design` · `prototype` · `pick-ui-library` · `write-swift` · `ask-sonner` | [emilkowalski/skills](https://github.com/emilkowalski/skills) by Emil Kowalski, commit `d23d7f8` | MIT |
-| the engine of `design` (`skills/design/engine/`: direction draw, browser inspector, study library), shipped unmodified | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) v2.1.4 | MIT |
-| the four modes, the fresh review and the `DESIGN.md` record in `design` (text rewritten) | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) by Paul Bakaus, `skill-v4.7.0` | Apache-2.0 |
-| the answer-first habits in `orient` | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | MIT |
-| the scroll-scrubbed camera flight, the frame handoff between clips and the phone fixes behind `scroll-film` (prose and engine rewritten) | [oso95/scroll-world](https://github.com/oso95/scroll-world) | MIT |
-
-Adapted, not mirrored: each carries rsc frontmatter, routing evals and hand-offs to its siblings. The
-craft bar in them is the original author's.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — see [`LICENSE`](LICENSE).
+
+Copyright © 2026 Eric Risco (original work, preserved).
+Copyright © 2026 the `rsc-governed` fork maintainers (changes in this fork), **in addition to** the
+notice above, never in place of it.

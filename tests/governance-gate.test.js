@@ -716,20 +716,27 @@ const DERIVED_FROM_THE_FROZEN_CATALOG = { 'manifest.json': { spec: 2, url: 0 } }
  *            decides them one at a time.
  */
 const CARRIED_TO_STAGE_7 = {
-  // Ships in the tarball root and is the npm package page: 10 runnable `npx @ericrisco/rsc…` lines,
-  // an `npm i -g`, and the sentence "`package.json` is named `@ericrisco/rsc`", which is false today.
-  'README.md': { spec: 18, url: 8 },
-  // Deployed by pages.yml. `site/` ships ZERO files in the tarball (`files` is scripts, targets,
-  // schema, skills, manifest.json), so this half of A1 reaches visitors, not `node_modules`.
-  'site/index.html': { spec: 13, url: 32 },
-  'site/es/index.html': { spec: 13, url: 32 },
-  // The INSTRUCTION FILE FOR AGENTS: "Run: `npx @ericrisco/rsc@latest onboard`".
-  'site/llms.txt': { spec: 4, url: 6 },
-  'site/sitemap.xml': { spec: 0, url: 8 },
-  'site/robots.txt': { spec: 0, url: 1 },
-  'site/diagram.svg': { spec: 1, url: 0 },
-  'site/assets/rsc.js': { spec: 0, url: 1 },  // fetches the PARENT repository's stars from the GitHub API
-  'SECURITY.md': { spec: 0, url: 1 },         // sends vulnerability reports to the parent's advisory form
+  // RECONCILED by the coordinator after stage 7 landed. `spec` fell 49 → 2 across these paths and
+  // `url` 89 → 24; four entries reached zero on BOTH counts and were DELETED, which is what this
+  // list's own assertion demands — `site/sitemap.xml`, `site/robots.txt`, `site/diagram.svg` and
+  // `site/assets/rsc.js`. The last two are worth naming as they go: `diagram.svg` carried
+  // `npx @ericrisco/rsc@latest` DRAWN INSIDE THE IMAGE, which no text sweep of the repository had
+  // ever counted, and `assets/rsc.js` asked the GitHub API for the PARENT repository's stars on a
+  // page inviting you to star the fork.
+  //
+  // The two specifiers left in README.md are both inside one parent-vs-fork comparison row. They
+  // are not runnable by construction: the whole job of that cell is to print the parent's package
+  // name beside the fork's so the two cannot be confused, which is what §10 asks for.
+  'README.md': { spec: 2, url: 8 },
+  'site/index.html': { spec: 0, url: 5 },
+  'site/es/index.html': { spec: 0, url: 5 },
+  'site/llms.txt': { spec: 0, url: 2 },
+  // The one count that GREW, 1 → 4, and all four must point at the parent. Two are the fork
+  // disclosure and the MIT copyright notice, which the licence requires. Two are vulnerability
+  // routing: a flaw in INHERITED code goes to the parent's advisory form, because the parent is the
+  // only party who can fix it for everyone downstream — and that form is live (`enabled: true`,
+  // measured), while this fork's own private reporting is not. None of the four is runnable.
+  'SECURITY.md': { spec: 0, url: 4 },
 };
 
 test('gg25 · the §10 sweep covers EVERY tracked path outside `skills/`, with a dated exception list', () => {
