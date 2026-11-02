@@ -7,8 +7,11 @@
 > skill unchanged when there is none.
 >
 > STATUS: @lema017/rsc-governed is NOT published to npm yet. Any npx line below will fail
-> until it is; until then, clone github.com/lema017/rsc-harness and run
-> `node <clone>/scripts/rsc.js <command>` from the user's project root.
+> until it is; until then run `git clone -b fork/bootstrap https://github.com/lema017/rsc-harness.git`
+> and then `node <clone>/scripts/rsc.js <command>` from the user's project root.
+> The `-b fork/bootstrap` is required: the default branch of that repository is still `main`, which
+> is the UNGOVERNED upstream tree, so a clone without it gives you the wrong CLI. Verify with
+> `node <clone>/scripts/rsc.js --version`, which must print `rscg 3.7.4`.
 >
 > You build the product. rsc-governed builds its harness. One message to the coding agent you
 > already use installs a project memory (02-DOCS/), tested tool connections (01-TOOLS/), a handful
@@ -78,7 +81,9 @@ Canonical non-interactive preview:
 
 ## Key links
 
-- [Repository and README](https://github.com/lema017/rsc-harness): full documentation and reference. The npm package
+- [Repository and README](https://github.com/lema017/rsc-harness/tree/fork/bootstrap#readme): full documentation and
+  reference. The branch matters: the repository's default branch is still the ungoverned upstream
+  tree, so a link without `/tree/fork/bootstrap` shows you the wrong README. The npm package
   `@lema017/rsc-governed` is not published yet, so there is no package page to link to.
 - [Forked from](https://github.com/ericrisco/rsc-harness): rsc-harness by Eric Risco, MIT — the upstream this tracks
 - Website: none. This fork's GitHub Pages site is NOT deployed (Actions are disabled), so there is

@@ -46,9 +46,12 @@ directories, writes hooks that the assistant then runs on your machine, and keep
 under `.rsc/`. It has no server, no accounts and no network service. The interesting attack surface
 is where **someone else's input reaches your machine or your assistant**:
 
-- **`.rsc.json` and `.rsc.fork.json`** travel through git, so their contents are written by anyone
-  who can open a pull request, and parts of them are read back into the model's context. Anything
-  that escapes validation and lands in that text is worth reporting.
+- **`.rsc.json`** travels through git, so its contents are written by anyone who can open a pull
+  request, and parts of them are read back into the model's context. Anything that escapes
+  validation and lands in that text is worth reporting. (There is **no `.rsc.fork.json`**: an
+  earlier version of this file sent you to audit one. It is a recorded design decision that was
+  never implemented — no file under `scripts/`, `targets/`, `schema/` or `tests/` names it — and the
+  fork's own artifacts live under `.rsc/governance/`, written from the package on every install.)
 - **Per-skill customizations at `02-DOCS/wiki/skills/<skill>/README.md`** are this fork's own
   addition and the same shape of risk, with more reach: they also travel through git, and the
   contract instructs the assistant to **read them before applying the skill**. A customization that

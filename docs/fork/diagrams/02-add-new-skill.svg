@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="t d">
 <title id="t">Adding a new skill</title>
-<desc id="d">Three lanes. The governed path runs left to right: a source, either a new skill arriving in the pristine upstream snapshot or one authored in the fork, goes through the transformer that injects the contract, then deterministic validators, then semantic evaluations; any critical failure blocks promotion, and no new skill reaches a stable release without conformance. The second lane publishes to npm and reaches consumers by same-major automatic update, activating next session with no partial states. The third lane states that the project's own skills are preserved and carry no governance claim, and that personal, global and plugin skill sources cannot be fully enumerated.</desc>
+<desc id="d">Three lanes. The governed path runs left to right: a source, either a new skill arriving in the pristine upstream snapshot or one authored in the fork, goes through the transformer that injects the contract and its three own frontmatter keys, then deterministic validators, then semantic evaluations, which are specified but not instrumented and have never been run, so the gate reports that check as not instrumented rather than as passed. Any critical failure that did run blocks promotion, and no added or modified skill is promoted without conformance. The second lane publishes to npm and reaches consumers by same-major automatic update, activating next session with no partial states; nothing is published yet and GitHub Actions are disabled, so npm provenance and trusted publishing are unavailable and 2FA on the publishing account is unverified. The third lane states that the project's own skills are preserved and carry no governance claim, and that personal, global and plugin skill sources cannot be fully enumerated.</desc>
 <style>
 text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 .h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
@@ -32,8 +32,8 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <rect x="348" y="138" width="252" height="140" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="362" y="162">Transformer</text>
 <text class="d" x="362" y="183">Injects the governance preamble</text>
-<text class="d" x="362" y="198">and the frontmatter key into the</text>
-<text class="d" x="362" y="213">distributed SKILL.md.</text>
+<text class="d" x="362" y="198">and three own frontmatter keys</text>
+<text class="d" x="362" y="213">into the distributed SKILL.md.</text>
 <text class="d" x="362" y="234">Edits content in place — it never</text>
 <text class="d" x="362" y="249">moves or renames, so the 3,854</text>
 <text class="d" x="362" y="264">path references stay intact.</text>
@@ -45,35 +45,35 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="654" y="236">· licences and notices present</text>
 <text class="d" x="654" y="251">· frozen subtrees untouched</text>
 <text class="d" x="654" y="266">· no parent identity in output</text>
-<rect x="932" y="138" width="252" height="140" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+<rect x="932" y="138" width="252" height="140" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-dasharray="4 3"/>
 <text class="t" x="946" y="162">Semantic evaluations</text>
-<text class="d" x="946" y="183">Every new or modified skill, with</text>
-<text class="d" x="946" y="198">rubrics and N=3 repetitions.</text>
-<text class="d" x="946" y="219">Runs on the session's own agents:</text>
-<text class="d" x="946" y="234">no API key, no external service,</text>
-<text class="d" x="946" y="249">nothing leaves the machine.</text>
-<text class="d" x="946" y="268">Budget: ~600 runs.</text>
+<text class="d" x="946" y="183">Specified: each added or</text>
+<text class="d" x="946" y="198">modified skill, rubrics, N=3.</text>
+<text class="d" x="946" y="219">NOT instrumented (G11), and no</text>
+<text class="d" x="946" y="234">evaluation has ever been run, in</text>
+<text class="d" x="946" y="249">this stage or any other. The gate</text>
+<text class="d" x="946" y="268">says so instead of saying green.</text>
 <path d="M308,208 L344,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M600,208 L636,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M892,208 L928,208" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <rect x="348" y="320" width="836" height="76" rx="8" fill="#fee2e2" stroke="#dc2626"/>
-<text class="t" x="362" y="343">The gate — a critical failure blocks promotion</text>
-<text class="d" x="362" y="363">No new skill reaches a stable release without conformance. If the budget falls short, the pending coverage is recorded as pending:</text>
-<text class="d" x="362" y="378">thresholds are not lowered, the limit is not exceeded, and nothing unverified is marked as approved.</text>
+<text class="t" x="362" y="343">The gate — a required check that did not run counts as failing</text>
+<text class="d" x="362" y="363">No added or modified skill is promoted without conformance (G3). A check that could not run is named, never shown as green: the</text>
+<text class="d" x="362" y="378">semantic one reports as not instrumented. Thresholds are not lowered, and nothing unverified is ever marked as approved.</text>
 <path d="M766,282 L766,316" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr)"/>
 <path d="M1058,282 L1058,316" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr)"/>
 
 <rect x="40" y="438" width="1160" height="186" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
 <text class="band" x="56" y="464">2 · RELEASE AND CONSUMER UPDATE</text>
 <path d="M182,402 L182,480" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arg)"/>
-<text class="lbl" x="196" y="446">all gates passed</text>
+<text class="lbl" x="196" y="446">deterministic gates passed</text>
 <rect x="56" y="484" width="252" height="120" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="70" y="508">Publish</text>
-<text class="d" x="70" y="529">Version bump and npm publish</text>
-<text class="d" x="70" y="544">with provenance, minimum</text>
-<text class="d" x="70" y="559">workflow permissions and 2FA</text>
-<text class="d" x="70" y="574">for human access. Never on a</text>
-<text class="d" x="70" y="589">plain push to main.</text>
+<text class="d" x="70" y="529">Nothing is published yet, and</text>
+<text class="d" x="70" y="544">GitHub Actions are disabled, so</text>
+<text class="d" x="70" y="559">npm provenance and trusted</text>
+<text class="d" x="70" y="574">publishing are unavailable today.</text>
+<text class="d" x="70" y="589">Least privilege done; 2FA unproven.</text>
 <rect x="348" y="484" width="252" height="120" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
 <text class="t" x="362" y="508">One package only</text>
 <text class="code" x="362" y="530">@lema017/rsc-governed</text>
@@ -111,5 +111,5 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="654" y="745">a project. So the harness decision file is documented as the record of this</text>
 <text class="d" x="654" y="760">project's choice — never as the complete list of skills the assistant can use.</text>
 
-<text class="foot" x="40" y="806">docs/fork/diagrams/02-add-new-skill.svg · upstream base 6f7edd3 · strategy B · pending approval</text>
+<text class="foot" x="40" y="806">docs/fork/diagrams/02-add-new-skill.svg · upstream base 481b1ec9 (3.7.4) · strategy B · plan approved 2026-11-01</text>
 </svg>

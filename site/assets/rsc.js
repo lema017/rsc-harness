@@ -233,7 +233,7 @@
   const kinds = $('#kinds'), term = $('#term'); let run = 0, current = tr('software · small', 'software · pequeño');
   Object.keys(PLANS).forEach((k) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = k; b.setAttribute('aria-pressed', String(k === current)); b.addEventListener('click', () => { current = k; $$('button', kinds).forEach((x) => x.setAttribute('aria-pressed', String(x === b))); typePlan(true); }); kinds.appendChild(b); });
   const lines = (k) => { const p = PLANS[k]; return [
-    ['$ ', 't-acc', 'rsc onboard', 't-ink'],
+    ['$ ', 't-acc', 'rscg onboard', 't-ink'],
     [tr('? How should I talk to you? ', '? ¿Cómo te hablo? '), 't-dim', tr('› technical', '› técnico'), 't-acc'],
     [tr('? What are you building?     ', '? ¿Qué estás construyendo? '), 't-dim', '› ' + k, 't-acc'],
     [tr('  reading the project root … ', '  leyendo la raíz del proyecto … '), 't-dim', tr('done', 'hecho'), 't-ink'],

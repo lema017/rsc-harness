@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="850" viewBox="0 0 1240 850" role="img" aria-labelledby="t d">
 <title id="t">Customizing an existing skill</title>
-<desc id="d">Four lanes. First, the fork package is installed and writes a governed SKILL.md carrying a governance preamble, which is linked into five assistants. Second, the project owner writes a customization at 02-DOCS/wiki/skills/&lt;name&gt;/README.md and commits it; its absence is valid. Third, before the skill acts it checks that standard path: present and valid means read and apply within the documented scope, absent means use the original skill unchanged, and unreadable or contradictory means surface it and ask rather than treat it as absent. Fourth, the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code, where the guard can still be removed by a committed setting.</desc>
+<desc id="d">Four lanes. First, the fork package is installed and writes a governed SKILL.md carrying a governance preamble and three own frontmatter keys, which is linked into five assistants — four by relative symlink, and cursor by a rewritten rule file that receives SKILL.md only, with no references/ directory and none of the three keys. Second, the project owner writes a customization at 02-DOCS/wiki/skills/&lt;name&gt;/README.md and commits it; its absence is valid. Third, before the skill acts it checks that standard path: present and valid means read and apply within the documented scope, absent means use the original skill unchanged, and unreadable or contradictory means surface it and ask rather than treat it as absent. Fourth, the customization survives install, sync, repair, update and a clean clone, and code enforcement exists today only on Claude Code, where the guard can still be removed by a committed setting.</desc>
 <style>
 text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 .h1 { font-size: 23px; font-weight: 700; fill: #0f172a; }
@@ -35,7 +35,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="t" x="850" y="164">5 assistants</text>
 <text class="d" x="850" y="183">claude · codex · cursor · deepseek · antigravity</text>
 <text class="d" x="850" y="198">4 by relative symlink; real copy on Windows</text>
-<text class="d" x="850" y="213">cursor receives SKILL.md only — no references/</text>
+<text class="d" x="850" y="213">cursor: SKILL.md only, no references/, no keys</text>
 <path d="M271,179 L297,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M476,179 L502,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M806,179 L832,179" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>

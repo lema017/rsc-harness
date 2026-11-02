@@ -51,8 +51,8 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 <text class="d" x="946" y="213">governance is not stored there —</text>
 <text class="d" x="946" y="228">this is the whole reason for the</text>
 <text class="d" x="946" y="243">chosen strategy.</text>
-<text class="d" x="946" y="264">Frozen vendored subtrees stay</text>
-<text class="d" x="946" y="279">byte-identical and hash-checked.</text>
+<text class="d" x="946" y="264">Frozen vendored subtrees stay byte-</text>
+<text class="d" x="946" y="279">identical; only ux/ is hash-checked.</text>
 <path d="M308,213 L344,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M600,213 L636,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>
 <path d="M892,213 L928,213" stroke="#64748b" stroke-width="1.6" marker-end="url(#ar)"/>

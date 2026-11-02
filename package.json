@@ -70,13 +70,13 @@
   "contributors": [
     "Eric Risco (upstream author of rsc-harness, from which this package is forked)"
   ],
-  "homepage": "https://github.com/lema017/rsc-harness#readme",
+  "homepage": "https://github.com/lema017/rsc-harness/tree/fork/bootstrap#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lema017/rsc-harness.git"
   },
   "bugs": {
-    "url": "https://github.com/lema017/rsc-harness/issues"
+    "url": "https://github.com/lema017/rsc-harness/blob/fork/bootstrap/SECURITY.md"
   },
   "publishConfig": {
     "access": "public"

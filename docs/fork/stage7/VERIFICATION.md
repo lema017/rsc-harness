@@ -6,10 +6,19 @@ criterios de aceptación **15** (README con las dos imágenes, fuentes editables
 renderizado validado en GitHub) y **16** (versiones, commits y limitaciones residuales documentadas,
 incluida Windows y los límites por asistente).
 
-**Archivos entregados.** `README.md` (reescrito, 410 líneas), `SECURITY.md` (reescrito, 86 líneas),
-`docs/fork/diagrams/01-customize-existing-skill.svg` y `…/03-upstream-maintenance.svg` (corregidos
-contra la implementación), `site/{index.html,es/index.html,llms.txt,sitemap.xml,robots.txt,diagram.svg,assets/rsc.js}`,
-`tests/product-surfaces.test.js` (nuevo) y este documento.
+**Archivos entregados.** `README.md` (reescrito; **412** líneas al entregar, **484** tras la pasada
+de correcciones de §11 — la entrega decía «410», que era falso por dos, medido con `wc -l`),
+`SECURITY.md` (reescrito; 86 al entregar, **89** tras §11), **los tres** SVG de
+`docs/fork/diagrams/` corregidos contra la implementación (el `02` entero en la pasada de §11, ver
+A5 ahí, y el `01` y el `03` dos líneas cada uno),
+`site/{index.html,es/index.html,llms.txt,sitemap.xml,robots.txt,diagram.svg,assets/rsc.js}`,
+`tests/product-surfaces.test.js` (nuevo; 7 comprobaciones al entregar, **9** tras §11),
+`package.json` (dos campos, §11 M4) y este documento.
+
+> **Esta etapa fue BLOQUEADA por la revisión independiente** (ledger §2y: 5 ALTA, 12 MEDIO, 7 BAJO).
+> El diagnóstico, que es el que importa: **validó los diagramas contra la implementación y no validó
+> la prosa.** Las correcciones están en **§11**, y las afirmaciones falsas de este propio documento
+> se han corregido **en su sitio**, no sólo añadido al final.
 
 **Entorno.** Todo lo ejecutado aquí corrió con `. ./.fork-tmp/env.sh` (`HOME`, `TMPDIR`,
 `XDG_*`, `npm_config_cache` y `GIT_CEILING_DIRECTORIES` dentro de `.fork-tmp/`). Sin instalaciones
@@ -32,7 +41,7 @@ $ git diff --numstat origin/main -- skills/
 |---|---|---|
 | 1. Skill → personalización opcional → ejecución | `docs/fork/diagrams/01-customize-existing-skill.svg` | entregada, corregida |
 | 2. Mantenimiento manual → análisis y validación → publicación → actualización de proyectos | `docs/fork/diagrams/03-upstream-maintenance.svg` | entregada, corregida |
-| *(extra, permitida)* alta de una skill en upstream | `docs/fork/diagrams/02-add-new-skill.svg` | sin cambios; no la desmiente nada de lo revisado |
+| *(extra, permitida)* alta de una skill en upstream | `docs/fork/diagrams/02-add-new-skill.svg` | **corregida en §11.** La entrega decía aquí *«sin cambios; no la desmiente nada de lo revisado»* y **eso era falso contra la tabla §2 de este mismo documento**: conservaba cinco de las nueve afirmaciones que §2 declara muertas, en el dibujo **y** en el `<desc>`, y el README lo enlaza. Certificar limpio un archivo que no se abrió es el defecto que la revisión llamó «validó los diagramas y no validó la prosa», cometido sobre un diagrama |
 
 **Fuentes editables:** los tres archivos **son** la fuente. Son SVG escritos a mano, con `<style>` en
 línea y texto en elementos `<text>`; no hay exportación binaria ni fuente paralela que pueda
@@ -111,6 +120,21 @@ ancho disponible de su `<rect>` contenedor más pequeño:
 **Y el comprobador se mutó antes de creerle:** alargando un texto con 40 caracteres de relleno, el
 comprobador lo señala (`len 519 > avail 232`) y al restaurar vuelve a `0`. Una comprobación de
 desbordamiento que no sepa fallar mide lo mismo que no comprobar nada.
+
+**Re-medido en §11 sobre los tres archivos, y publicando el margen en vez de un booleano**, que es
+el dato que de verdad dice si cabe. Ningún `<text>` cruza su `<rect>`, y el más justo de cada
+diagrama:
+
+```
+01-customize-existing-skill.svg   53 textos, 0 cruces, margen mínimo 13 px  («governance preamble, paid on load, not per turn»)
+02-add-new-skill.svg              69 textos, 0 cruces, margen mínimo 36 px  («Least privilege done; 2FA unproven.»)
+03-upstream-maintenance.svg       94 textos, 0 cruces, margen mínimo 27 px  («promoted without conformance (G3).»)
+```
+
+Los 13 px del `01` son **anteriores a esta pasada** y no los introduce ninguna corrección: esa línea
+no se ha tocado en ninguna de las dos. Se publica porque un «0 desbordes» con una holgura de 13 px
+y otro con 36 no son el mismo resultado, y el booleano los igualaba. La mutación se repitió sobre
+una línea **nueva** del `02` (`len 437 > avail 224` con 40 caracteres de relleno, `0` al restaurar).
 
 ---
 
@@ -293,7 +317,7 @@ Apache-2.0 §4(b) no aplica porque la Estrategia B no edita los archivos derivad
 | Mantenimiento manual de upstream | «Keeping up with upstream» + diagrama 03 |
 | Actualización automática de consumidores | «How your projects get updates» |
 | Garantías y límites | «Guarantees and limits» |
-| *«texto conciso … enlaza detalles avanzados»* | 410 líneas frente a las 672 heredadas, con la tabla «Where the detail lives» como índice de los once documentos |
+| *«texto conciso … enlaza detalles avanzados»* | **484** líneas frente a las 672 heredadas (412 al entregar; las 72 que añade §11 son casi todas correcciones de verdad, no prosa nueva), con la tabla «Where the detail lives» como índice de los once documentos |
 
 **Las cifras que el README cita, y de dónde salen.** `274/274` en `18` destinos y `3` pasadas, con
 `failures: 0` → Etapa 4 §1. `1 588 tests / 1 581 pass / 6 fail / 0 cancelled / ~94 min` → Etapa 4 §8.
@@ -380,3 +404,275 @@ Se registran porque el encargo pedía expresamente comprobarlas.
    igual. **Un hallazgo que esto añade:** `SECURITY.md` **no** entra en el tarball, así que es
    superficie de GitHub y no del paquete — el README, que sí entra, es el único de los tres que un
    consumidor lee desde `node_modules`.
+
+---
+
+## 11. Pasada de correcciones del bloqueo (ledger §2y)
+
+**Entorno:** idéntico al de la cabecera. Todo con `. ./.fork-tmp/env.sh`; sin instalaciones
+globales, sin credenciales expuestas a ningún proceso, sin commits, sin publicar, sin habilitar
+Actions, sin cambiar ajustes del repositorio o de la cuenta, y **sin tocar `skills/`**:
+
+```
+$ git diff --numstat origin/main -- skills/
+                                   # (vacío — 0 líneas)
+```
+
+**Sin `gh api` ni peticiones HTTP en esta pasada.** La restricción literal del usuario prohíbe
+exponer credenciales o sesiones suyas a estos procesos, y `gh` usa su sesión. Todo lo que la entrega
+había medido por red se re-verifica aquí **contra las referencias locales de Git**, que es la fuente
+más fuerte para lo que importa: `origin/main` y `origin/fork/bootstrap` están en el repositorio.
+
+### 11.1 Las cinco ALTA
+
+| | Qué era falso | Qué dice ahora | Qué lo afirma |
+|---|---|---|---|
+| **A1** | *(del coordinador)* `gg25` declarada verde 31/31 sobre un archivo **sin rastrear** | corregida por él | **re-ejecutada aquí sobre el estado real: `gg25` 31/31, archivo 31/31** |
+| **A2** | *«The fork's own settings live in a separate file, `.rsc.fork.json`, so the parent's CLI cannot silently drop them»*, en presente | el estado propio del fork vive bajo **`.rsc/governance/`**, escrito desde el paquete en cada instalación, así que **no hay nada del fork dentro de `.rsc.json` que el CLI del padre pueda borrar**; el archivo aparte es una **decisión registrada y no implementada** (`ARCHITECTURE.md` §8) | medición: `grep -rn 'rsc\.fork\.json' scripts/ targets/ tests/ schema/` → **0 archivos**; `governance.js:163` → `join(cwd, '.rsc', 'governance')` |
+| **A3** | `git clone https://…/rsc-harness.git` + *«prints `rscg 3.7.4`»*. Sin `-b` trae la rama por defecto | `git clone -b fork/bootstrap …`, con el por qué, con cómo comprobar qué CLI te tocó, y con la nota de que el flag se retira al fusionar | **`ps07`**, más la reproducción por ejecución de abajo |
+| **A4** | el ejemplo que el README manda copiar daba **2 errores de regla 6** del validador del propio fork | el ejemplo está en la forma del esquema y **da 0 hallazgos**; la prosa nombra **las tres** reglas que bloquean, no las dos que cumplía | **`ps08`**, que extrae el bloque del README y lo pasa por `validateCustomizationSource`, con control negativo |
+| **A5** | `02-add-new-skill.svg` conservaba cinco falsedades **en el dibujo y en el `<desc>`**, y §1 de este documento lo certificaba limpio | las cinco corregidas en los dos sitios; §1 corregida en su sitio | `git diff --numstat` → **20 líneas**; XML/`role`/`title`/`desc` re-comprobados; desbordamiento re-medido |
+
+**A3, reproducido por ejecución y sin red**, que es lo que convierte el hallazgo en un hecho:
+
+```
+$ git archive origin/main | tar -x -C .fork-tmp/mainprobe
+$ node .fork-tmp/mainprobe/scripts/rsc.js --version
+rsc 3.7.4                                        ← el PADRE, no el fork
+package: @ericrisco/rsc 3.7.4 | bin: rsc,rsc-install
+scripts/lib/governance.js exists: False
+docs/ exists: False
+```
+
+Y lo más afilado del hallazgo, que conviene no perder: **la etapa razonó sobre este mismo hecho**
+—que los diagramas están en `fork/bootstrap` y no en `main`— para elegir rutas relativas en las
+imágenes (§1.2), y **no lo aplicó al comando de clonado tres secciones más abajo**. Por eso la
+corrección no es sólo el flag: `ps07` fija la propiedad en los **tres** sitios donde el mismo hecho
+muerde (el clonado, los campos de `package.json` y los enlaces en prosa al repositorio), y el
+`FORK_BRANCH` del test es una sola constante que al fusionar obliga a mover todos los anclajes a la
+vez.
+
+**A4, con el contraste que cierra el caso:**
+
+```
+README (antes)            2 hallazgos  — R6 sin categoría, R6 sin `Evidence:`
+README (ahora)            0 hallazgos
+CUSTOMIZATION-SCHEMA §5   0 hallazgos  (el canónico, como contraste)
+control negativo: quitando `scope:` el mismo validador pasa a 1 hallazgo en los dos
+```
+
+### 11.2 Los doce MEDIO
+
+| | Estado | Qué lo afirma |
+|---|---|---|
+| **M1** detector ciego a tres formas | corregido: `CLI_VERBS` pasa a la lista real de `scripts/rsc.js` **más `help`** (faltaban también `agent-model`, `catalog`, `knowledge-sync`, `git-permissions`, `main`, `isolation`); la clase de **sufijo** gana `. , ; : ! ? ) ] }`; la de **prefijo** gana `"`, `'` y `·`, y **deja fuera `/` y `-`** a propósito | **11 sondas que antes pasaban y ahora se detectan, en `ps06` una a una**, y 11 casos limpios que siguen limpios. Medido antes: **9 de 11 MISSED** |
+| **M1+** *(hallazgo nuevo)* | ensanchar el prefijo encontró un defecto real que ningún barrido había visto: **`site/assets/rsc.js:236` escribía `$ rsc onboard`** en el terminal animado de la portada, como elemento de array entre comillas — en el archivo que §3 declaraba a «0 especificadores» | corregido a `rscg onboard`; la línea literal es ahora una de las sondas plantadas de `ps06`, y `M6` del arnés la vuelve a plantar en el archivo real |
+| **M2** `ps05` no cubría las dos páginas | corregido: `ps05` exige en **ambas** el comando de instalación del fork, el especificador del fork en el JSON-LD y `rscg onboard` en el terminal; y además `name`/`bin` de `package.json` | `M9` y `M10` del arnés: borrar la identidad del fork de cada página pone `ps05` en rojo |
+| **M3** la leyenda *Form* era falsa para una de sus dos filas | corregido declarando **dos fuerzas**: *mirrored, hash-pinned* (`ux`, con 31 y 6 SHA-256 en `UPSTREAM.json` y `tests/ux-upstream.test.js`) y *mirrored, commit-pinned* (`design/engine`, **sin mapa `files`**, 38 archivos que nada hashea). **No se genera el mapa**: es un cambio de mantenimiento con su propia evidencia. **Y el diagrama 03 también lo decía** —*«byte-identical and hash-checked»*— corregido a *«only ux/ is hash-checked»*; el `<desc>` no menciona los subárboles, así que no había nada que corregir ahí | medición: `design/engine/UPSTREAM.json` → claves `taste-skill`/`impeccable`, **`files` ausente**; `ux/upstream/UPSTREAM.json` → `files` de **31** y **6**; `grep -n hash` sobre el `03` |
+| **M4** `package.json` no era superficie | corregido: `bugs.url` y `homepage` dejan de resolverse contra la rama por defecto, y **el archivo entra en el conjunto barrido** | `ps04` + `ps07`; `M4` y `M5` del arnés |
+| **M5** las dos imágenes y el índice muertos en el paquete | **declarado con la cifra**: de los 21 destinos locales, **18 no están en el tarball** (`docs/` = 0, `SECURITY.md` fuera), y en la página de npm los 16 de `docs/fork/**` resuelven contra `main`, **donde `docs/fork/` no existe** | `npm pack --dry-run --json --ignore-scripts` + `git ls-tree origin/main docs/` (vacío) |
+| **M6** *«see the catalog» / «prints the current set»* | corregido: **`rscg catalog`** imprime las 274; `rscg list` imprime lo instalado | ejecutado: `catalog` → **274 líneas**; `list` en proyecto vacío → `(nothing installed)` |
+| **M7** la aritmética que `EVALUATION.md` rechaza por su nombre | corregido a **181 = 49 + 100 + 32**, con la frase de que **no** es el producto cartesiano y por qué | `EVALUATION.md` §3 (*«No es el producto cartesiano…»*) y §5 (49 escenarios / 100 / 4 × 8) |
+| **M8** 18 y 5 sin reconciliar en la misma página | corregido con una cláusula bajo el diagrama 01: **medido en 18, prometido en 5**, y los otros 13 *«sin afirmaciones de gobernanza»* | `stage4/VERIFICATION.md` §1 («Los 18 destinos, no los 5») y `PLAN.md` §9 |
+| **M9** «30 files» y «5 files» | corregidos a **31 (29 referencias + `GUIDE.md` + `LICENSE`)** y **6 (4 + `GUIDE.md` + `LICENSE`)**, diciendo que lo que faltaba era el `LICENSE` | `find … -type f \| wc -l` → 31 y 6 |
+| **M10** «19 correcciones en el 03» no se reproduce | **unidad de conteo publicada abajo**, verificable con un comando | `git show --numstat 1cfe83f` |
+| **M11** ilegibles a ancho de móvil, sin camino de zoom | corregido con **una línea por imagen**: las dos son ahora `[![alt](ruta)](ruta)`, un enlace a sí mismas, y el pie lo dice en una frase | sintaxis CommonMark; **el renderizado queda en NV7-8** (no se puede ver sin commitear) |
+| **M12** la frase que se leía como garantía de cumplimiento | reescrita para decir **sólo** lo que lo que la sigue establece: que el texto **está presente**, en las 274, byte-comparable; y que obedecerlo *«is a different claim with a different answer»* | — |
+
+**M10 — la unidad de conteo, que es un comando y no una memoria.** Lo verificable es **líneas
+cambiadas**, no «afirmaciones corregidas», porque lo segundo depende de dónde se corte una frase:
+
+```
+$ git show --numstat --format= 1cfe83f -- docs/fork/diagrams/
+7   7   docs/fork/diagrams/01-customize-existing-skill.svg
+17  17  docs/fork/diagrams/03-upstream-maintenance.svg
+                                       # el 02 no aparece: 0 líneas, que es el defecto A5
+$ git diff --numstat HEAD -- docs/fork/diagrams/        # esta pasada
+2   2   docs/fork/diagrams/01-customize-existing-skill.svg
+20  20  docs/fork/diagrams/02-add-new-skill.svg
+2   2   docs/fork/diagrams/03-upstream-maintenance.svg
+```
+
+Así que la entrega cambió **24 líneas** en dos archivos (7 y 17) y esta pasada cambia **24** en
+**los tres** (2, 20 y 2). El «19» del ledger §2x no se reproduce con ningún comando y el propio
+ledger ya lo retira en §2y.
+
+### 11.3 Los siete BAJO
+
+| | Estado |
+|---|---|
+| **B1** | corregido: el README son **484** líneas (412 al entregar), no 410. `wc -l`, en la cabecera y en §7 |
+| **B2** | corregido: **1 588 = 1 581 + 6 + 1 omitido**, y L1 dice **cuál** es el omitido (el condicional autodocumentado del `danger-guard` no materializado) |
+| **B4** | corregido: el `alt` del `01` en el README lleva ya la cláusula que sólo tenía el `<desc>` (*«where the guard can still be removed by a committed setting»*) **y** la de Cursor. **Y el método que lo hacía importar queda escrito**: dentro de un `<img>` el lector de pantalla recibe el **`alt`**, no el `<desc>`, así que el cuidado puesto en los `<desc>` sólo alcanza a quien abre el SVG suelto |
+| **B5** | **NO corregido, y no es mío.** Ejecutado: `node scripts/rsc.js help` imprime *«without it, **rsc** uses the assistant already installed here»*. Está en `scripts/rsc.js`, fuera de la propiedad de archivos de esta pasada. **Y es más grande de lo que la revisión dice**: `targets/auto-update.mjs` tiene **10 líneas** de salida al usuario que nombran `rsc` literalmente — `===== rsc updated =====`, `===== rsc updating =====`, `===== rsc update available =====` ×2, y seis frases del tipo `rsc ${latest} is out — you have ${installed}`. **Por qué ningún test lo ve, y es la parte que vale la pena retener:** cada barrido de este proyecto busca o el **especificador** (`gg25`, `gi03`) o la forma `rsc <subcomando>` ejecutable (`ps01`). Esto no es ninguna de las dos: es el **nombre de producto del padre en prosa de salida**, y el fork se llama `rscg`. Queda como hallazgo con su ruta, sin instrumento, porque instrumentarlo sin poder arreglarlo sería dejar la puerta en rojo para el siguiente |
+| **B6** | corregido: la celda de Cursor del `01` dice `cursor: SKILL.md only, no references/, no keys`, y el `<desc>` lo desarrolla. Es lo que mide `stage4/VERIFICATION.md` §1: las tres claves **no** llegan a Cursor, *«no, por diseño»* |
+| **B7** | corregido: *byte-identical to upstream **at 3.7.4, commit `481b1ec9`***, más que upstream ya publicó **3.7.5 (`cb9e051d`)** y que **D14** no lo integra, así que `skills/` **no** es idéntico al `main` de upstream y no lo afirma |
+| **B3** | la revisión no numeró ningún B3 — se registra para que no parezca perdido |
+
+### 11.4 El instrumento: `tests/product-surfaces.test.js`, de 7 a 9
+
+| | Comprobación | Nuevo en esta pasada |
+|---|---|---|
+| `ps00` | el barrido tiene superficies que mirar | ahora **17** archivos (entra `package.json`) |
+| `ps01` | ningún comando ejecutable nombra al padre | detector ensanchado (M1); **lista de excepciones con motivo y fecha** para el `rscFixes` heredado, con la misma regla anti-podredumbre que `ps02`; y **la cota que lo hace inofensivo, medida**: ningún `fixedIn` alcanza la versión del paquete, así que `fixesSince` no puede imprimirlo a un consumidor |
+| `ps02` | toda mención restante del padre es atribución declarada | la fila de identidad del repositorio lleva ya la rama en su mitad del fork, y la autorización se actualizó con ella |
+| `ps03` | el host de Pages del padre no aparece | — |
+| `ps04` | ninguna superficie enlaza una página del fork que no existe | ahora **también sobre `package.json`**, que es donde estaba el `bugs.url` a los issues desactivados |
+| `ps05` | la inversa: la identidad del fork está presente | **+ las dos páginas del sitio y `package.json`** |
+| `ps06` | los detectores disparan sobre defectos plantados | **+11 sondas** que antes pasaban, una por forma, y **+5 casos limpios** de las formas que el fork usa de verdad |
+| **`ps07`** | **nada que busque o enlace este fork resuelve al padre por la rama por defecto** | **nuevo (A3, M4)**: el clonado lleva `-b`, `homepage` y `bugs.url` llevan rama, `llms.txt` lleva las dos cosas, y en prosa no queda un enlace al repositorio sin rama. `site/**` es la excepción **declarada**, con el mismo motivo que `ps04` ya usa para el host de Pages del fork: son navegación y autoidentificación de dos páginas que envían **0 archivos** en el tarball y que **hoy no se pueden desplegar**. Medido: **9 URL así en cada página** |
+| **`ps08`** | **el ejemplo que el README manda copiar pasa el validador de verdad** | **nuevo (A4)**: extrae el bloque del propio README y lo pasa por `validateCustomizationSource`, exigiendo 0 hallazgos, **con control negativo** — quitar `scope:` tiene que producir un hallazgo, porque un cero obtenido sobre una cadena vacía se lee igual que un cero bueno |
+
+```
+$ . ./.fork-tmp/env.sh && node --test tests/product-surfaces.test.js
+# tests 9 · # pass 9 · # fail 0 · # cancelled 0 · # skipped 0
+```
+
+### 11.5 Mutación de extremo a extremo: 15 defectos plantados en archivos reales
+
+`ps06` prueba los detectores sobre texto sintético; eso **no** prueba el barrido, y un 9/9 a la
+primera es exactamente lo que hay que desconfiar. Así que cada mutación edita una **superficie
+real**, ejecuta el archivo de test de verdad, registra qué subtests con nombre se ponen en rojo,
+restaura y comprueba la restauración por **sha-256**:
+
+```
+BASELINE  passed=[ps00 ps01 ps02 ps03 ps04 ps06 ps05 ps07 ps08] failed=[]
+M1  README        — el clonado pierde -b, así que trae al padre              → [ps07]
+M2  README        — la decisión del ejemplo pierde su línea Category         → [ps08]
+M3  README        — la decisión del ejemplo pierde su línea Evidence         → [ps08]
+M4  package.json  — bugs.url vuelve a los issues desactivados                → [ps04 ps07]
+M5  package.json  — homepage vuelve a la rama por defecto                    → [ps07]
+M6  site/assets/rsc.js — el defecto real: comando del padre entre comillas   → [ps01]
+M7  README        — un comando del padre que CIERRA una frase                → [ps01]
+M8  README        — una `g` de menos en `rscg help`                          → [ps01]
+M9  site/index.html    — el especificador del fork fuera del JSON-LD         → [ps05]
+M10 site/es/index.html — el CLI del fork fuera del terminal                  → [ps05]
+M11 site/llms.txt — la instrucción de clonado para agentes pierde la rama    → [ps07]
+M12 package.json  — un `rscFixes` pasa a ser alcanzable por un consumidor    → [ps01]
+M13 package.json  — un síntoma excusado se arregla: su autorización caduca   → [ps01]
+M14 README        — la fila de identidad enlaza el repo sin rama             → [ps02 ps07]
+M15 README        — el bloque-fixture del ejemplo se borra entero            → [ps08]
+          restauración byte-idéntica en las quince
+AFTER ALL passed=[ps00 ps01 ps02 ps03 ps04 ps06 ps05 ps07 ps08] failed=[]
+ALL MUTATIONS CAUGHT, TREE RESTORED
+```
+
+El arnés borra `NODE_TEST_CONTEXT` del entorno del hijo en vez de vaciarlo, por el motivo que §5.1
+dejó escrito: **una cadena vacía sigue definiendo la variable**, `node:test` se cree anidado y no
+ejecuta nada, y las mutaciones salen `MISSED` con `failed=[]`.
+
+### 11.6 Qué más se ejecutó, y sobre el estado real
+
+**La lección de A1 aplicada literalmente: cada cifra de aquí se midió DESPUÉS de la última edición
+que la afecta, no antes.**
+
+```
+$ . ./.fork-tmp/env.sh
+$ node --test tests/product-surfaces.test.js      # 9/9
+$ node --test tests/governance-gate.test.js       # 31/31  ← gg25 incluida, sobre el árbol real
+$ node --test tests/governance-identity.test.js   # 15/15  ← gi01 lee homepage/bugs.url
+$ node --test tests/base-install.test.js          #  6/6
+$ node mutate-surfaces.mjs                        # 15/15 cazadas, árbol restaurado
+$ node check-links.mjs                            # 38 destinos locales + 3 anclas internas, 0 hallazgos
+$ node a4-probe.mjs                                # README 0 hallazgos · esquema 0 · control 1
+$ git diff --numstat origin/main -- skills/        # vacío
+$ npm pack --dry-run --json --ignore-scripts       # 1 792 archivos · docs/ 0 · README sí · SECURITY no
+```
+
+Y los conteos de `gg25` re-medidos con su propia regex **después** de todas mis ediciones, porque
+una sola de ellas habría puesto la puerta en rojo: `README.md` **spec 2 / url 8**, `SECURITY.md`
+**0 / 4**, las dos páginas **0 / 5**, `llms.txt` **0 / 2** — todos en su tope declarado, ninguno a
+cero (una entrada a cero tiene que borrarse de esa lista, y borrarla no es mío). **Un borrador de
+esta pasada añadía `@ericrisco/rsc` al README para explicar A3 y habría dejado `gg25` en 30/31 por
+exceso de especificador**; se reescribió la frase sin nombrarlo. Es el mismo género que A1, cazado
+antes de escribirlo porque esta vez se midió primero.
+
+### 11.7 Un hallazgo que la revisión no trae, y es el más grande que queda
+
+**14 subtests de seis archivos de test heredados están en rojo, y llevan en rojo desde la reescritura
+del README.** Medidos aquí uno por uno:
+
+```
+domains          :: README links a folder for every skill in the manifest
+onboarding-docs  :: every public surface sends humans and chat agents through canonical onboarding
+onboarding-docs  :: public claims state the real guarantee boundary and no longer promise an opaque profile menu
+public-surface   :: 3 · stated where it matters: the default lane has a name
+public-surface   :: 3 · stated where it matters: the agent picks the lane and the person approves the spec
+public-surface   :: 3 · stated where it matters: isolation is retired automatically once work lands
+public-surface   :: 4 · the own-skills promise is still made, because it is finally true
+positioning-docs :: public surfaces define rsc-harness as the guided harness builder
+positioning-docs :: the public story names the Frankenstein risk and concrete best practices
+positioning-docs :: the website leads with the agent handoff and demonstrates proportional judgment
+catalog-counts   :: README agent and command inventory claims match the generated manifest
+clone-bootstrap  :: AC#25 — the README does not send a clone to @latest while promising a pin
+clone-bootstrap  :: AC#25 — the README describes the clone by symptom, and says the assistant announces it
+clone-bootstrap  :: I4 — the README names the bootstrap among the things to commit
+```
+
+**No las causa esta pasada, y eso se midió, no se supuso.** Se extrajo `HEAD` entero con
+`git archive HEAD | tar -x -C .fork-tmp/baseline` y se corrieron los seis archivos allí: **mismos
+recuentos de fallo, uno a uno**. Lo que las rompe es que **asertan sobre la copia de producto del
+PADRE** —la lista de carpetas por skill, el menú de perfiles, la prosa de carriles, el texto del
+clone-bootstrap, `rsc@latest onboard`— y la Etapa 7 reescribió ese README a propósito. La corrida
+autoritativa de la Etapa 4 (1 588 / 6 fallos) es **anterior** a esa reescritura, así que **L1
+citaba un número que ya no describe el árbol**; el README lo dice ahora.
+
+**No las arreglo**, y el motivo es de alcance, no de pereza: re-apuntar 14 aserciones heredadas a la
+copia del fork es decidir qué promete el producto, no corregir una falsedad, y el encargo dice
+expresamente que este bloqueo es *«de corrección, no de rediseño»*. Queda como **NV7-9**, con los
+nombres arriba para que nadie tenga que volver a encontrarlos.
+
+### 11.8 Lo que NO se corrigió, con su motivo
+
+| | Elemento | Motivo |
+|---|---|---|
+| 1 | **`.rsc.fork.json` no se implementa** | decisión del coordinador, escrita en el encargo: a estas alturas añadir un archivo de estado nuevo —con su inventario de respaldo y su comprobación de divergencia— es más riesgo que valor. La prosa pasa a decir la verdad, que era el defecto |
+| 2 | **el mapa `files` de `skills/design/engine/UPSTREAM.json`** | generarlo es un cambio de mantenimiento con su propia evidencia (38 hashes y un test nuevo). La revisión prefería corregir la leyenda, y corregir la leyenda es lo honesto cuando la alternativa es ensanchar el alcance para que la frase encaje |
+| 3 | **`rscg help` y `targets/auto-update.mjs` imprimen `rsc`** (B5) | `scripts/**` y `targets/**` están fuera de la propiedad de archivos de esta pasada. Registrado arriba, con los dos casos extra que aparecieron al mirar |
+| 4 | **los 18 enlaces al repositorio sin rama de las dos páginas del sitio** | declarados en `ps07` con el mismo motivo que `ps04` ya aplica al host de Pages del fork: navegación y autoidentificación de dos páginas que envían 0 archivos en el tarball y que no se pueden desplegar hoy. Se corrigen solos en la fusión, y reescribirlos ahora es trabajo que habría que deshacer |
+| 5 | **`description` y `homepage` del repositorio en GitHub** (ledger §2x, hallazgo 1) | son ajustes de la cuenta del usuario y el encargo los deja pendientes de su decisión |
+| 6 | **las 14 aserciones heredadas en rojo** | §11.7: es rediseño de la copia de producto, no corrección |
+
+### 11.9 Qué de la revisión no resultó exacto
+
+Lleva razón en lo esencial —las cinco ALTA se reprodujeron las cinco— y aun así:
+
+1. **M1 se queda corta por su propio criterio.** Dice *«5 de 7 mutaciones no las detecta»*. Medido
+   con la función real del test, las formas corrientes que pasaban eran **9 de 11**: a los sufijos
+   `.` `,` `)` y a los verbos `help` / `agent-model` y a las comillas hay que sumar **`;`** y la
+   forma `"clave":"rsc onboard"` del JSON-LD, que es un caso distinto del de la comilla suelta.
+2. **M5 cuenta dos cosas distintas con el mismo número.** «18 de 21 muertos» es cierto **en el
+   tarball**; en la **página de npm** el conjunto muerto es otro: los **16** de `docs/fork/**`,
+   porque `SECURITY.md`, `LICENSE`, `manifest.json`, `schema/` y `skills/` **sí** existen en `main`.
+   Las dos cifras importan y no son la misma, y el README las separa.
+3. **M10 pide «una unidad de conteo verificable» y la da por líneas**, pero el «7» que llama
+   verificable es `7 7` (añadidas y borradas), no 7 correcciones: es la misma ambigüedad que hace
+   irreproducible el 19. Publicado como líneas cambiadas, con el comando (§11.2).
+4. **A2 dice que la gobernanza «persiste de hecho en `.rsc/governance`»**, y conviene precisarlo
+   porque cambia lo que el README puede prometer: lo que vive ahí no son *ajustes del fork* sino
+   **artefactos del paquete** —contrato, cuerpo always-on, procedimiento brownfield—, `scripts/
+   install-apply.js:136` *«Package-owned, not project-owned»*, **regenerados en cada instalación**.
+   La propiedad verdadera no es «viven aparte, así que no se pierden» sino **«no hay nada que
+   perder»**, y así está escrito.
+5. **B3 no existe.** La lista BAJO salta de B2 a B4.
+6. **Y una inexactitud que iba a ser mía, cazada antes de publicarla.** Un borrador de esta sección
+   afirmaba que *«el diagrama 03 no usa la palabra hash-checked»* y que M3 se había equivocado al
+   decir que el dibujo hereda el defecto. **Falso:** `grep -n hash` sobre el `03` devuelve
+   *«Frozen vendored subtrees stay byte-identical and hash-checked.»* La revisión tenía razón, el
+   defecto **sí** estaba también en el dibujo, y está corregido a *«only ux/ is hash-checked»*. Se
+   deja escrito porque el género del error es el que bloqueó esta etapa: **afirmar sobre un archivo
+   sin abrirlo**, esta vez en la propia sección que iba a reprochárselo a otro.
+7. **Lo que la revisión verificó y pedía no rehacer aguanta**, re-comprobado donde una corrección lo
+   cruzaba: `spec 2 / url 24`, las seis obligaciones de licencia, el 94,69 % de Cursor y que
+   `Executive-Lab` no se acredite. Las dos cifras de archivos de la tabla de terceros eran la
+   excepción, y eran suyas (M9).
+
+### 11.10 NO VERIFICADO que añade esta pasada
+
+| | Elemento | Motivo |
+|---|---|---|
+| **NV7-8** | **que el `[![…](…)](…)` se vea como imagen enlazada**, y la mejora real en un móvil | es sintaxis CommonMark estándar, pero el README renderizado no existe hasta el commit, y aquí no hay renderizador de Markdown ni se instala ninguno. Queda junto a NV7-1: **una** comprobación después del commit, abrir la página y pulsar una imagen |
+| **NV7-9** | **las 14 aserciones heredadas en rojo** | §11.7. Medidas, atribuidas y **no** arregladas: son rediseño |
+| **NV7-10** | **la escala de los diagramas a 375 px** | se hereda de la medición de la revisión (escala 0,249, cuerpo ≈3 px). Esta pasada mide el **margen dentro de la caja** (§1.3), que es otra propiedad: no se re-midió el viewport móvil |
+| **NV7-11** | **que `homepage` y `bugs.url` resuelvan con 200** | `fork/bootstrap` y su `SECURITY.md` existen en `origin` (comprobado con `git cat-file -e`), y no hay ninguna rama llamada `fork` que haga ambigua la ruta `tree/fork/bootstrap`. Lo que **no** se hizo es pedirlas por HTTP: esta pasada no usa red |
+| **NV7-12** | **la suite completa (L7) y `eval-lint` (L2)** | prohibidas por el encargo y por §1. Lo que **sí** se ejecutó: cuatro archivos de test completos (`product-surfaces` 9/9, `governance-gate` 31/31, `governance-identity` 15/15, `base-install` 6/6), los seis archivos de §11.7 en dos árboles distintos, y el arnés de mutación, que son **17** corridas del archivo de test (una línea base, quince mutaciones y una verificación final) |
