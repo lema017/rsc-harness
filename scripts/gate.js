@@ -131,7 +131,10 @@ function skillsInvariant(root = ROOT) {
 
 function runChild(argv) {
   const script = join(ROOT, argv[0]);
-  if (!existsSync(script)) return { status: 'skip', detail: `${argv[0]} is not in this tree` };
+  // A missing validator is a FAILURE, never a skip. The independent review of stage 6 measured the
+  // other way round: moving `scripts/originality-check.js` aside turned it into a SKIP and
+  // `npm run gate` still exited 0 — so deleting a check bought a pass.
+  if (!existsSync(script)) return { status: 'fail', detail: `${argv[0]} is not in this tree — a check that cannot be found is a failed check, not a skipped one` };
   const res = spawnSync(process.execPath, [script, ...argv.slice(1)], { cwd: ROOT, encoding: 'utf8' });
   const tail = `${res.stdout || ''}${res.stderr || ''}`.trim().split('\n').slice(-12).join('\n');
   if (res.error) return { status: 'fail', detail: String(res.error.message) };
@@ -176,7 +179,18 @@ function main() {
   if (vacuous.length) {
     console.log('\nA VOID check ran and had nothing to look at. It is not a failure and it is not coverage.');
   }
-  if (failed.length) process.exit(1);
+  // The exit code is the contract a CI reads, and `prepublishOnly` is `manifest && gate`. The
+  // independent review of stage 6 measured the hole: in a clone with no `origin/main` ref the
+  // Strategy B mirror check prints SKIP, `failed` stays empty, and the gate exits 0 — so a publish
+  // from a shallow clone, or from a tree unpacked out of the tarball, skips the one invariant the
+  // whole fork rests on and ships. A skip is not a pass, and now the exit code says so too.
+  if (failed.length || (skipped.length && !process.argv.includes('--allow-skip'))) {
+    if (!failed.length) {
+      console.log('\nExiting non-zero because a check could not run. Make it runnable, or pass'
+        + ' --allow-skip to accept the gap deliberately — never for a publish.');
+    }
+    process.exit(1);
+  }
 }
 
 export { CHECKS, NOT_IN_THE_GATE, skillsInvariant };
