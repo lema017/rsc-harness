@@ -30,6 +30,9 @@ evidence: codebase analysis, 2026-11-01, accepted by the user
 | `updated` | yes | ISO date. Feeds staleness reporting; it never licenses ignoring the file |
 | `scope` | yes | `repo`, or a list of paths, packages or subprojects. **No default** — an omitted scope is a validation error, not an implicit "everywhere" |
 | `evidence` | yes | How this was established, and by whom accepted. A file with no evidence is a preference wearing a decision's clothes |
+| `type` | yes | OKF conformance, fixed value `skill-customization`. **Added after Stage 3 found the gap.** `02-DOCS/wiki/` is an OKF v0.1 bundle whose rule 1 requires a non-empty `type` on every non-reserved `.md` (`skills/harness/references/wiki-protocol.md:839-840`); only `index.md` and `log.md` are exempt (`:856-858`), and `README.md` is not. Without this key every customization this fork prescribes is a **non-conformant file inside a conformant bundle**, and nothing would catch it: `grep -rln okf scripts/` is empty, so OKF conformance is prose, not code |
+| `catalog-version` | yes | The catalog version or commit this file was reviewed against. Required by `REQUIREMENTS.md` §8 (*«Skill y versión o commit revisado»*), which the first six keys did not satisfy. Without it the trigger «the skill changed» has nothing to compare against — and note `governance-digest` does **not** serve here: it digests the preamble, not the skill |
+| `reevaluate-when` | yes | The **condition** that should bring this file back for review, not the date. §8 asks for *«fecha y condiciones de revisión»*: `updated` gives the date and nothing gave the condition. The name reuses `reevaluateWhen` from `scripts/lib/onboarding.js:194-200`, which already has an evaluator, instead of inventing a vocabulary |
 
 `scope` is mandatory on purpose. In a monorepo, "we use Riverpod" is true of one package and false of another; a schema that lets scope be omitted will spread every local decision across the whole repository, and nobody will notice until it is wrong.
 
@@ -76,10 +79,12 @@ The middle two are the ones that make this schema worth having. Upstream's exist
 
 A validator checks, with no model involved:
 
-1. Frontmatter parses, and all six required keys are present.
+1. Frontmatter parses, and all **nine** required keys are present.
 2. `skill` equals the containing directory name, and names a skill that exists in the distributed catalog — **or** the file is reported as **orphaned** (see §4).
 3. `status` is one of the three allowed values.
 4. `scope` is present and non-empty.
+4b. `type` equals `skill-customization` — the one rule that keeps the file conformant to the bundle it lives in.
+4c. `catalog-version` is present, and `reevaluate-when` states a condition, not a date.
 5. `## Decisions` and `## Out of scope` both exist.
 6. Every decision names one of the six categories and carries an evidence reference.
 7. Every `migration` entry states a current state, a target state, and that it requires a decision.

@@ -165,7 +165,8 @@ Las tres primeras son claves planas y aditivas, que es lo que exige el parser de
 | 5 | **Que `02-DOCS/wiki/skills/` funcione en un proyecto real** | Exigiría instalar y correr sobre un proyecto consumidor. No hay ninguno en esta carpeta, y crear uno es trabajo de las Etapas 2 y 6 |
 | 6 | **El comportamiento del análisis bajo cada asistente** | Exigiría ejecutar clientes reales, que usan la sesión del usuario. §1 lo prohíbe. Mismo límite que L3 de `ARCHITECTURE.md:303` |
 | 7 | **Que `drift:check` siga eximiendo la ruta en modo `knowledge`** | Medido lo contrario, y es un matiz que importa: `drift-check.js:134` exime `user-project` **sólo en modo `catalog`**; en modo `knowledge` «este repo ES el proyecto» y `02-DOCS/…` vuelve a ser una afirmación real. F35 vale para el catálogo. Si el fork llegara a correr `drift:knowledge` sobre su propia wiki, las rutas de ejemplo de estos documentos entrarían como enlaces a comprobar. No lo ejecuté |
-| 8 | **El ejemplo trabajado 1 como medición** | Es mitad medido, mitad fixture: las posiciones de la skill están en `skills/flutter/SKILL.md:12,14,243`; las del proyecto son sintéticas por D9 y están marcadas `FIXTURE` |
+| 8 | **Que las citas a `docs/fork/stage1/` sigan apuntando a la línea correcta mañana** | La Etapa 1 reescribió `CONTRACT.md` (243 → 249 líneas), `ARCHITECTURE.md` (282 → 306) y `CUSTOMIZATION-SCHEMA.md` **durante** esta ejecución. Remapeé y reverifiqué las 32 citas a `CONTRACT.md` y las 2 a `ARCHITECTURE.md` una por una contra el contenido en disco al cerrar. Si la Etapa 1 vuelve a mover esos archivos, hay que repetir la comprobación: las citas por sección (§) aguantan, las de línea no |
+| 9 | **El ejemplo trabajado 1 como medición** | Es mitad medido, mitad fixture: las posiciones de la skill están en `skills/flutter/SKILL.md:12,14,243`; las del proyecto son sintéticas por D9 y están marcadas `FIXTURE` |
 
 ---
 
