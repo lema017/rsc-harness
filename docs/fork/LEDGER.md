@@ -1451,3 +1451,49 @@ El suelo compara `manifestCount !== ids.length`, y **los dos lados salen del mis
 
 ### Lo que intentó romper y no se rompió
 Re-ejecutó **A1 y A2 por su cuenta** sobre un catálogo de 5 skills: las dos fallan y **por la razón correcta** (255 hallazgos nombrando «the delivery is a COPY, not a symlink», `kindsPass1` → `{"copy":5}`; y «DUPLICATE: 2 opening markers in the .mdc» con `cursor deliveredPass1: 0` mientras `claude` sigue en 5), y el conteo **puede** salir distinto, así que se computa. **D13 en las dos direcciones por el CLI real:** dispara con su motivo cuando la base vuelve sin gobernar, y con dos syncs seguidos **no dice nada** y `conformance` sale 0 — **ni ruido ni silencio donde importa**, que es la pregunta que decide si D13 sirve. **Ningún camino mecánico instala el padre encima del fork**: `auto-update`, `clone-bootstrap` (el archivo que se commitea en cada repo consumidor), `upgrade.js` y 79 cadenas `npx` nombran todas al fork. **Los únicos caminos que quedan son instruccionales**: el cuerpo always-on (D16) y el README (A1). Y recorrió una instalación real de 32 skills: de 400 ocurrencias del padre, **todas son contenido congelado del catálogo** salvo el always-on y la excepción declarada de terceros.
+
+---
+
+## 2t. D16 — los comandos sugeridos dejan de nombrar al padre (implementada)
+
+### Las cinco mediciones, reproducidas por mí
+
+| Medida | Resultado | Mi comprobación |
+|---|---|---|
+| Referencias al padre **en la entrega** | **0** — las 81, no sólo las 10 | sí |
+| Delta del cuerpo always-on | **7 280 → 7 350 B, +70 B** (10 sustituciones × 7 B) | sí, byte a byte |
+| La inversión del mapa recupera upstream | **byte a byte**, sobre el **árbol** del catálogo (1 679 archivos): 26 archivos, 81 sustituciones, **0 no recuperados** | sí |
+| Idempotencia (criterio 5) | byte-idéntica, 0 derivas | vía el instrumento |
+| Instrumento del criterio 4 | `failures: 0`, always-on 7 350 B, `carriesGovernance: false`, `namesParent: 0` | sí |
+
+El delta de **+70 B** es lo que decide que la decisión era correcta: la invariante de byte-identidad del always-on existía por **coste** —no pagar 785 B de preámbulo en cada SessionStart, que es lo que haría inmedible G3— y 70 B no se parece a eso. Si hubiera salido del orden de cientos, la decisión se revisaba; lo puse por escrito en el encargo y el agente lo afirmó con una guarda que cita la regla de revisión.
+
+### Las dos invariantes, reformuladas y más fuertes que antes
+
+La transformación ahora **quita la gobernanza primero y aplica el mapa después**, así que los bytes del bloque nunca pasan por el reescritor y el digest sigue siendo demostrablemente función de `renderBlock(id)` y de nada más. Las dos propiedades quedan separadas porque son de distinta naturaleza: el bloque es **aditivo**, el mapa es **sustitutivo**, y «aditivo y reversible» no puede describir a un sustitutivo. Compuestas: **`invertIdentity(stripGovernance(transform(x))) === x`**, que fija a la vez que nada más cambió y **cuánto** cambió.
+
+### Lo que el agente hizo mejor que mi encargo
+
+**`governBase` cubre ahora la base materializada entera, no sólo `SKILL.md`.** Lo deduje mal yo: `ensureBase` copia el **directorio** de la skill, así que `references/` y `evals/` también se entregan, y ahí viven **32 de las 81** — con `init/references/recommend-skills.md` solo en **15**. Una entrega cuyo `SKILL.md` está limpio mientras el archivo que le dice al agente que abra no lo está **cumpliría la letra de §10 y perdería su sentido**. Los archivos que no son `SKILL.md` reciben sólo el mapa, y lo que no round-trippea por UTF-8 se salta en vez de decodificarse.
+
+**Y la historia de la mutación es la mejor lección de la sesión sobre su propia lección.** Su primera mutación del instrumento era **inválida**: plantar el cuerpo prístino en `.rsc/governance/always-on.md` hacía fallar a `claude` —cuyo gancho lee esa ruta— y **pasar a `cursor`**, porque el `.mdc` de Cursor se escribe en la instalación, así que sobrescribir la **fuente** no toca la **superficie**. En sus palabras: *«a mutation that does not change what the instrument looks at proves nothing about the instrument»*. Re-ejecutada contra el archivo que `alwaysOnSurface()` lee de verdad en cada destino: **5 de 5 pasan a no conformes**, cada uno con archivo y línea, y cada uno con `carriesGovernance: false` para que sólo la clase bajo prueba pueda ser lo que disparó. Esa mutación es ahora un test, con una aserción de que el fixture cambió **para que la trampa no se pueda volver a tender**.
+
+### La excepción de `gi03`, concedida por mí como propiedad comprobada
+
+El agente **se paró** donde le dije y me escaló lo único que no podía resolver: `gi03` falla nombrando `scripts/lib/governance.js`, porque `PARENT_PACKAGE = '@ericrisco/rsc'` **es el token de origen del mapa**. La regla ya excepciona `scripts/lib/upstream-*.js` porque *«su trabajo es BUSCAR el nombre del padre»*; este módulo es el que lo **reescribe**. Rechazó las dos alternativas con razón: construir el token por fragmentos **esconde la única cadena que un mantenedor necesita grepear**, y renombrar el módulo para caer bajo la excepción existente sería activamente falso, porque `gi14` afirma que esos archivos **no** se envían y un mapa que se necesita en la instalación sí tiene que enviarse. Antes de escalármelo **redujo el radio**: `conformance.js` también lo disparaba desde un comentario, así que reformuló el comentario y me dejó **una** excepción que conceder en vez de varias.
+
+**La concedí como propiedad comprobada, no como hueco:** en ese módulo el padre puede aparecer **sólo** en su declaración y en comentarios, nunca en código. Y mi primera versión de esa comprobación **falló sobre un comentario** que cita `npx @ericrisco/rsc add <id>` para explicar el defecto. Un comentario no se ejecuta: el impreciso era mi predicado, así que lo **acoté** en vez de relajarlo. **15/15.**
+
+### Tres afirmaciones mías que resultaron falsas
+
+**1. `tests/md-block-fidelity.test.js` NO afirma `stripGovernance(transform(x)) === x`.** Prueba `wireHook`/`unwireHook` de `targets/_md-block.js` contra el marcador `rsc-suggest:start` — otro bloque, otro módulo, y no menciona `stripGovernance`. La invariante vive en **`tests/governance-base.test.js`**. Y el origen importa: **el error es heredado de `docs/fork/stage6/DESIGN.md` §2, y yo lo repetí en el encargo sin abrir el archivo.** Es exactamente el patrón que esta sesión lleva registrado desde el principio — afirmar lo que hace un archivo sin abrirlo —, esta vez propagado de un documento a un encargo.
+
+**2. El defecto del suelo del catálogo está en `scripts/verify-catalog-conformance.js`, no en `scripts/lib/conformance.js`**, que no tiene suelo, ni `manifestCount`, ni `--expect`. Le dije el archivo equivocado; lo arregló donde estaba. El suelo nuevo lee `manifest.json` del **object store de git en `origin/main`** —un blob commiteado, no un archivo del árbol— así que truncar `skills/` y regenerar no lo mueve: con 269 encontradas contra 274 commiteadas lo **nombra**. Un catálogo que **crece** no es truncación, así que integrar upstream no lo dispara. Y `gg24` pasa a ser **conductual**, probado por mutación.
+
+**3. El «142» de `README.md`/`site/` cuenta el token desnudo `ericrisco`, no el especificador.** Como especificadores son **51**: `README.md` 18, `site/index.html` 13, `site/es/index.html` 13, `site/llms.txt` 4, `package-lock.json` 2, y **`sitemap.xml` 0** y **`SECURITY.md` 0**. Mi total tampoco cuadraba con mi propio desglose, que suma **137**. Y la consecuencia es de fondo para la Etapa 7: **los aciertos que sólo existen en el token desnudo son otra clase de renombrado** — `ericrisco.github.io/rsc-harness/` y `github.com/ericrisco/rsc-harness`, el host de Pages y la URL del repositorio de upstream. Un mapa sobre la palabra desnuda los convertiría en **404**, que es la trampa de mem-slop otra vez. **Especificador y URL son dos decisiones distintas.** Dato que además acota: `README.md` viaja en el tarball, **`site/` envía 0 archivos**.
+
+### Lo que sigue abierto, y es de la Etapa 7
+`README.md` (18 especificadores, **10 líneas `npx` ejecutables**, un `npm i -g` y la frase «`package.json` is named `@ericrisco/rsc`», hoy falsa) y `site/llms.txt`, que instruye a **agentes** a ejecutar al padre. El test negativo de D16 barre el **proyecto consumidor instalado**, así que no los ve — y el agente lo declara en vez de dejar entender que su cambio deja la superficie limpia.
+
+### No verificado
+La suite completa (L7; corrió ~310 tests en los archivos que tocan las superficies cambiadas), `eval-lint` (L2), el barrido 274×18×3 del instrumento (corrió la **misma biblioteca de auditoría** sobre instalaciones completas de 274 para `claude` y `cursor`, o sea las dos familias de entrega incluida la única re-renderizada; **los 16 destinos restantes y las pasadas 2–3 quedan sin verificar**), la rama Windows (L5), y un flake preexistente de `tests/auto-update.test.js` bajo paralelismo que pasa 17/17 en aislamiento y con `--test-concurrency=1`.

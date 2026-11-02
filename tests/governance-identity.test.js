@@ -80,10 +80,29 @@ test('gi03 · no executable surface names the parent package — one documented 
   for (const dir of ['scripts', 'targets', 'schema', '.github']) walk(join(ROOT, dir));
   if (readFileSync(join(ROOT, 'package.json'), 'utf8').includes(PARENT_PACKAGE)) offenders.push('package.json');
 
-  // `scripts/lib/upstream-*.js` belongs to the maintenance machine (stage 5), whose job is to LOOK
-  // FOR the parent's name in the fork's artifacts. Naming it there is the point, not a leak.
-  const real = offenders.filter((p) => !/upstream-/.test(p));
+  // Two files name the parent because naming it is their job, not because it leaked.
+  // `scripts/lib/upstream-*.js` is the maintenance machine (stage 5), whose job is to LOOK FOR the
+  // parent's name in the fork's artifacts. `scripts/lib/governance.js` is D16's identity map, whose
+  // job is to REWRITE it: the token has to be written down somewhere, and the alternatives are both
+  // worse — assembling it from fragments hides the one string a maintainer needs to grep for, and
+  // renaming the module under the `upstream-` exception would be a lie, since `gi14` asserts those
+  // files do NOT ship and a map needed at install time must.
+  const EXCEPTED = [/upstream-/, /^scripts\/lib\/governance\.js$/];
+  const real = offenders.filter((p) => !EXCEPTED.some((re) => re.test(p)));
   assert.deepEqual(real, [], `these still name ${PARENT_PACKAGE}:\n  ${real.join('\n  ')}`);
+
+  // And the exception is a CHECKED property, not a hole: in the map module the parent's name may
+  // appear only in its own declaration and in prose explaining it. Anywhere else — a template, an
+  // argv, a default — the exception stops applying and this fails, which is the harm gi03 exists to
+  // catch. (The first version of this assertion asked for "never inside a command" and fired on the
+  // comment that quotes `npx @ericrisco/rsc add <id>` to explain why this module exists. A comment
+  // cannot execute; the predicate was the imprecise part, so it was tightened rather than relaxed.)
+  const map = readFileSync(join(ROOT, 'scripts', 'lib', 'governance.js'), 'utf8');
+  const stray = map.split('\n')
+    .map((line, i) => [i + 1, line])
+    .filter(([, line]) => line.includes(PARENT_PACKAGE))
+    .filter(([, line]) => !/^\s*(\/\/|\*|\/\*)/.test(line) && !/PARENT_PACKAGE\s*=/.test(line));
+  assert.deepEqual(stray, [], 'in the identity map the parent may be named only by its declaration and by comments');
 });
 
 test('gi04 · and the mem-slop URL is deliberately NOT renamed: it is a different project', () => {
@@ -242,68 +261,82 @@ test('gi11 · nothing the FORK WRITES names the parent package',
       + written.map((o) => `${o.path} (${o.hits})`).join('\n  '));
   });
 
-test('gi13 · DECLARED LIMIT, pinned by count: the frozen catalog still names the parent, and the always-on surface is the worst case',
+test('gi13 · the frozen catalog still names the parent 81 times — and the DELIVERY names it zero times',
   { timeout: 300000 }, async () => {
-    // This test exists because the sweep in gi11 found something this stage must NOT fix on its own,
-    // and a limitation nobody counts is a limitation that drifts.
+    // THIS TEST USED TO PIN A DECLARED LIMIT. D16 closed it, so what it pins has changed shape, and
+    // the before/after belongs in one place: the limit and its closure are the same measurement read
+    // from two sides.
     //
-    // THE MEASUREMENT. `skills/` is a byte-identical mirror of the incorporated upstream commit —
-    // that IS Strategy B — and it names the parent's package 81 times, 10 of them in
-    // `skills/suggest/SKILL.md`, which is the always-on body. `scripts/lib/governance.js`
-    // (`writeAlwaysOn`) ships that file to `.rsc/governance/always-on.md` BYTE-IDENTICAL on purpose,
-    // so that "the governance cost of that surface is exactly zero bytes" is an exact, checkable
-    // claim — and `scripts/verify-catalog-conformance.js` asserts the byte-identity.
+    // WHAT IT PINNED. Stage 6's sweep found a real §10 defect it was not allowed to fix in a parallel
+    // round: `skills/` is a byte-identical mirror of the incorporated upstream commit — that IS
+    // Strategy B — and it names the parent's package 81 times, 10 of them in `skills/suggest/SKILL.md`,
+    // the always-on body. `writeAlwaysOn` shipped that file BYTE-IDENTICAL on purpose, so a consumer
+    // of the FORK was handed `npx @ericrisco/rsc add <id>` at every SessionStart and after every
+    // compaction. Obey it and you download the PARENT's CLI into a fork-governed project, whose
+    // installer writes a base with no contract — the blind spot stage 2 closed in `ensureBase` and
+    // stage 4 found again in `restore`. The stage counted and pinned it instead of fixing it, because
+    // closing it meant reformulating two other stages' invariants in a parallel round.
     //
-    // THE CONSEQUENCE, which is a §10 defect and not a cosmetic one. In Claude Code that body is
-    // re-emitted at every SessionStart and after every compaction, and it instructs the agent to run
-    // `npx @ericrisco/rsc add <id>` and `npx @ericrisco/rsc@latest reassess`. A consumer of the FORK
-    // who follows it downloads and runs the PARENT's CLI in a fork-governed project, which is
-    // literally the "reinstalar accidentalmente el padre" that §10 asks the fork to prevent.
+    // WHAT IT PINS NOW: both halves, as a pair, because neither is meaningful alone.
+    //   * the MIRROR still names the parent 81 times, and MUST — rewriting `skills/` would break the
+    //     Strategy B invariant, which is `git diff --numstat origin/main -- skills/` at 0 lines;
+    //   * the DELIVERY names it ZERO times, because the identity map runs at the install boundary.
+    // The limit did not shrink; it closed, and the two numbers together are what says so.
     //
-    // WHY IT IS NOT FIXED HERE. `PLAN.md` §3 already assigns the answer — "el renombrado de identidad
-    // forma parte de la misma transformación … un paso mecánico y auditable del mismo transformador"
-    // — and that transformation is stage 2's and stage 4's, with a declared property this stage will
-    // not break from the side: `stripGovernance(transformSkillMd(x)) === x`, asserted by
-    // `tests/md-block-fidelity.test.js`, plus the always-on byte-identity asserted by
-    // `tests/governance-always-on.test.js` and by the criterion-4 instrument. Rewriting identity
-    // inside the transformation breaks reversibility; rewriting it only in `writeAlwaysOn` breaks the
-    // byte-identity claim. Either is a decision about another stage's invariant.
-    //
-    // So: counted, named, and pinned. If the count moves in either direction, this test says so.
-    const catalog = (() => {
+    // The two invariants in the way were REFORMULATED, not dropped: `tests/governance-base.test.js`
+    // (the governance block stays additive and reversible; the identity rewrite is idempotent and
+    // exactly invertible, with per-file counts) and `tests/governance-always-on.test.js` (equal to
+    // upstream after the map, with the +70 B delta measured). The negative test that makes a
+    // parent-named consumer instruction a FAILURE is `tests/governance-suggested-commands.test.js`.
+    const countIn = (dir) => {
       let n = 0;
-      const walk = (dir) => {
-        for (const e of readdirSync(dir, { withFileTypes: true })) {
-          const path = join(dir, e.name);
+      const walk = (d) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const path = join(d, e.name);
           if (e.isDirectory()) { walk(path); continue; }
           let text;
           try { text = readFileSync(path, 'utf8'); } catch { continue; }
           n += (text.match(/@ericrisco\/rsc/g) || []).length;
         }
       };
-      walk(join(ROOT, 'skills'));
+      walk(dir);
       return n;
-    })();
+    };
+    const catalog = countIn(join(ROOT, 'skills'));
     assert.equal(catalog, 81,
-      `the frozen catalog names ${PARENT_PACKAGE} ${catalog} times, not the 81 this limit was measured at. `
-      + 'If upstream changed, re-measure and update the declared limit. If the transformation started '
-      + 'rewriting identity, this limit is closing and DISTRIBUTION.md must say so.');
+      `the frozen catalog names ${PARENT_PACKAGE} ${catalog} times, not the 81 measured. This is the `
+      + 'MIRROR, and it is supposed to: Strategy B freezes it byte-identical to upstream. If upstream '
+      + 'changed, re-measure — and check the identity map still covers every shape it uses.');
 
     const alwaysOnSource = readFileSync(join(ROOT, 'skills', 'suggest', 'SKILL.md'), 'utf8');
     const inBody = (alwaysOnSource.match(/@ericrisco\/rsc/g) || []).length;
-    assert.equal(inBody, 10, 'the always-on body\'s share of the limit');
+    assert.equal(inBody, 10, 'the always-on body\'s share of the mirror');
     assert.match(alwaysOnSource, /npx @ericrisco\/rsc add <id>/,
       'the worst case is a RUNNABLE command in the surface re-emitted every turn, not a mention in prose');
 
-    // And the shipped copy carries exactly that, which is the thing a consumer actually reads.
+    // AND THE CLOSURE: what a consumer actually reads, counted exactly the same way.
     const { applyInstall } = await import('../scripts/install-apply.js');
     const cwd = scratch('gi-limit-');
     const home = scratch('gi-limit-home-');
-    await applyInstall({ skillIds: ['suggest'], target: 'claude', home, cwd });
+    await applyInstall({ skillIds: ['suggest', 'init'], target: 'claude', home, cwd });
+
     const shipped = readFileSync(join(cwd, '.rsc', 'governance', 'always-on.md'), 'utf8');
-    assert.equal(shipped, alwaysOnSource, 'byte-identical, by design (writeAlwaysOn)');
-    assert.equal((shipped.match(/@ericrisco\/rsc/g) || []).length, inBody,
-      'so the limit reaches the consumer unchanged — which is the declaration, not an accident');
+    assert.equal((shipped.match(/@ericrisco\/rsc/g) || []).length, 0,
+      'the always-on surface names the parent zero times — the defect D16 closed');
+    assert.match(shipped, /npx @lema017\/rsc-governed add <id>/,
+      'and the command is still THERE, naming the fork: closed by rewriting, not by deleting');
+    assert.equal(countIn(join(cwd, '.rsc', 'skills')), 0,
+      'and no governed base names it either, `references/` and `evals/` included');
+    assert.equal(countIn(join(cwd, '.rsc', 'governance')), 0, 'nor any governance artifact');
+
+    // Non-vacuity: `init` is installed because its `references/` carried 15 of the 81, so an install
+    // that quietly stopped materializing reference files would otherwise read as a clean result.
+    assert.ok(readdirSync(join(cwd, '.rsc', 'skills', 'init', 'references')).length > 0,
+      'init/references/ reached the delivery, so counting zero there is a measurement');
+    assert.match(
+      readFileSync(join(cwd, '.rsc', 'skills', 'init', 'references', 'recommend-skills.md'), 'utf8'),
+      /@lema017\/rsc-governed/, 'and it names the fork',
+    );
   });
 
 test('gi12 · `rscg --version` reports under the fork\'s command name', async () => {
