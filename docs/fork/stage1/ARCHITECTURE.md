@@ -88,50 +88,74 @@ Lo encontró la revisión independiente de la etapa y lo verifiqué por mi cuent
 
 Y bajo la invariante de la Estrategia B (§1) ese archivo **es byte-idéntico a upstream para siempre**: 7 280 B, medido. Por tanto **los tres tests siguen verdes sin cambiar una sola cifra**, y los valores 8 061 / 8 061 / 8 192 que esta sección ordenaba eran innecesarios.
 
-Peor que innecesarios: habrían **destruido el triñquete en vez de moverlo**. Con el techo en 8 061, un fuente de 8 059 B pasaría mientras su entrega transformada pesaría 8 836 B — 644 B por encima del límite exterior. El techo habría quedado midiendo una magnitud equivocada por exactamente el tamaño del preámbulo, y se habrían pagado **tres divergencias permanentes** en archivos que upstream edita, a cambio de nada.
+Peor que innecesarios: habrían **destruido el triñquete en vez de moverlo**. Con el techo en 8 061, un fuente de 8 059 B pasaría mientras su entrega transformada pesaría **8 844 B** — **652 B** por encima del límite exterior (con el preámbulo actual: 785 B renderizados para `suggest`). El techo habría quedado midiendo una magnitud equivocada por exactamente el tamaño del preámbulo, y se habrían pagado **tres divergencias permanentes** en archivos que upstream edita, a cambio de nada.
 
 ### Lo que sí era real: el coste por turno, y que ningún test lo vigilaba
 
-El preámbulo **sí** llegaba al cuerpo always-on, porque ese cuerpo se renderiza desde la copia **transformada**: `scripts/install-apply.js:294` llama a `wireHook(target, paths, join(ensureBase('suggest', …), 'SKILL.md'))`, y `ensureBase` es el punto de transformación de §2. De ahí los **779 B en cada turno, en los 17 asistentes sin gancho por turno**.
+El preámbulo **sí** llegaba al cuerpo always-on, porque ese cuerpo se renderiza desde la copia **transformada**: `scripts/install-apply.js:294` llama a `wireHook(target, paths, join(ensureBase('suggest', …), 'SKILL.md'))`, y `ensureBase` es el punto de transformación de §2. De ahí los **785 B renderizados en cada turno, en los 17 asistentes sin gancho por turno** (779 con el preámbulo de entonces; el actual mide 787 B de plantilla).
 
 Las dos cosas juntas dan el diagnóstico completo: **el coste caía en la superficie más cara del producto y los tres techos no lo medían**, porque miran el fuente. Elevarlos no habría arreglado nada; habría dejado un cuarto validador vacuo.
 
 ### Y el bloque ahí no tiene referente
 
-El preámbulo dice *«read this before applying the skill below»* y apunta a `02-DOCS/wiki/skills/suggest/README.md`. En el cuerpo always-on **no hay ninguna «skill below» que se esté aplicando**: es la capa ambiental de operaciones, presente siempre. `EVALUATION.md` ya lo había declarado al excluir `suggest` de la muestra — *«la conducta “consultar la personalización antes de aplicar esta skill” no significa lo mismo para ella»* — y `evidence/transformer-feasibility.md:522` lo había dicho antes: el bloque **ya está en la skill concreta cuando se la invoca**. Se estaban pagando 779 B por turno para inyectar una regla que los propios documentos del fork declaraban sin significado en ese sitio.
+El preámbulo dice *«read this before applying the skill below»* y apunta a `02-DOCS/wiki/skills/suggest/README.md`. En el cuerpo always-on **no hay ninguna «skill below» que se esté aplicando**: es la capa ambiental de operaciones, presente siempre. `evidence/transformer-feasibility.md:520` lo había dicho antes: el bloque **ya está en la skill concreta cuando se la invoca**. (Un borrador de este párrafo citaba también a `EVALUATION.md` *«al excluir `suggest` de la muestra»* como apoyo. **Esa cita se retira:** `EVALUATION.md` §5 retiró esa exclusión por errónea, y apoyarse en un texto retractado no es apoyarse en nada. El argumento se sostiene solo: la superficie always-on no aplica ninguna skill, luego la regla no tiene referente ahí.) Se estaban pagando 785 B por turno para inyectar una regla que los propios documentos del fork declaraban sin significado en ese sitio.
 
-### La decisión: despojar el bloque en el renderizado always-on, y sólo ahí
+### La decisión: despojar el bloque en la superficie always-on, y sólo ahí
 
-La separación ya existe en el código y es exacta:
+El bloque sale de la superficie always-on y se queda en todo lo demás. **Dónde se implementa ese despojado es otra pregunta, y la primera respuesta que escribí era errónea:**
 
-| Función | Qué es | Qué se hace |
-|---|---|---|
-| `writeSkill(id, fromDir, toPath)` | Renderizado **por skill**. `_md-block.js:23` enlaza o copia; `cursor.js:4` despoja el frontmatter y conserva el cuerpo; `claude.js:9` ídem | **No se toca.** Las 274 conservan el bloque en los 18 destinos, `suggest` incluida cuando se la invoca como skill |
-| `wireHook(paths, sourceMd, policy)` | **Sólo** la superficie always-on. Tres implementaciones: `_md-block.js:27`, `cursor.js:11`, `claude.js:112`, y las tres ya hacen `stripFrontmatter(readFileSync(sourceMd,'utf8'))` | Se añade `stripGovernance()` junto a ese `stripFrontmatter`: borra entre `<!-- rsc-governance:begin v1 -->` y `<!-- rsc-governance:end -->` |
+### CORRECCIÓN 2: el despojado NO puede vivir en `wireHook`. Lo encontró la re-revisión y lo verifiqué
 
-Determinista e idempotente, como el resto de la transformación, y en el punto donde ya se despoja contenido por la misma razón.
+El párrafo anterior de esta sección afirmaba que las tres implementaciones de `wireHook` *«ya hacen `stripFrontmatter(readFileSync(sourceMd,'utf8'))»*, y que bastaba añadir un `stripGovernance()` al lado. **Es falso para `claude`, que es el único destino con imposición por código y el asistente de referencia de la evaluación.** Medido:
 
-**Resultado, en las cuatro magnitudes que importan:**
+| Hecho | Evidencia |
+|---|---|
+| `claude.js` **nunca lee** `sourceMd` | `grep -c sourceMd targets/claude.js` → **1**, y es la firma (`:112`). El parámetro se ignora |
+| `claude.js` no renderiza ningún cuerpo | Escribe `settings.json` y guarda una **ruta**: `suggestRel` (`:137`) apunta a `.claude/skills/suggest/SKILL.md` |
+| El cuerpo lo lee el **hook, en ejecución**, entero | `targets/session-start.mjs:52`: `process.stdout.write(readFileSync(suggestMd,'utf8'))`. Ni frontmatter despoja |
+| Y ese archivo **es** la skill transformada | `claude.js:9-15` → `linkOrCopy` (`targets/index.js:20-32`): `.claude/skills/suggest` es un **symlink** a `.rsc/skills/suggest`. Mismo archivo, mismo inodo |
 
-| | Diseño retirado | Diseño adoptado |
+Luego en Claude Code el bloque se inyectaría **en cada SessionStart y tras cada compactación**, y no hay ningún `stripFrontmatter` junto al que poner nada.
+
+**Y la consecuencia peor, que no es de bytes:** `EVALUATION.md` elige `claude` como asistente de referencia para las 447 ejecuciones de amplitud. Si el arranque de sesión inyecta las cinco reglas, **toda** sesión de evaluación empieza con la gobernanza ya en contexto, porte o no la skill bajo prueba el bloque. Eso no encarece la medición: **la invalida**, y en particular hace **inmedible G3** (fallback sin personalización), que es una de las dos conductas de seguridad.
+
+### El diseño correcto: el transformador emite su propio archivo always-on
+
+Ni lo que yo escribí ni exactamente lo que propone la re-revisión. El mecanismo **ya existe en el código**: `claude.js:139-148` materializa `.rsc/suggest-always-on.md` y reapunta `suggestRel` cuando `codeHooks === false && !laneGate`. Se generaliza:
+
+1. El transformador emite `.rsc/governance/always-on.md` = el cuerpo de `suggest` **sin el bloque**. Determinista e idempotente, como el resto.
+2. `scripts/install-apply.js:294` pasa **esa** ruta a `wireHook` en vez de `join(ensureBase('suggest', …), 'SKILL.md')`.
+3. `claude.js` reapunta `suggestRel` a ese archivo **en todos los casos**, no sólo en la rama `codeHooks === false && !laneGate`.
+
+Lo que esto consigue y lo anterior no: `_md-block.js` y `cursor.js` **no se tocan** — leen el `sourceMd` que se les da, así que cambiar el argumento basta. El coste se concentra en dos archivos y uno de ellos iba a cambiar de todos modos.
+
+### CORRECCIÓN 3: «0 divergencias» era falso. La cifra honesta es 1 añadida
+
+La tabla anterior ponía **0** divergencias permanentes, y tres secciones antes este mismo documento ya clasificaba parchear un adaptador como *«divergencia de código, no transformación de contenido»*. Medir con dos varas.
+
+| | Diseño retirado (techos) | Diseño adoptado |
 |---|---|---|
 | Conformidad | 274/274 | **274/274** |
-| Coste por turno en 17 asistentes | 779 B (~200 tokens, con el preámbulo de entonces; hoy 787) | **0 B** |
+| Coste por turno en los 17 sin gancho | 779 B con el preámbulo de entonces (hoy **785** renderizados para `suggest`) | **0 B** |
+| Coste por sesión en `claude` | 785 B en cada SessionStart y tras cada compactación | **0 B** |
 | Techos que cambian | 3 | **0** |
-| Divergencias permanentes con upstream | 3 (4 archivos) | **0** |
+| Divergencias permanentes con upstream | **3** (`clone-bootstrap`, `ftd-lane`, `always-on-body`, más un comentario) | **1 añadida**: `targets/claude.js`, una línea. `scripts/install-apply.js` ya diverge por necesidad: es el punto de transformación y la razón de ser del fork |
+
+**Por qué se paga esa divergencia en vez de evitarla:** sin ella, `claude` —el único destino que puede **denegar** y el de referencia de la evaluación— pagaría el bloque en cada sesión y la medición de G3 quedaría inservible. Una línea que reasigna una variable es además el conflicto más barato de resolver cuando upstream toque el archivo. La máquina de mantenimiento de §9 debe avisar cuando upstream toque `targets/claude.js`.
 
 La decisión del usuario se cumple en su letra: el validador determinista del criterio 4 corre sobre la base distribuida `.rsc/skills/`, donde las 274 portan el contrato y un 273 es un fallo.
 
-### Lo que hay que medir, ya que los techos de upstream no sirven para esto
+### Lo que hay que medir
 
-Dos tests propios del fork, porque los tres de upstream se quedan midiendo lo que siempre midieron y **no se tocan**:
+Los tres techos de upstream se quedan midiendo lo que siempre midieron y **no se tocan**. Hacen falta **tres** tests propios, no dos:
 
-1. **Base distribuida:** las 274 de `.rsc/skills/<id>/SKILL.md` portan el bloque y las tres claves, con el digest correcto. Es el instrumento del criterio 4.
-2. **Entrega always-on:** el cuerpo que escribe `wireHook` **no** contiene el bloque, y su tamaño es el de upstream — es decir, el fork **no añade ni un byte** a la superficie por turno. Test negativo, que es el que cierra la puerta a reintroducir el coste por descuido.
+1. **Base distribuida:** las 274 de `.rsc/skills/<id>/SKILL.md` portan el bloque y las tres claves, con el digest correcto. Instrumento del criterio 4.
+2. **Entrega always-on, los 18 destinos:** el archivo que el hook de cada destino acaba leyendo **no** contiene el bloque, y su tamaño es el de upstream. **Para `claude` el test debe seguir la ruta que guarda `settings.json`**, no lo que devuelve `wireHook`, porque ahí `wireHook` no devuelve ningún cuerpo — era el defecto del test que esta sección definía antes, vacuo justamente en el único destino con imposición.
+3. **Entrega por skill:** el `SKILL.md` entregado conserva el bloque en los 18, y el `.mdc` de Cursor también — que es la única entrega **transformada** (`cursor.js:7`) y por tanto la única donde un fallo de renderizado no lo vería ni el validador de la base ni el digest.
 
 ### Cuándo se aplica
 
-En la **Etapa 4**, con el transformador. Los tres techos de upstream quedan **sin tocar**, así que ya no hay nada que coordinar con la medición de la línea base, ni archivos que marcar para la máquina de mantenimiento de §9 por este motivo.
+En la **Etapa 4**, con el transformador.
 
 ---
 
@@ -238,7 +262,7 @@ Aplicado a las 274 el preámbulo literal de `PREAMBLE-v1.txt` más las tres clav
 | `manifest:check` | **Adoptar** | Determinista, ~5 s. Es el guardián de la **entrada** de `routing:audit` |
 | `drift:check` | **Adoptar** | Determinista, 886 enlaces |
 | `originality:check` | **Adoptar** | Determinista y **offline** (huellas fijadas en `schema/ecc-originality.u64`). Hoy sólo en `release`; debe estar en el paquete base |
-| `npm test` | **Adoptar sólo como puerta de release** | 2 h 17 min. Nunca en el ciclo de iteración |
+| `npm test` | **Adoptar sólo como puerta de release** | **≈ 1 h 48 m medidos** en serie (~~2 h 17 m~~, cifra de 3.7.1 bajo contención, revisada el 2026-11-01). Nunca en el ciclo de iteración |
 | `prepublishOnly` | **Adoptar y ampliar** | Ya activo y **no omitible** en `publish`; le faltan `eval-lint` y `routing:audit` |
 | `eval-lint.sh` | **Arreglar primero** | Falla en abierto, y el arreglo es casi gratis: `warned_skip` se calcula bien y está **desconectado del código de salida** (`:220-230`). Su dependencia profunda (PyYAML) sería instalación global, prohibida por §1 |
 | `routing:audit` | **Arreglar primero** | Rojo por **2 casos de 1 339**, con `top-5` exactamente en el suelo (margen 0). Mide ruido con la misma sensibilidad que señal |

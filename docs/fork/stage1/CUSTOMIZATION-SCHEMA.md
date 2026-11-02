@@ -72,7 +72,7 @@ The middle two are the ones that make this schema worth having. Upstream's exist
 
 ---
 
-## 3. Validation rules (the deterministic half of criterion 10)
+## 3. Validation rules (the deterministic half of criteria 8 and 10)
 
 A validator checks, with no model involved:
 
@@ -93,7 +93,7 @@ A validator nobody invokes is not an instrument. It runs in exactly two places, 
 
 | Point | When | Why there |
 |---|---|---|
-| `npm run gate` | Every local run of the deterministic package (130 s measured) | The only gate that exists today with Actions disabled |
+| `npm run gate` | **Does not exist yet.** `package.json` defines no `gate` script; it is a Stage 6 deliverable, and the "130 s" figure measured a manual sum of six scripts, not a gate. Written here as the intended second point, in the future tense it deserves | Would be the only gate with Actions disabled |
 | `install` and `sync` | Whenever `02-DOCS/wiki/skills/` exists in the project | Catches a broken file at the moment the harness is set up, not silently three skills later. The harness already walks the project tree here |
 
 **Its negative test, which is what makes criterion 8 falsifiable:** feed it a file with broken YAML, a missing `scope`, and a decision that tries to disable a guard. Each must produce a **named** error identifying the file and the rule. Silence, or an error that does not name the file, fails the test.

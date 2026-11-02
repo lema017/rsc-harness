@@ -138,7 +138,7 @@ Reserva de elevación a N=5                           =  57
                                                total =  600
 ```
 
-Celdas totales: **181** (49 + 100 + 32). La reserva de 57 ejecuciones eleva **28 celdas** a N=5.
+Celdas totales: **181** (49 + 100 + 32). La reserva de 57 ejecuciones eleva **28 celdas** a N=5, que consumen 56: **queda 1 ejecución sin asignar**, y se deja así en vez de redondear el reparto, porque 543 + 56 = 599 y el techo es 600. Una ejecución de holgura no es un error de aritmética: es lo que queda cuando ningún reparto entero cuadra.
 
 ### Y la reserva no alcanza en el caso mediano. Queda dicho antes de medir
 
@@ -290,6 +290,6 @@ Registrado aquí para que al cerrar no se confunda silencio con éxito (criterio
 | Amplitud de skills en 4 de los 5 asistentes | Compran paridad, no proporción. Dicho así en el informe |
 | Afirmaciones «≥ 95 %» | Imposibles con ~600 ejecuciones (§8). Los umbrales se mantienen como objetivo; lo afirmable es el límite inferior exacto |
 | Celdas ambiguas por encima de 28 | La reserva no alcanza en el caso mediano (§7). Se reportan como inconclusas, con nombre |
-| La superficie **always-on** | El bloque ya no se inyecta ahí (`ARCHITECTURE.md` §4), así que no hay conducta de gobernanza que medir. Lo cubre un test negativo determinista |
+| La superficie **always-on** | La transformación de la Etapa 4 la deja **sin** el bloque (`ARCHITECTURE.md` §4), así que no hay conducta de gobernanza que medir. Lo cubre un test negativo determinista |
 | 13 de los 18 asistentes | Fuera del alcance elegido por el usuario |
 | Windows | `targets/index.js` copia archivos reales en vez de crear symlinks y no hay entorno Windows en esta máquina |
