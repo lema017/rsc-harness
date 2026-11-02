@@ -16,17 +16,18 @@
 //
 //   2. THE DIVERGENCE SURFACE IS MEASURED, NOT LISTED. `docs/fork/stage1/ARCHITECTURE.md` §4 names
 //      "3 archivos y 4 puntos"; its CORRECCIÓN 5 measured EIGHT; stages 2, 5 and 6 and D16 have
-//      since taken it to FIFTY-THREE files that upstream owns and the fork has modified. Every one
-//      of those three numbers was true when it was written, which is the whole argument: a
-//      hand-written list goes stale the first time somebody fixes a bug, and this fork has now
-//      proved it twice. So the list of files comes from git, every time, and the hand-written half
-//      is only the INTENT of each divergence — see `DIVERGENCE_PROBES`, which a test holds
-//      exhaustive over the measured surface.
+//      since taken it PAST SIXTY files that upstream owns and the fork has modified — and it grew
+//      by nine while the probe table below was being written, which is the argument in one
+//      sentence. Every one of those numbers was true when it was written. A hand-written list goes
+//      stale the first time somebody fixes a bug, and this fork has now proved it three times. So
+//      the list of files comes from git, every time, and the hand-written half is only the INTENT
+//      of each divergence — see `DIVERGENCE_PROBES`, which a test holds exhaustive over the
+//      measured surface.
 
 import { spawnSync } from 'node:child_process';
 // The identity tokens come from D16's own map, not retyped here: a probe that spelled the parent
 // specifier a second time could drift from the transformation it is supposed to be watching.
-import { PARENT_PACKAGE } from './governance.js';
+import { FORK_PACKAGE, PARENT_PACKAGE } from './governance.js';
 
 /** Paths whose change can never be a catalog change. Everything under `skills/` is the catalog. */
 const CATALOG_PREFIX = 'skills/';
@@ -307,8 +308,9 @@ export function classifyCatalogChanges({ cwd, base, head, threshold = 50 }) {
  *
  *   present   the renamed token is still there. A merge that reverts it leaves a message, a help
  *             string, a hook assertion or a comment telling the reader to run the PARENT.
- *   absent    `@ericrisco/rsc` has not come BACK. Measured at zero occurrences across all 53
- *             divergent files, so this is a probe and not a wish. A `present` probe alone cannot
+ *   absent    `@ericrisco/rsc` has not come BACK. Measured at zero occurrences in every divergent
+ *             file that carries this probe, so it is a probe and not a wish. A `present` probe
+ *             alone cannot
  *             see an upstream merge that ADDS a new line naming the parent beside the renamed one,
  *             and that is the §10 accident stage 6 measured: *"un fork que renombrase su paquete y
  *             dejase esas dos cadenas intactas habría pasado la suite completa y habría enviado a
@@ -349,8 +351,8 @@ const identity = (fragment, where) => [
  * surface, so a new divergence with no probe fails a test instead of being silently unwatched.
  *
  * ONLY THE MODIFIED HALF OF THE SURFACE IS PROBED, and that is a decision with an argument. The
- * fork has ADDED 25 files (`schema/governance/`, `scripts/lib/governance.js`, the eleven
- * `governance-*.test.js`, …). An upstream merge cannot revert them: upstream has no version of them
+ * fork has also ADDED two dozen files (`schema/governance/`, `scripts/lib/governance.js`, the
+ * `governance-*.test.js` suite, …). An upstream merge cannot revert them: upstream has no version of them
  * to merge, so there is no text for it to win. The one thing it CAN do is create the same path, and
  * that case is already instrumented elsewhere — `collisions()` returns them as `onForkAdded` with
  * severity `medium` — while what those files MEAN is held by their own tests, which G8 runs. A
@@ -561,6 +563,141 @@ export const DIVERGENCE_PROBES = Object.freeze({
       fragment: '/rsc repair/',
       why: 'the vacuous form must stay deleted; re-introducing it restores a green test that '
         + 'measures nothing',
+    },
+  ],
+  'README.md': [
+    {
+      kind: 'present',
+      fragment: FORK_PACKAGE,
+      why: '§10 names `documentación` among the surfaces that must not send a consumer to reinstall '
+        + "the parent. README.md is upstream's most-churned file, so a merge that wins here leaves a "
+        + 'README presenting the fork AS the parent, with the parent\'s install command — the §10 '
+        + 'accident in its purest form, and one no test would see',
+    },
+    {
+      kind: 'present',
+      fragment: 'A governed fork of',
+      why: "§10 + REQUIREMENTS §13: the disclosure is the first line of the document, not a footnote",
+    },
+    // AND DELIBERATELY NO `absent` PROBE ON THE PARENT SPECIFIER. This is a divergence where
+    // naming the parent is the REQUIREMENT and not the defect: the README names
+    // `ericrisco/rsc-harness` ten times on purpose — the fork disclosure, the non-affiliation
+    // statement, and a parent-versus-fork comparison table that prints `@ericrisco/rsc` next to
+    // `@lema017/rsc-governed` precisely so the two cannot be confused. Measured: 2 occurrences of
+    // the parent specifier, all of them inside that contrast. A blanket absent-probe here would
+    // fail on the very text that discharges the requirement, which is how a probe becomes noise.
+  ],
+
+  // ── The published site and the security policy ─────────────────────────────────────────────────
+  //
+  // Two sub-classes, and the difference is what the `absent` side may say:
+  //
+  //   MACHINE-READ    a host, a sitemap, an API call. Nothing here is attribution, so the parent's
+  //                   host must be absent outright — and these are the ones nothing else checks,
+  //                   because `site/` ships ZERO files in the npm tarball (`files` is scripts,
+  //                   targets, schema, skills, manifest.json). A revert reaches VISITORS, not a
+  //                   consumer's `node_modules`, so no install-time test can ever see it.
+  //   DOCUMENTARY     prose that names the parent ON PURPOSE: the fork disclosure, the MIT
+  //                   copyright notice, the non-affiliation statement, the routing of a
+  //                   vulnerability in inherited code to the party that can fix it for everyone.
+  //                   `present`-only, for the same reason as `README.md`.
+  'site/robots.txt': [
+    {
+      kind: 'present',
+      fragment: 'https://lema017.github.io/rsc-harness/sitemap.xml',
+      why: "§10: the fork's own site must advertise the fork's own sitemap. Reverted, this points "
+        + "every crawler at the PARENT's sitemap, and the fork's pages leave the index",
+    },
+    {
+      kind: 'absent',
+      fragment: 'ericrisco.github.io',
+      why: "the parent's Pages host is never the right answer in a machine-read file: this one is "
+        + 'not attribution, it is a destination',
+    },
+  ],
+  'site/sitemap.xml': [
+    {
+      kind: 'present',
+      fragment: '<loc>https://lema017.github.io/rsc-harness/</loc>',
+      why: "§10: the canonical URLs the fork submits are the fork's. Reverted, the fork's sitemap "
+        + "declares the PARENT's pages as its own canonical set",
+    },
+    { kind: 'absent', fragment: 'ericrisco.github.io', why: "as in `robots.txt`: a destination, not attribution" },
+  ],
+  'site/assets/rsc.js': [
+    {
+      kind: 'present',
+      fragment: 'api.github.com/repos/lema017/rsc-harness',
+      why: "the star count on the fork's own page is the FORK's. Reverted, the page advertises the "
+        + "parent's popularity as its own — measured by nothing, visible to everyone",
+    },
+    { kind: 'absent', fragment: 'repos/ericrisco/rsc-harness', why: "the parent's repository is not this page's subject" },
+  ],
+  'site/diagram.svg': identity(
+    'npx @lema017/rsc-governed@latest',
+    'the install command RENDERED INTO an image, where no test and no linter will ever read it',
+  ),
+  'site/index.html': [
+    {
+      kind: 'present',
+      fragment: 'https://lema017.github.io/rsc-harness/',
+      why: "§10: the canonical and JSON-LD `@id` of the fork's own page. Reverted, the page tells "
+        + "search engines and agents that it IS the parent's page",
+    },
+    {
+      kind: 'present',
+      fragment: 'github.com/lema017/rsc-harness',
+      why: "the links a visitor clicks go to the fork. The parent's repository URL is ALSO here, "
+        + "three times, deliberately — the fork disclosure — plus the author's profile twice in the "
+        + 'JSON-LD, which MIT attribution requires: hence no blanket absent-probe, only the host one',
+    },
+    { kind: 'absent', fragment: 'ericrisco.github.io', why: "the parent's Pages HOST, as opposed to its repository link, is never attribution" },
+  ],
+  'site/es/index.html': [
+    {
+      kind: 'present',
+      fragment: 'https://lema017.github.io/rsc-harness/',
+      why: '§10, Spanish page: same canonical claim as `site/index.html`. Two pages, two reverts, '
+        + 'and a merge can win one and lose the other',
+    },
+    { kind: 'present', fragment: 'github.com/lema017/rsc-harness', why: 'as in `site/index.html`' },
+    { kind: 'absent', fragment: 'ericrisco.github.io', why: 'as in `site/index.html`' },
+  ],
+  'site/llms.txt': [
+    {
+      kind: 'present',
+      fragment: FORK_PACKAGE,
+      why: 'THE INSTRUCTION FILE FOR AGENTS. It is read by a model and acted on, so a revert here '
+        + 'is not a wrong label: it is an agent running the parent\'s installer in a user\'s project',
+    },
+    {
+      kind: 'present',
+      fragment: 'rscg sync',
+      why: 'the runnable commands an agent copies out of this file name the fork\'s binary',
+    },
+    {
+      kind: 'present',
+      fragment: 'not affiliated with or endorsed by',
+      why: '§10 non-confusion, stated to the one reader who cannot infer it. The parent IS named '
+        + 'twice here on purpose — the MIT copyright line and the "Forked from" link — so there is '
+        + 'no absent-probe on the parent, only this positive claim',
+    },
+  ],
+  'SECURITY.md': [
+    {
+      kind: 'present',
+      fragment: FORK_PACKAGE,
+      why: "§10: the policy's subject is the fork, including the fact that nothing is published yet "
+        + 'so a fix is a commit and not a release',
+    },
+    {
+      kind: 'present',
+      fragment: 'governed fork of',
+      why: 'the disclosure the policy opens with. The parent is named FOUR times in this file on '
+        + 'purpose: the disclosure plus the MIT copyright notice, and the routing of a vulnerability '
+        + 'in INHERITED code to the parent\'s advisory form — which is correct, because that is the '
+        + 'only party who can fix it for everyone downstream. None of the four is runnable, so the '
+        + 'specifier count is 0 and there is no absent-probe here',
     },
   ],
   'tests/worktree-reaper.test.js': [{

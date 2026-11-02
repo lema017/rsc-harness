@@ -677,9 +677,13 @@ const BY_DESIGN = [
   [/^scripts\/(lib\/)?upstream-|^tests\/governance-upstream-maintenance\.test\.js$/,
     'the stage-5 maintenance machine, whose job is to LOOK FOR the parent\'s name in the fork\'s artifacts'],
   [/^scripts\/lib\/governance\.js$/, 'D16\'s identity map: the token table that performs the rename'],
-  [/^tests\/governance-(identity|always-on|gate)\.test\.js$|^tests\/worktree-reaper\.test\.js$/,
+  [/^tests\/governance-(identity|always-on|gate|suggested-commands)\.test\.js$|^tests\/worktree-reaper\.test\.js$/,
     'tests that ASSERT about the parent\'s name, which is the opposite of leaking it — this file '
-    + 'included: the sweep below quotes what it is hunting for, and found itself on the first run'],
+    + 'included: the sweep below quotes what it is hunting for, and found itself on the first run. '
+    + '`governance-suggested-commands` joined the group after D16: a test that proves no consumer-'
+    + 'visible instruction names the parent has to PLANT one to detect it, which is the same reason '
+    + '`gi03` excepts the identity map. Added by the coordinator, not by the stage that wrote the '
+    + 'list — D16 landed after it, so the sweep caught a genuine gap rather than a stale entry'],
 ];
 
 /**

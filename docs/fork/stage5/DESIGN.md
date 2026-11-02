@@ -185,7 +185,9 @@ abierta.
 ## 5. La superficie de divergencia: medida, no listada
 
 `ARCHITECTURE.md` §4 dice «**3 archivos y 4 puntos**» y encarga a esta máquina «avisar de los tres».
-**Medido, son ocho archivos**, y la medición es la única forma de que la lista no envejezca:
+**Medido cuando se escribió esto, eran ocho archivos**; hoy son **62** (§«La tabla, ampliada de 8 a
+62»). Cuatro números distintos, los cuatro ciertos en su momento: por eso la medición es la única forma
+de que la lista no envejezca, y por eso ni este documento ni el test citan una lista de archivos.
 
 ```
 git diff --name-only --diff-filter=M origin/main HEAD -- . ':(exclude)docs/'
@@ -215,14 +217,118 @@ citado y el motivo. Dos tipos:
 
 **No se citan números de línea en ninguna sonda.** Y G7 falla también cuando un archivo de la
 superficie medida **no tiene sonda**, así que una divergencia nueva se reporta en vez de quedarse sin
-vigilar. Medido: `G7` con `surface.modified = ['scripts/install-apply.js', 'scripts/audit.js']` →
-`ok: false`, `unprobed: ['scripts/audit.js']`.
+vigilar. Medido: `G7` con `surface.modified = ['scripts/install-apply.js', 'LICENSE']` →
+`ok: false`, `unprobed: ['LICENSE']`.
 
-> **Límite consciente.** El test afirma la exhaustividad sobre los **ocho archivos medidos hoy**, no
-> sobre la superficie en tiempo de ejecución, porque la Etapa 6 está modificando ~50 archivos en
-> paralelo y un test que afirmara la superficie viva rompería la suite de otra etapa. Una divergencia
-> nueva se caza **en el mantenimiento, por G7**, que es donde importa. Está dicho aquí para que no se
-> lea como una garantía que no existe.
+### La tabla, ampliada de 8 a 62: el hueco que G7 denunciaba con razón
+
+El **límite consciente** que esta sección declaraba —el test afirmaba la exhaustividad sobre los ocho
+archivos de entonces y no sobre la superficie viva— **está cerrado**, y conviene dejar escrito cómo
+estaba de abierto. Las Etapas 2, 5 y 6 y la decisión D16 llevaron la superficie de 8 a **53 archivos
+modificados**; la tabla seguía con 8 entradas, así que **43 divergencias no tenían sonda** y G7
+fallaba. Fallaba **bien**: una divergencia sin vigilar es exactamente lo que G7 existe para
+denunciar. El agente de la Etapa 5 se negó a ampliar la tabla a ciegas —«ampliarla habría sido
+inventar intenciones»— y tenía razón: decidir qué es cada divergencia exige leer los diffs.
+
+**Y la superficie creció nueve archivos mientras se escribía la tabla.** La Etapa 7 commiteó
+`README.md` primero y después `SECURITY.md` y los siete de `site/`: 53 → 54 → **62**. No es una
+anécdota, es la demostración del diseño — G7 los denunció uno por uno, por su nombre, en la ejecución
+siguiente. Los números de esta sección son los de la medición final; el único dato que no envejece es
+el comando.
+
+Leídos uno a uno (`git diff 481b1ec9 -- <archivo>`), las divergencias caen en **tres clases**:
+
+| Clase | Cuántos | Qué dice la sonda |
+|---|---|---|
+| **Intención propia** | **23** | Un fragmento por punto, con su motivo. Las 8 de antes, más `ci.yml` (mínimo privilegio, `fetch-depth: 0`, `npm run gate`, y el `! grep` que convertía el exit 2 en PASS), `scripts/rsc.js` (`conformance`, `brownfield`, la rama *dry* de D13), `scripts/lib/backups.js` (`snapshotSkillBases`, M3), `scripts/lib/onboarding-apply.js` (D13 en el rollback), `targets/auto-update.mjs` (la URL del registro y el `argv` de `npx`), las dos aserciones negativas de `tests/hooks-path.test.js` y `tests/worktree-reaper.test.js`, y las siete superficies publicadas (`README.md`, `SECURITY.md`, `site/{index,es/index}.html`, `site/llms.txt`, `site/{robots.txt,sitemap.xml,assets/rsc.js}`) |
+| **Renombrado de identidad (D16) y nada más** | **39** | Una sola frase repetida, escrita **una vez** en el *helper* `identity()`. La regla es la de `stage6/DESIGN.md` §1: se renombra lo que el fork **es** y lo que un lector puede **ejecutar** |
+| **Sin sonda, por argumento** | 26 añadidos | Ninguna: ver abajo |
+
+**Total: 62 entradas, 144 sondas** (85 `present`, 59 `absent`).
+
+**La sonda de identidad es de dos caras, y las dos muerden.** `present` sobre el token renombrado del
+archivo —corto a propósito: el token más el contexto justo para ser único, porque una línea larga se
+rompe cuando upstream **reformatea** un comentario, que no es una reversión— y `absent` sobre
+`@ericrisco/rsc`, **medido a 0 ocurrencias en cada archivo que la lleva** (39 de 62). La cara `absent` existe
+porque `present` sola no ve el accidente que la Etapa 6 midió: un merge que **añade** una línea
+nombrando al padre junto a la renombrada, y entonces *«habría pasado la suite completa y habría
+enviado a cada consumidor a instalar el padre encima del fork»*. `targets/auto-update.mjs` lleva
+además una sonda `absent` sobre `@ericrisco%2frsc`, porque la URL del registro va
+**percent-encoded** y la sonda genérica no la ve.
+
+**Dónde la sonda `absent` del padre NO se pone, decidido archivo por archivo y no por barrido.** Hay
+una clase de divergencia en la que **nombrar al padre es el requisito y no el defecto**, y ponerle un
+barrido la habría roto:
+
+- **Las seis superficies documentales** — `README.md`, `SECURITY.md`, `site/llms.txt` y las dos
+  `index.html`. §10 pide «evitar reinstalar accidentalmente el padre» en la **documentación**, y la
+  forma de cumplirlo es precisamente nombrarlo: la revelación de que esto es un fork, el aviso de
+  **no afiliación**, el **aviso de copyright MIT** del autor original, y —en el README— una tabla que
+  imprime `@ericrisco/rsc` **al lado** de `@lema017/rsc-governed` justo para que no se confundan. En
+  `SECURITY.md` va más lejos y es más importante: una vulnerabilidad en código **heredado** se
+  reporta al formulario de avisos del padre, porque es el único que puede arreglarla para todos los
+  de abajo. Sondas `present` (el especificador del fork, la frase de revelación, los comandos
+  ejecutables); `absent` ninguna.
+- `tests/worktree-reaper.test.js` **nombra al padre a propósito**, dentro de
+  `/^npx @(ericrisco\/rsc|lema017\/rsc-governed) worktrees reap /m`. Es el mismo defecto que
+  `tests/hooks-path.test.js`: un `doesNotMatch` que sólo nombra al padre pasa **gratis** en cuanto el
+  fork se renombra. No lleva sonda `absent` del especificador del padre, y está dicho en su `why`.
+
+**Y el reverso: tres superficies de `site/` donde el padre no es atribución sino un destino**, y ahí
+la sonda `absent` es la más afilada de la tabla — sobre el *host* (`ericrisco.github.io`) o sobre la
+ruta de la API (`repos/ericrisco/rsc-harness`), no sobre el especificador:
+
+| Archivo | Qué pasa si upstream gana el merge |
+|---|---|
+| `site/robots.txt` | El `robots.txt` del fork manda a cada *crawler* al **sitemap del padre** |
+| `site/sitemap.xml` | El sitemap del fork declara las páginas **del padre** como su conjunto canónico |
+| `site/assets/rsc.js` | La página del fork anuncia las **estrellas del padre** como si fueran suyas |
+
+Y la distinción fina que esto obliga a hacer en las dos `index.html`: el **host** de Pages del padre
+nunca es atribución (sonda `absent`), pero su **enlace al repositorio** sí lo es — tres veces por
+página, más dos al perfil del autor en el JSON-LD, que es lo que exige MIT. Mismo archivo, dos
+veredictos opuestos sobre el mismo token: eso es lo que un `sed` o un barrido no pueden decidir.
+
+**`site/` no viaja en el tarball** (`files` es `scripts targets schema skills manifest.json`), así que
+una reversión aquí llega a **quien visita el sitio**, no al `node_modules` de un consumidor: ningún
+test de instalación puede verla. Y `site/diagram.svg` lleva el `npx` **renderizado dentro de una
+imagen**, donde no lo lee ningún test ni ningún linter. Son exactamente las divergencias que sólo una
+sonda puede vigilar.
+
+### Por qué la superficie vigilada son los **modificados** y no los 26 añadidos
+
+No es una omisión: es que la sonda no puede fallar ahí. Un merge de upstream **no puede revertir** un
+archivo que el fork añadió, porque upstream no tiene una versión suya con la que ganar. Lo único que
+puede hacer es **crear la misma ruta**, y ese caso ya está instrumentado en otro sitio: `collisions()`
+lo devuelve como `onForkAdded` con `severity: medium`. Y lo que esos archivos **significan** lo
+sostienen sus propios tests, que G8 ejecuta. Una entrada de la tabla para ellos comprobaría, en cada
+ejecución y para siempre, que un archivo que escribió el fork sigue diciendo lo que escribió el fork:
+**una comprobación que no puede fallar**, que es el defecto A3 de esta misma etapa. El argumento está
+**afirmado en el test**, no sólo escrito aquí: `live.added` no lleva sondas, y una colisión de
+upstream sobre uno de ellos sí se reporta.
+
+### La mutación: la prueba de que las sondas muerden
+
+Cuatro instrumentos de este proyecto han tenido una comprobación que no podía fallar, así que el
+verde no se cree: se rompe. Dos divergencias **reales** del árbol, roturas distintas a propósito, y
+restauradas después byte a byte (`git diff --numstat` vacío en las dos):
+
+```
+# targets/claude.js  — se revierte el fragmento `present` (el ejemplo de ARCHITECTURE §4)
+# scripts/lib/upgrade.js — se añade `npx @ericrisco/rsc@latest`, la cara `absent`
+FAIL G7  every fork divergence survived the merge in intent, not only in text
+     scripts/lib/upgrade.js: reverted-to-upstream fragment reappeared · targets/claude.js: intent fragment missing
+     unprobed=0  probe failures=2
+```
+
+G7 **nombra los dos archivos** y distingue las dos clases de fallo: «el fragmento de intención
+falta» no es lo mismo que «el fragmento revertido reapareció». Restaurados, vuelve a `PASS`.
+
+> **Límite que queda.** El test mide la superficie contra el **árbol de trabajo**, igual que G7. Si
+> otra ronda modifica un archivo de upstream mientras esta suite corre, el test se pone rojo pidiendo
+> una sonda para él. Eso **es** el comportamiento correcto —pasó durante esta misma sesión con
+> `README.md`, y así se descubrió— pero significa que la tabla y el árbol se mantienen al día
+> juntos, no por separado.
 
 ### La colisión, medida sobre datos reales
 
@@ -397,6 +503,11 @@ forma determinista de probar esto es lo que permite que la suite corra donde no 
 | El gate con reconocimientos | `--resume --authorize validate --ack G6=… --ack G11=…` | `pass: 11/11` (antes de G12) |
 | `null` en `RETIRED_SKILLS` | `node -e` sobre `replaceRetired` | `['flutter', null]` |
 | La suite de la etapa | `node --test --test-concurrency=1 tests/governance-upstream-maintenance.test.js` | **22/22, 0 cancelados, 9,0 s** |
+| **La superficie viva, tras las Etapas 2/5/6/7 y D16** | `git diff --name-status 481b1ec9 -- . ':!docs/fork'` | **62 modificados · 26 añadidos** |
+| **La tabla cubre la superficie viva** | `DIVERGENCE_PROBES` vs. `divergenceSurface({ cwd, base })` | 62 entradas, **144 sondas** (85 `present`, 59 `absent`), `unprobed=0` |
+| **G7 sobre la superficie viva** | `G7.run({ cwd, surface: divergenceSurface({ cwd, base: lastIncorporated(…).base }) })` | `PASS · 62 divergence(s) intact · unprobed=0 · failures=0` |
+| **La mutación: G7 muerde y nombra** | Revertir el `present` de `targets/claude.js` y reañadir `@ericrisco/rsc` en `scripts/lib/upgrade.js` | `FAIL`, **nombra los dos**, `failures=2`; restaurados byte a byte |
+| La suite de la etapa, ampliada | `node --test tests/governance-upstream-maintenance.test.js` | **51/51, 0 fallos** |
 
 Todo con `. ./.fork-tmp/env.sh` cargado. **Ninguna duración medida aquí es autoritativa** (L7).
 
@@ -411,7 +522,7 @@ Todo con `. ./.fork-tmp/env.sh` cargado. **Ninguna duración medida aquí es aut
 | NV-E5-3 | `tests/eval-lint.test.js` | Escribe en `/tmp` literal (L2, §1). **Nunca se ejecuta** y está declarado en `NEVER_RUN` con su motivo, para que «no verificado» no se lea como «aprobado» |
 | NV-E5-4 | **La fase `publish` con `--promote`** | Habría fusionado una rama en `main` del fork. Se verificó la **puerta**: con veredicto distinto de `pass` la fase devuelve `blocked` y deja intacta la versión estable; sin `--promote` registra `authorized-not-performed` e imprime el comando |
 | NV-E5-5 | La release de npm | No es de esta etapa. `release.yml` es `workflow_dispatch` (R6) y la distribución es de la Etapa 6. El flujo lo registra como la acción manual restante |
-| NV-E5-6 | G7 sobre la superficie **viva** tras el commit de la Etapa 6 | Ver el límite en §5. La divergencia nueva se caza en el mantenimiento, no en mi test |
+| NV-E5-6 | ~~G7 sobre la superficie **viva** tras el commit de la Etapa 6~~ **CERRADO.** La tabla pasó de 8 a **62 entradas / 144 sondas** leyendo los diffs uno a uno, y G7 pasa sobre la superficie medida en ejecución: `PASS · 62 divergence(s) intact · unprobed=0`. El test ya no cita una lista: la **mide** contra el árbol de trabajo, igual que G7. Y el verde está mutado: ver §5, «La mutación» | Lo que **sigue** sin verificar es el fetch real (NV-E5-1), que no cambia |
 
 ---
 
@@ -471,3 +582,182 @@ un requisito, no un gusto.
    esto se escribía: una lista habría quedado obsoleta en el mismo día. Si alguien crea un test de
    gobernanza con otro prefijo, queda fuera de la red; el prefijo es la convención, y conviene que
    siga siéndolo.
+
+---
+
+## 12. Correcciones exigidas por la revisión independiente de la Etapa 5
+
+Veredicto: **APROBADA CON CORRECCIONES**. La arquitectura sobrevivió al ataque y no se tocó: las
+diez fases, la autorización como techo, el diario como única fuente, G1–G12 y la negativa a aceptar
+un merge limpio como prueba siguen siendo exactamente lo que eran. Lo que cambió es que **la puerta
+ya no puede pasar sin haber medido**, que **nada se escribe fuera de la carpeta dedicada**, y que
+**cada comprobación tiene un caso donde falla**.
+
+El hilo común de las tres ALTA es una sola frase, y es la lección que esta etapa no se había
+aplicado a sí misma — la misma que la revisión de la Etapa 4 hizo sobre el otro instrumento del
+proyecto:
+
+> **Una medición que no ocurrió no es una medición de cero.** `[]` es *truthy*, una entrada ausente
+> del contexto y una entrada que midió cero valen lo mismo, y una comprobación que no puede fallar
+> informa exactamente lo que informa una que pasó.
+
+### A1 — G7 pasaba habiendo medido cero cuando la medición fallaba
+
+`divergenceSurface` devuelve `{ ok: false, …, modified: [] }` ante un fallo de git, y ni
+`phaseClassify` ni G7 leían `.ok`. El `||` no salvaba nada porque `[]` es *truthy*:
+`ctx.surface?.modified || Object.keys(DIVERGENCE_PROBES)` **nunca** caía al fallback. Medido por el
+revisor, y reproducido antes de arreglarlo:
+
+```
+divergenceSurface({ base: 'deadbeef…' }) → { "ok": false, "error": "fatal: Invalid revision range…", "modified": [] }
+G7 con esa superficie                     → PASS  "0 divergence(s) intact"   measured.files = []
+report.md                                 → "collisions: none — upstream did not touch the fork's divergence surface"
+```
+
+Una tranquilidad **calculada a partir de un fallo**, impresa en un archivo que se commitea. G7
+distingue ahora los **tres** estados que el `||` no podía expresar — `absent` (nadie midió, fallo de
+cableado), `unmeasured` (git no pudo, **fallo**) y `measured` con cero archivos (el único que puede
+pasar) — y `phaseClassify` falla antes de entregar nada aguas abajo. El fallback a las claves de
+`DIVERGENCE_PROBES` desapareció también por una segunda razón: con `files` tomado de esa tabla,
+`unprobed = files.filter((f) => !DIVERGENCE_PROBES[f])` era **necesariamente `[]`**, así que la mitad
+«divergencia sin vigilar» no podía dispararse por ese camino. Una rama que no puede fallar no es un
+fallback.
+
+### A2 — el motor de la puerta escribía en `/tmp` literal (REQUIREMENTS §1)
+
+`scopedConformance` usaba `mkdtempSync(join(tmpdir(), …))`, y `tmpdir()` sólo respeta `TMPDIR` si
+alguien la exportó: sin ella es `/tmp` literal, **fuera de la carpeta dedicada**. Corría en
+`phaseGovern` y en G3/G4/G5, es decir en **toda** ejecución de la puerta. Y el propio `NEVER_RUN` de
+ese archivo excluye `tests/eval-lint.test.js` con el motivo *«writes to a literal /tmp outside the
+dedicated folder (limit L2, REQUIREMENTS §1)»*: la regla que este archivo impone a otro, incumplida
+por este archivo.
+
+Arreglado por la vía que no depende de que nadie recuerde nada: el raíz se **deriva del árbol
+auditado** (`SCRATCH_DIR = .rsc-upstream/tmp`), nunca de una variable de entorno, y
+`scripts/lib/upstream-gate.js` ya no importa `node:os` en absoluto — un test lo afirma sobre el
+código, de modo que la regresión no puede volver en silencio. `.rsc-upstream/` se añadió a
+`.gitignore`, lo que de paso cierra la segunda mitad de M4 (un worktree huérfano ensuciaba
+`git status`).
+
+El mitigante que el revisor ya había medido sigue en pie y ahora está afirmado por test:
+`applyInstall` recibe `home` explícito y `scripts/install-apply.js` no llama a `homedir()` ni una
+vez, así que `~/.claude` era inalcanzable. **No exime**: la restricción §1 no dice «que no llegue a
+`~/.claude`», dice «que no escriba fuera de la carpeta dedicada».
+
+La segunda mitad de la corrección es documental, y era la peor parte: `MAINTENANCE.md` **no
+mencionaba `TMPDIR`, `HOME` ni `env.sh` en ninguna parte**, así que quien ejecutara
+`npm run upstream:maintain` como el documento enseñaba escribía fuera de la carpeta creyendo lo
+contrario. Ahora el documento abre con el entorno, variable por variable y con su motivo.
+
+### A3 — nada comprobaba que una comprobación PUDIERA fallar
+
+El test «the gate is a real instrument» era de **forma**: afirmaba que cada comprobación tiene
+`run()`, un `title` largo y un `kind` válido. Medido sobre el código anterior, con un contexto de
+`{ cwd, upstreamRef }` y nada más, **las doce pasaban** (G8 con su resultado sustituido para no
+pagar la suite). El revisor escribió «seis pasan» y enumeró ocho ids; el número correcto es **las
+doce**, porque G1, G2 y G12 también pasan — ésas por una razón distinta y legítima: miden el árbol
+real, que está sano. Las otras nueve pasaban porque **una entrada ausente es indistinguible de una
+entrada que midió cero**.
+
+La corrección es un **test de cobertura negativa**: `GATE_NEGATIVES` da, por cada comprobación, un
+árbol o un contexto donde su propiedad es **falsa**, y el test **deriva el conjunto de claves de
+`GATE_CHECKS`**, así que una comprobación nueva sin caso negativo rompe la suite en vez de unirse
+calladamente a una puerta que nadie demostró que muerde.
+
+**Y la misma corrección aplicada donde el diagnóstico también valía.** La frase del revisor —
+«una entrada ausente es indistinguible de una entrada que midió cero» — no afectaba sólo a G7. Una
+comprobación sin `classification` calculaba un alcance vacío y decía «no skill was added or modified
+by this change», que es cierto de un cambio que nadie clasificó y se lee igual que la misma frase
+sobre un cambio que de verdad no tocó ninguna skill; y G6 sin `attribution` caía a un literal
+`{ added: [], … }` y decía «no notice changed». Medido sobre el código anterior y sobre el corregido,
+con un contexto de `{ cwd, upstreamRef }` y nada más:
+
+```
+antes:  PASS G1 G2 G3 G4 G5 G6 G7 G8 G9 G10 G12 G11   → 12/12
+ahora:  PASS G1 G2 G5 G12 · FAIL G3 G4 G6 G7 G8 G9 G10 G11   → 4/12
+```
+
+Las cuatro que siguen pasando son las que **no reciben ninguna medición**: leen el árbol ellas
+mismas, y el árbol está sano. Un test afirma exactamente ese conjunto, así que una comprobación que
+consuma una medición no puede volver a pasar sin que se la hayan entregado.
+
+### Las seis MEDIO
+
+| | Qué pasaba | Qué se hizo |
+|---|---|---|
+| **M1** | `state.json` llevaba `"repo": "/Users/home/…"`, `report.md` rutas absolutas y `evidence/impacted-tests.json` el **valor** de `GIT_CEILING_DIRECTORIES`, todo hacia un directorio commiteable de un repositorio destinado a publicarse | todas las rutas **relativas** al repositorio (`repoRelative`), `repo` pasa a ser el **nombre** del directorio, `gitCeiling` es un **booleano** (la puerta sólo lo usa así), y un barrido final reescribe la ruta absoluta fuera de cualquier prosa, traza o `why` |
+| **M2** | el comentario de `runGate` decía que los acks venían «from the run journal, never from a flag»; venían exactamente de ahí, nada leía `state.decisions`, el bucle `recordDecision` estaba **dentro** del `if (resumeId)` y `--ack G6="anything at all"` daba `PASS G6` | el flag **registra** una decisión (en corrida fresca también), la puerta **lee** `state.decisions`, y cada ack se valida contra una forma comprobable: G6 una ruta que exista, G10 una revisión que `revParse` resuelva, G11 `N=<n>` más los ids que dice haber evaluado. Un ack rechazado se informa **como rechazado**, no como ausente |
+| **M3** | `phaseRemediate` ejecutaba dos generadores que **escriben** y no había **ningún** `git commit` en el orquestador; `phasePublish` fusionaba después una rama que **no contenía** la remediación, con la fuerza de un veredicto anterior a esa escritura | se commitean las dos rutas acotadas en la rama de integración y **`validate` se reabre** (`status = 'pending'`) cuando algo cambió: la puerta vuelve a correr sobre el árbol que la remediación produjo. Sin cambios, no hay commit vacío ni segunda pasada |
+| **M4** | sin `--worktree`, `integrate` hacía `git checkout <branch>` y ningún camino restauraba la referencia; bloquear es el resultado **normal** (G6, G10 y G11 necesitan a un humano) | `prepare` registra la referencia de partida, toda salida distinta de un run terminado la restaura, y un `--resume` que necesite el árbol integrado **vuelve a entrar** en la rama. Si git se niega, el informe nombra el comando en vez de afirmar un estado que no logró |
+| **M5** | la superficie era un **rango** (`base..HEAD`), así que una divergencia del árbol de trabajo era invisible — y muerde justo donde importa: una resolución de conflicto sin commitear, y `classify` que no se re-ejecuta en un resume | se mide contra el **árbol** (`git diff <base>`, sin `..`), el objeto dice `measuredAgainst`, y `validate` **vuelve a medirla** sobre el árbol integrado en vez de reutilizar la de `classify` |
+| **M6** | `runTests({ files: [] })` devolvía `{ ok: true, skipped: true }` **sin** `instrumentUnsound` ni `instrument`, así que G8 pasaba con `measured.instrument` en `undefined` justo cuando la corrida no ocurrió; y `alwaysRunFiles` se tragaba un fallo de `readdirSync` | un subconjunto vacío es un **fallo de enumeración**, no una ausencia de impacto: la red de gobernanza se deriva de `tests/` y siempre está dentro. `alwaysRunFiles` devuelve `{ files, error }`, G8 falla si la enumeración falla, y un `skipped` sin motivo declarado nunca cuenta como pass |
+
+### Las BAJO
+
+**B1** la mitad «rename» de G9 queda **declarada** como decidible-no-instrumentada en la propia
+comprobación (`rehomeDetection`), no inflada: sólo detecta que alguien edite la constante que
+`classifyCatalogChanges` escribe a mano, y detectar un re-alojamiento real exigiría un identificador
+estable que el catálogo no tiene. · **B2** el `detail` de G10 se construye ahora **en la rama de
+fallo**; antes un PASS imprimía «not in RETIRED_SKILLS … Add the entry by hand». · **B3** cubierto
+por M2. · **B4** el puntero `latest` se escribe con el mismo `write`+`rename` que `state.json`, y un
+`state.json.tmp` superviviente se borra en el siguiente guardado en vez de quedar en un directorio
+commiteable. · **B5** el resultado de una fase **reemplaza** el anterior, incluso cuando es nulo, y
+`resumeRun` documenta que conserva `data` **a propósito**, porque es la entrada del resume. · **B6**
+el `ignore` de la superficie es `docs/fork/`, no `docs/`: upstream también posee archivos bajo
+`docs/`, y hoy los dos conjuntos coinciden — medido. · **B7** cerrado: `NOTICE`, `COPYING`,
+`LICENCE`, `AUTHORS`, `COPYRIGHT` y `PATENTS` cuentan como notas de atribución, porque
+**Apache-2.0 §4(d) obliga a propagar `NOTICE`** y el fork ya carga material Apache-2.0. El matcher
+**sobre-detecta a propósito** (hoy también dos documentos de referencia de skills que no son notas):
+un falso positivo cuesta un `--ack`; un falso negativo cuesta una violación de licencia que se
+publica. No son comparables.
+
+### Un defecto encontrado al escribir la cobertura negativa, que la revisión no vio
+
+`runTests` **no era parseable desde dentro de un proceso de test**. Node elige su reporter según el
+contexto que cree tener: un hijo lanzado desde un `node --test` hereda `NODE_TEST_CONTEXT` y emite
+el protocolo interno serializado en vez de TAP, así que `parseTap` devolvía `null` en todos los
+contadores y la puerta medía «`null` pasados de `null` pruebas». No se había visto porque la corrida
+real se lanza desde la shell, y **G8 nunca se había llamado desde un test** hasta ahora. Arreglado
+con `--test-reporter=tap` explícito y borrando `NODE_TEST_CONTEXT` del entorno del hijo. Es el mismo
+modo de fallo que M6: un instrumento que no informa nada no debe confundirse con uno que informó
+cero problemas.
+
+### Lo que la revisión acertó y lo que no
+
+Acertó en los diecinueve hallazgos sustantivos: todos se reprodujeron sobre el código anterior antes
+de tocarlo. Dos imprecisiones, ambas de cifra y ninguna de fondo:
+
+1. **«seis pasan» en A3, seguido de una lista de ocho ids.** Pasaban **las doce**. La conclusión del
+   hallazgo es más fuerte que su número.
+2. **«`git diff base..HEAD` da 8; `git diff base` da 9».** Cierto cuando se midió. Hoy el árbol está
+   limpio y la superficie son **51 archivos modificados y 25 añadidos**, porque la Etapa 6 commiteó.
+   La lógica del hallazgo es exacta; la aritmética era de aquel momento.
+
+Y una consecuencia que no era un error de la revisión sino el estado del árbol: **G7 fallaba sobre la
+superficie viva**, con 43 divergencias sin sonda de intención. Era correcto — una divergencia sin
+vigilar es un fallo, y es precisamente lo que G7 existe para decir —, y la tabla `DIVERGENCE_PROBES`
+no se amplió *en esa ronda de revisión*: decidir qué es cada una de esas 43 divergencias no era una
+corrección de revisión, era leerse los 43 diffs.
+
+> **Cerrado después, en su propia ronda.** Eso es exactamente lo que se hizo: los diffs leídos uno a
+> uno, las tres clases de §5, y la tabla de **8 a 62 entradas / 144 sondas**. G7 pasa sobre la
+> superficie medida en ejecución, y el verde está mutado. La negativa a ampliarla a ciegas fue la
+> decisión correcta: de los 62, **23 tienen intención propia** y habrían quedado tapados bajo una
+> frase genérica, y dos (`tests/worktree-reaper.test.js`, `README.md`) necesitan **no** llevar la
+> sonda que un barrido les habría puesto.
+
+### Dos observaciones sobre mi propio diseño que no corrijo, y por qué
+
+1. **La lista de acciones manuales de `remediate` derivada de la puerta es inalcanzable.** El bucle
+   del orquestador hace `if (out.status !== 'done') break`, así que si `validate` bloquea el run se
+   detiene ahí y `remediate` no llega a ejecutarse nunca. Su bucle `for (const r of ctx.gateResults)
+   { if (r.ok) continue; … }` sólo puede recorrer comprobaciones fallidas si el veredicto fue
+   `pass`, y un `pass` no tiene ninguna. La información no se pierde — la tabla de la puerta imprime
+   cada `FAIL` con su `detail`, y las decisiones abiertas salen en su propia sección —, pero esas
+   pistas concretas no se emiten. Arreglarlo exige cambiar el control de flujo de las fases, que es
+   arquitectura de la etapa y no una corrección de revisión. Queda registrado.
+2. ~~**`G7` falla hoy sobre la superficie viva** (43 de 51 divergencias sin sonda).~~ **Resuelto en
+   una ronda posterior:** 62 entradas, 144 sondas, `PASS · unprobed=0`, con la mutación que lo
+   prueba. Lo que queda escrito de esta observación es la razón por la que no se resolvió aquí, y
+   que sigue siendo buena: una sonda inventada da falsa tranquilidad, que es el defecto A1 de esta
+   misma etapa con otro disfraz.

@@ -1565,3 +1565,38 @@ El contenido de `README.md`, `site/`, `SECURITY.md` y `site/assets/rsc.js` es de
 
 ### Cifras
 `governance-{recovery,gate,doctor}` → **54/54, 0 fallos, EXIT 0** (8 tests nuevos, `gr11` reescrito) · `governance-identity` → **15/15** sin tocarlo · red de la etapa **69 tests, 0 fallos** · vecinos de lo tocado (`backups`, `apply`, `governance-customization`, `governance-upstream-change`, `rsc-cli`, `public-surface`) → **127/127, 0 fallos**.
+
+---
+
+## 2w. Las 43 sondas de intención — la tabla pasa de 8 a 62 y G7 pasa sobre la superficie viva
+
+**Primero, dos errores míos.** (1) Le dije que la tabla vivía en `scripts/lib/upstream-gate.js`: vive en **`scripts/lib/upstream-survey.js`** (la puerta importa `checkProbes` y `DIVERGENCE_PROBES` de ahí). Es la tercera vez en la sesión que afirmo en qué archivo vive algo sin abrirlo. (2) **Mandé la petición de datos de `gg25` al agente equivocado** — se la mandé a esta ronda creyendo que era la Etapa 7. Contestó igual, con mediciones, y **corrigió mi atribución**: no ha tocado `SECURITY.md` en ningún momento; esas ediciones son de la Etapa 7.
+
+**Verificado por mí:** la tabla tiene **62 entradas y 144 sondas**, y la superficie viva son **62 archivos modificados**. Los dos números coinciden, que es lo que hace `unprobed = 0`.
+
+### El hallazgo es que la superficie se movió mientras trabajaba, y el instrumento lo cazó cada vez
+**53 → 54 → 62.** Midió 53, escribió la tabla, y G7 denunció `README.md`, que la Etapa 7 acababa de aterrizar. Lo sondeó, y G7 denunció **ocho más**: `SECURITY.md` y siete de `site/`. **G7 nombró cada uno, por ruta, en la corrida siguiente a su aparición.** No hay mejor demostración de que la comprobación mide y no recita: encontró divergencias que **nadie le había dicho que existían**, mientras existían.
+
+### Las sondas son de dos lados, y el segundo es el que importa
+El par de identidad lleva `present` sobre el token renombrado —corto **a propósito**, porque una línea larga se rompe en un **reformateo**, que no es una reversión— y `absent` sobre `@ericrisco/rsc`, **medido a 0** en los 39 archivos que lo llevan. `present` sola no vería el accidente que la Etapa 6 midió: un merge que **añade** una referencia al padre **al lado** de la renombrada.
+
+Y las sondas más finas son donde el mismo token recibe **veredictos opuestos dentro de un archivo**: en los dos `index.html`, el **host de Pages** de upstream nunca es atribución (sondado `absent`), mientras que el **enlace al repositorio** sí lo es, y las dos URLs del perfil del autor en el JSON-LD son **atribución que MIT exige**. *«A sweep could not have made that call»* — y tiene razón: eso es exactamente lo que distingue decidir de reemplazar.
+
+### Una clase de defecto que yo no había previsto
+**Aserciones negativas que se volvieron vacuamente ciertas al renombrar el binario.** `tests/hooks-path.test.js` y `tests/worktree-reaper.test.js` afirmaban cosas como `!/rsc repair/`, que **ya no puede fallar** cuando el binario se llama `rscg`. El renombrado de la Etapa 6 no rompió esos tests: los **vació**. Sondados por la forma reparada más un `absent` sobre la forma vacua.
+
+**Y arregló una sonda que no podía fallar**, que es la **quinta** aparición de esa clase en la sesión y la primera cazada **antes** de que mordiera: tres tests usaban `scripts/audit.js` como su ejemplo de «archivo sin sondar», y D16 lo había convertido en una divergencia **con dos sondas**, así que esos casos negativos estaban a punto de ponerse verdes **por accidente**. Ahora apuntan a una constante declarada. Además, el test de exhaustividad ya no **cita** una lista de archivos: **mide** la superficie como hace G7.
+
+### Lo que declara como más débil, que es la parte honesta
+Llegó a una intención defendible para las 62, pero **10 descansan sobre base más floja**: archivos donde el token renombrado vive **sólo en un comentario**, así que la sonda protege una afirmación documental **sin conducta observable detrás**. Los nombra uno por uno. Las otras 29 de identidad tienen el token en una cadena ejecutable o afirmada, que sí es garantía.
+
+### Las mutaciones
+Dos **en disco** sobre divergencias reales (revertir el fragmento de `targets/claude.js`, y añadir `npx @ericrisco/rsc@latest` a `upgrade.js`): G7 **nombra los dos archivos y distingue los dos tipos de fallo**. Doce **en memoria** sobre todas las clases nuevas —las estrellas volviendo al repositorio del padre, el host del sitemap, el `npx` renderizado **dentro** de `diagram.svg`, los comandos del archivo de instrucciones para agentes, el `! grep` regresando, la URL del registro **percent-encoded**—: **12 de 12 cazadas**.
+
+### El límite que queda, y es una propiedad, no un defecto
+La tabla se mide contra el **árbol de trabajo**, igual que G7, así que otra ronda que toque un archivo de upstream **pone el test rojo pidiendo una sonda**. Es la conducta correcta —es como aparecieron `README.md`, `SECURITY.md` y `site/`— pero significa que **la tabla y el árbol se mantienen juntos**. `NV-E5-6` queda **cerrado**: G7 sobre la superficie viva está medido y pasa.
+
+### Los datos de `gg25`, medidos por esta ronda (la Etapa 7 sigue en vuelo)
+**`spec` 49 → 2 · `url` 89 → 24.** La mitad **ejecutable** está prácticamente eliminada: los 2 especificadores que quedan están **los dos dentro de una celda de comparación padre-contra-fork** del README, no ejecutables por construcción, porque su trabajo es justamente contrastar. `site/index.html`, `site/es/index.html` y `site/llms.txt` llegan a **`spec` 0**. Cuatro entradas llegan a **cero entero** y hay que **borrarlas** de la lista, que es lo que su propia aserción exige. Y `site/assets/rsc.js` ya pide las estrellas **del fork**.
+
+**El único `url` que sube es `SECURITY.md`, 1 → 4, y las cuatro deben apuntar al padre:** dos son la declaración de fork más el **aviso de copyright MIT** (*«a governed fork of `ericrisco/rsc-harness` (© 2026 Eric Risco, MIT)»*), que MIT **exige**; y dos son el enrutado de vulnerabilidades, porque un fallo en código **heredado** va al formulario del padre, que es el único que puede arreglarlo para todos los que están aguas abajo. Ninguna es ejecutable (`spec` 0). Reconcilio la lista cuando la Etapa 7 cierre, porque sus números se van a mover otra vez.
